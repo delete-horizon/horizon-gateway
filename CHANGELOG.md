@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.8.4] - 2026-09-07
+
+### Added
+
+- **Team chat (P2P MVP)**: KakaoTalk-style inbox/room windows for DM and group chat. Message bodies stay on-device; Supabase is used only for signaling (`device_keys`, `peer_sessions`, `chat_rooms` meta).
+- **E2E crypto**: Per-device X25519 keys, DM session keys via ECDH+HKDF (userIds as salt only), AES-GCM seal/open, group room-key wrap.
+- **LAN → tunnel connect**: Peer TCP listener advertises LAN hosts first; failed sends retry via tunnel endpoint / outbox.
+- **Comm action overlay**: Shared tiny-skia animation engine with Windows click-through layered HWND presenter (macOS/Linux degrade stubs). Action chips in chat rooms play short stacked overlays without stealing input focus.
+
 ## [v2.8.3] - 2026-09-04
 
 ### Added

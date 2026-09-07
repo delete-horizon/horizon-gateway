@@ -1,10 +1,15 @@
 import { useWindowLabel } from "./useWindowLabel";
 
-export type EmbedMode = "standalone" | "popup" | "detached";
+export type EmbedMode = "standalone" | "popup" | "detached" | "chat";
 
 export function useIsPopupWindow(): boolean {
   const label = useWindowLabel();
   return label.startsWith("popup-");
+}
+
+export function useIsChatWindow(): boolean {
+  const label = useWindowLabel();
+  return label === "chat-inbox" || label.startsWith("chat-room-");
 }
 
 export function useEmbedMode(): EmbedMode {
@@ -14,6 +19,9 @@ export function useEmbedMode(): EmbedMode {
   }
   if (label.startsWith("detached-")) {
     return "detached";
+  }
+  if (label === "chat-inbox" || label.startsWith("chat-room-")) {
+    return "chat";
   }
   return "standalone";
 }

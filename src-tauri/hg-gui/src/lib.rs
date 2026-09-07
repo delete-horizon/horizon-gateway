@@ -1,3 +1,5 @@
+#![allow(unsafe_code)]
+
 use tauri::{Emitter, Manager};
 use tauri_plugin_deep_link::DeepLinkExt;
 
@@ -5,15 +7,23 @@ pub use hg_core::model;
 
 mod logging;
 pub mod serve;
+mod chat;
+mod comm_overlay;
 
 mod command {
     pub mod window_commands;
 }
 
+use chat::{
+    chat_derive_dm_key, chat_ensure_identity, chat_generate_room_key, chat_open, chat_seal,
+    chat_send_frame, chat_start_listener, chat_stop_listener, chat_unwrap_room_key,
+    chat_wrap_room_key,
+};
 use command::window_commands::{
     capture_app_screenshot, open_annotation_dialog, open_external_url, open_inspector_window,
     open_window, prepare_for_update, quit_app, trigger_os_snip,
 };
+use comm_overlay::{clear_comm_overlay, play_comm_action};
 
 pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
     tauri_specta::Builder::<tauri::Wry>::new().commands(tauri_specta::collect_commands![
@@ -25,6 +35,18 @@ pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         prepare_for_update,
         capture_app_screenshot,
         trigger_os_snip,
+        chat_ensure_identity,
+        chat_derive_dm_key,
+        chat_generate_room_key,
+        chat_wrap_room_key,
+        chat_unwrap_room_key,
+        chat_seal,
+        chat_open,
+        chat_start_listener,
+        chat_stop_listener,
+        chat_send_frame,
+        play_comm_action,
+        clear_comm_overlay,
     ])
 }
 
@@ -126,6 +148,8 @@ pub fn run() {
             if !is_cli_mode {
                 crate::serve::start_event_forwarder(app.handle().clone());
             }
+
+            crate::chat::peer::set_app_handle(app.handle().clone());
 
             Ok(())
         })

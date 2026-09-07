@@ -50,6 +50,8 @@ import { Route as ApisLogsIndexRouteImport } from './routes/apis/logs/index'
 import { Route as ApisJsonSchemaIndexRouteImport } from './routes/apis/json-schema/index'
 import { Route as ApisDashboardIndexRouteImport } from './routes/apis/dashboard/index'
 import { Route as ApisClientIndexRouteImport } from './routes/apis/client/index'
+import { Route as ChatIndexRouteImport } from './routes/chat/index'
+import { Route as ChatRoomIdRouteImport } from './routes/chat/$roomId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -59,6 +61,16 @@ const IndexRoute = IndexRouteImport.update({
 const TeamIndexRoute = TeamIndexRouteImport.update({
   id: '/team/',
   path: '/team/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatIndexRoute = ChatIndexRouteImport.update({
+  id: '/chat/',
+  path: '/chat/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatRoomIdRoute = ChatRoomIdRouteImport.update({
+  id: '/chat/$roomId',
+  path: '/chat/$roomId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
@@ -271,6 +283,8 @@ export interface FileRoutesByFullPath {
   '/server-logs/': typeof ServerLogsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/team/': typeof TeamIndexRoute
+  '/chat/': typeof ChatIndexRoute
+  '/chat/$roomId': typeof ChatRoomIdRoute
   '/apis/client/': typeof ApisClientIndexRoute
   '/apis/dashboard/': typeof ApisDashboardIndexRoute
   '/apis/json-schema/': typeof ApisJsonSchemaIndexRoute
@@ -314,6 +328,8 @@ export interface FileRoutesByTo {
   '/server-logs': typeof ServerLogsIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/team': typeof TeamIndexRoute
+  '/chat': typeof ChatIndexRoute
+  '/chat/$roomId': typeof ChatRoomIdRoute
   '/apis/client': typeof ApisClientIndexRoute
   '/apis/dashboard': typeof ApisDashboardIndexRoute
   '/apis/json-schema': typeof ApisJsonSchemaIndexRoute
@@ -358,6 +374,8 @@ export interface FileRoutesById {
   '/server-logs/': typeof ServerLogsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/team/': typeof TeamIndexRoute
+  '/chat/': typeof ChatIndexRoute
+  '/chat/$roomId': typeof ChatRoomIdRoute
   '/apis/client/': typeof ApisClientIndexRoute
   '/apis/dashboard/': typeof ApisDashboardIndexRoute
   '/apis/json-schema/': typeof ApisJsonSchemaIndexRoute
@@ -403,6 +421,8 @@ export interface FileRouteTypes {
     | '/server-logs/'
     | '/settings/'
     | '/team/'
+    | '/chat/'
+    | '/chat/$roomId'
     | '/apis/client/'
     | '/apis/dashboard/'
     | '/apis/json-schema/'
@@ -446,6 +466,8 @@ export interface FileRouteTypes {
     | '/server-logs'
     | '/settings'
     | '/team'
+    | '/chat'
+    | '/chat/$roomId'
     | '/apis/client'
     | '/apis/dashboard'
     | '/apis/json-schema'
@@ -489,6 +511,8 @@ export interface FileRouteTypes {
     | '/server-logs/'
     | '/settings/'
     | '/team/'
+    | '/chat/'
+    | '/chat/$roomId'
     | '/apis/client/'
     | '/apis/dashboard/'
     | '/apis/json-schema/'
@@ -533,6 +557,8 @@ export interface RootRouteChildren {
   ServerLogsIndexRoute: typeof ServerLogsIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
   TeamIndexRoute: typeof TeamIndexRoute
+  ChatIndexRoute: typeof ChatIndexRoute
+  ChatRoomIdRoute: typeof ChatRoomIdRoute
   ApisClientIndexRoute: typeof ApisClientIndexRoute
   ApisDashboardIndexRoute: typeof ApisDashboardIndexRoute
   ApisJsonSchemaIndexRoute: typeof ApisJsonSchemaIndexRoute
@@ -579,6 +605,20 @@ declare module '@tanstack/react-router' {
       path: '/team'
       fullPath: '/team/'
       preLoaderRoute: typeof TeamIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chat/': {
+      id: '/chat/'
+      path: '/chat'
+      fullPath: '/chat/'
+      preLoaderRoute: typeof ChatIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chat/$roomId': {
+      id: '/chat/$roomId'
+      path: '/chat/$roomId'
+      fullPath: '/chat/$roomId'
+      preLoaderRoute: typeof ChatRoomIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings/': {
@@ -869,6 +909,8 @@ const rootRouteChildren: RootRouteChildren = {
   ServerLogsIndexRoute: ServerLogsIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
   TeamIndexRoute: TeamIndexRoute,
+  ChatIndexRoute: ChatIndexRoute,
+  ChatRoomIdRoute: ChatRoomIdRoute,
   ApisClientIndexRoute: ApisClientIndexRoute,
   ApisDashboardIndexRoute: ApisDashboardIndexRoute,
   ApisJsonSchemaIndexRoute: ApisJsonSchemaIndexRoute,

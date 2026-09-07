@@ -16,13 +16,14 @@ import {
 import { CreateMockModal } from "@/entities/mocking";
 import { proxyPortInputAtom, proxyStatusAtom } from "@/entities/proxy";
 import { BugReportModal, bugReportModalOpenAtom } from "@/features/bug-report";
+import { TeamCommsRuntime } from "@/features/chat";
 import { CommandPalette, commandPaletteOpenAtom } from "@/features/command-palette";
 import { useHubHandoffSync } from "@/features/panel-stack";
 import { DetachedWindowLayout, PopupWindowLayout } from "@/features/popup-window";
 import { UpdateBanner, UpdateChangelogModal, UpdateToolbarBadge, useUpdateCheck } from "@/features/update";
 import { UserProfileSetup } from "@/features/user-profile";
 import { useShortcut } from "@/shared/lib/keyboard";
-import { useIsDetachedWindow, useIsPopupWindow } from "@/shared/lib/tauri/useEmbedMode";
+import { useIsChatWindow, useIsDetachedWindow, useIsPopupWindow } from "@/shared/lib/tauri/useEmbedMode";
 import { useIsDetached } from "@/shared/lib/tauri/useIsDetached";
 import { createMockModalAtom } from "@/shared/store/modals";
 import { ErrorBoundary } from "@/shared/ui/error-boundary";
@@ -58,9 +59,11 @@ const RootLayout = () => {
   const lang = useAtomValue(languageAtom);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isPopupWindow = useIsPopupWindow();
+  const isChatWindow = useIsChatWindow();
   const isDetachedWindow = useIsDetachedWindow();
   const isDetached = useIsDetached();
   const isHubPage = pathname === "/";
+  const isCompactWindow = isPopupWindow || isChatWindow;
 
   useEffect(() => {
     if (activeTheme) {
@@ -109,11 +112,12 @@ const RootLayout = () => {
     <main
       className={clsx(
         "flex-1 overflow-hidden",
-        isDetached && !isPopupWindow && !isDetachedWindow && "p-0",
+        isDetached && !isPopupWindow && !isDetachedWindow && !isChatWindow && "p-0",
         !isDetached &&
           !isHubPage &&
           !isPopupWindow &&
           !isDetachedWindow &&
+          !isChatWindow &&
           "overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]",
       )}
     >
@@ -124,17 +128,18 @@ const RootLayout = () => {
             !isHubPage &&
             !isPopupWindow &&
             !isDetachedWindow &&
+            !isChatWindow &&
             "mx-auto max-w-(--breakpoint-2xl) p-5 tablet:p-8 lg:p-10 overflow-y-auto",
-          (isHubPage || isPopupWindow || isDetachedWindow) && "h-full min-h-0",
+          (isHubPage || isPopupWindow || isDetachedWindow || isChatWindow) && "h-full min-h-0",
         )}
       >
-        {backendUnavailable && !isDetached && !isPopupWindow && !isDetachedWindow && (
+        {backendUnavailable && !isDetached && !isPopupWindow && !isDetachedWindow && !isChatWindow && (
           <div className="mb-4 rounded-lg border border-error/40 bg-error/10 px-4 py-3 text-sm text-error">
             백엔드(serve)에 연결할 수 없습니다. 프록시·라우팅 기능이 동작하지 않을 수 있습니다.
             <span className="mt-1 block text-xs opacity-80">{backendUnavailable}</span>
           </div>
         )}
-        {showUpdateBanner && !isDetached && !isHubPage && !isPopupWindow && !isDetachedWindow && update && (
+        {showUpdateBanner && !isDetached && !isHubPage && !isPopupWindow && !isDetachedWindow && !isChatWindow && update && (
           <div className="mb-4">
             <UpdateBanner update={update} onDismiss={() => setDismissedUpdate(true)} />
           </div>
@@ -186,14 +191,21 @@ const RootLayout = () => {
     </>
   );
 
-  if (isPopupWindow) {
+  if (isCompactWindow) {
     return (
-      <ErrorBoundary fallbackTitle="Popup window error">
+      <ErrorBoundary fallbackTitle={isChatWindow ? "Chat window error" : "Popup window error"}>
         <div className="h-screen w-full overflow-hidden bg-base-200 text-base-content font-sans transition-colors duration-300">
-          <PopupWindowLayout>
-            <AnimatePresence>{isLoading && <LoadingScreen key="global-loader" />}</AnimatePresence>
-            {content}
-          </PopupWindowLayout>
+          {isPopupWindow ? (
+            <PopupWindowLayout>
+              <AnimatePresence>{isLoading && <LoadingScreen key="global-loader" />}</AnimatePresence>
+              {content}
+            </PopupWindowLayout>
+          ) : (
+            <>
+              <AnimatePresence>{isLoading && <LoadingScreen key="global-loader" />}</AnimatePresence>
+              {content}
+            </>
+          )}
           {globalOverlays}
           {import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-right" /> : null}
         </div>
@@ -239,6 +251,7 @@ const RootLayout = () => {
         </div>
 
         {globalOverlays}
+        <TeamCommsRuntime />
         {import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-right" /> : null}
       </div>
     </ErrorBoundary>

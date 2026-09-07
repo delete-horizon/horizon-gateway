@@ -1,6 +1,7 @@
-import { CloudUpload, CreditCard, Globe, Pencil, Trash2, Users } from "lucide-react";
+import { CloudUpload, CreditCard, Globe, MessageCircle, Pencil, Trash2, Users } from "lucide-react";
 import { useState } from "react";
 import type { TeamWorkspaceController } from "../model/useTeamWorkspace";
+import { openChatInboxWindow } from "@/shared/lib/tauri/openChatWindow";
 import { TeamPanelFrame } from "./TeamPanelFrame";
 import { WorkspaceSettingsModal, type WorkspaceSettingsModalMode } from "./WorkspaceSettingsModal";
 
@@ -70,6 +71,22 @@ export function WorkspaceHomePanel({ ctrl, onClose }: WorkspaceHomePanelProps) {
               </div>
             )}
           </div>
+
+          <button
+            type="button"
+            onClick={() => void openChatInboxWindow()}
+            className="flex items-center gap-3 p-3 rounded-xl border border-base-200 bg-base-200/30 hover:bg-base-200/60 text-left transition-colors"
+          >
+            <span className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
+              <MessageCircle className="w-4 h-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-bold">{lang === "ko" ? "팀 채팅" : "Team chat"}</p>
+              <p className="text-[10px] text-base-content/45">
+                {lang === "ko" ? "DM · 그룹 · 의사소통 액션 (P2P)" : "DM · groups · comm actions (P2P)"}
+              </p>
+            </div>
+          </button>
 
           <button
             type="button"

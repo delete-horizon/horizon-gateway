@@ -4,6 +4,15 @@
 
 이 형식은 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)를 기반으로 합니다.
 
+## [v2.8.4] - 2026-09-07
+
+### Added (추가 기능)
+
+- **팀 채팅 (P2P MVP)**: SMS/카카오톡형 인박스·방 창(DM·그룹). 메시지 본문은 기기에만 두고, Supabase는 시그널링(`device_keys`, `peer_sessions`, `chat_rooms` 메타)만 사용.
+- **E2E 암호화**: 기기별 X25519, DM은 ECDH+HKDF(userId는 salt만), AES-GCM seal/open, 그룹 방키 wrap.
+- **LAN → 터널 연결**: TCP 리스너가 LAN을 먼저 광고하고, 실패 시 터널/outbox로 재시도.
+- **의사소통 액션 오버레이**: 공통 tiny-skia 엔진 + Windows click-through layered HWND(macOS/Linux는 degrade). 채팅 칩으로 짧은 중첩 애니 재생, 입력 포커스 유지.
+
 ## [v2.8.3] - 2026-09-04
 
 ### Added (추가 기능)

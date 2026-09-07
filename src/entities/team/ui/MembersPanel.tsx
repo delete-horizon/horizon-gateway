@@ -1,5 +1,7 @@
-import { Check, Copy, Crown, Link, Loader2, Lock, Shield, ShieldOff, Trash2, UserPlus, Users } from "lucide-react";
+import { Check, Copy, Crown, Link, Loader2, Lock, MessageCircle, Shield, ShieldOff, Trash2, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
+import { ensureDmRoom } from "@/entities/chat";
+import { openChatRoomWindow } from "@/shared/lib/tauri/openChatWindow";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
 import type { TeamWorkspaceController } from "../model/useTeamWorkspace";
@@ -131,6 +133,29 @@ export function MembersPanel({ ctrl, onClose }: MembersPanelProps) {
                       )}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
+                      {!isSelf && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!userId || !activeWorkspace) {
+                              return;
+                            }
+                            void (async () => {
+                              const room = await ensureDmRoom({
+                                workspaceId: activeWorkspace.id,
+                                myId: userId,
+                                peerId: m.profile_id,
+                                peerName: primary,
+                              });
+                              await openChatRoomWindow(room.id, primary);
+                            })();
+                          }}
+                          className="p-1 rounded-md text-emerald-500/80 hover:text-emerald-500 hover:bg-emerald-500/10"
+                          title={lang === "ko" ? "DM 열기" : "Open DM"}
+                        >
+                          <MessageCircle className="w-3 h-3" />
+                        </button>
+                      )}
                       <span className="text-[10px] font-bold uppercase text-base-content/40">{m.role}</span>
                       {canPromoteAdmin && (
                         <button
