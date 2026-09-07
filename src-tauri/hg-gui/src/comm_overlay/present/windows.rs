@@ -2,6 +2,7 @@
 
 use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{self, Sender};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -10,7 +11,7 @@ use parking_lot::Mutex;
 use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, SIZE, WPARAM};
 use windows_sys::Win32::Graphics::Gdi::{
     CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, GetDC, ReleaseDC, SelectObject,
-    BITMAPINFO, BITMAPINFOHEADER, BI_RGB, BLENDFUNCTION, DIB_RGB_COLORS, HGDIOBJ,
+    BITMAPINFO, BITMAPINFOHEADER, BI_RGB, BLENDFUNCTION, DIB_RGB_COLORS, HBITMAP, HDC, HGDIOBJ,
 };
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
@@ -22,20 +23,25 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::comm_overlay::engine::{ActionKind, Engine};
-use crate::comm_overlay::raster::rasterize;
+use crate::comm_overlay::raster::rasterize_into;
 
-struct OverlayState {
-    engine: Engine,
-    hwnd: usize,
-    width: i32,
-    height: i32,
+enum OverlayCmd {
+    Play { kind: ActionKind, seed: Option<u64> },
+    Clear,
+    Shutdown,
 }
 
-static STATE: OnceCell<Mutex<Option<OverlayState>>> = OnceCell::new();
+struct Shared {
+    tx: Mutex<Option<Sender<OverlayCmd>>>,
+}
+
+static SHARED: OnceCell<Shared> = OnceCell::new();
 static RUNNING: AtomicBool = AtomicBool::new(false);
 
-fn state() -> &'static Mutex<Option<OverlayState>> {
-    STATE.get_or_init(|| Mutex::new(None))
+fn shared() -> &'static Shared {
+    SHARED.get_or_init(|| Shared {
+        tx: Mutex::new(None),
+    })
 }
 
 unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, w: WPARAM, l: LPARAM) -> LRESULT {
@@ -47,6 +53,20 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, w: WPARAM, l: LPARAM) -
 
 fn to_wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
+}
+
+/// Cap raster size so a 4K/8K desktop cannot OOM the process.
+fn capped_dims(screen_w: i32, screen_h: i32) -> (i32, i32, f32) {
+    const MAX_W: i32 = 1920;
+    const MAX_H: i32 = 1080;
+    let screen_w = screen_w.max(1);
+    let screen_h = screen_h.max(1);
+    let scale = (MAX_W as f32 / screen_w as f32)
+        .min(MAX_H as f32 / screen_h as f32)
+        .min(1.0);
+    let w = ((screen_w as f32) * scale).round().max(1.0) as i32;
+    let h = ((screen_h as f32) * scale).round().max(1.0) as i32;
+    (w, h, scale)
 }
 
 unsafe fn ensure_window(width: i32, height: i32) -> Result<HWND, String> {
@@ -87,78 +107,128 @@ unsafe fn ensure_window(width: i32, height: i32) -> Result<HWND, String> {
     Ok(hwnd)
 }
 
-unsafe fn blit(hwnd: HWND, width: i32, height: i32, pixels: &[u8]) -> Result<(), String> {
-    let mut bgra = vec![0u8; pixels.len()];
-    for (i, chunk) in pixels.chunks_exact(4).enumerate() {
-        let r = chunk[0] as u16;
-        let g = chunk[1] as u16;
-        let b = chunk[2] as u16;
-        let a = chunk[3] as u16;
-        let o = i * 4;
-        bgra[o] = ((b * a) / 255) as u8;
-        bgra[o + 1] = ((g * a) / 255) as u8;
-        bgra[o + 2] = ((r * a) / 255) as u8;
-        bgra[o + 3] = a as u8;
+struct DibBucket {
+    hdc_screen: HDC,
+    hdc_mem: HDC,
+    hbmp: HBITMAP,
+    old: HGDIOBJ,
+    bits: *mut u8,
+    width: i32,
+    height: i32,
+    bgra: Vec<u8>,
+}
+
+impl DibBucket {
+    unsafe fn new(width: i32, height: i32) -> Result<Self, String> {
+        let px = (width as usize).saturating_mul(height as usize).saturating_mul(4);
+        if px == 0 || px > 1920 * 1080 * 4 {
+            return Err("overlay size out of range".into());
+        }
+        let mut bgra = Vec::new();
+        bgra.try_reserve_exact(px).map_err(|_| "overlay OOM".to_string())?;
+        bgra.resize(px, 0);
+
+        let hdc_screen = GetDC(ptr::null_mut());
+        if hdc_screen.is_null() {
+            return Err("GetDC failed".into());
+        }
+        let hdc_mem = CreateCompatibleDC(hdc_screen);
+        if hdc_mem.is_null() {
+            ReleaseDC(ptr::null_mut(), hdc_screen);
+            return Err("CreateCompatibleDC failed".into());
+        }
+
+        let mut bmi: BITMAPINFO = std::mem::zeroed();
+        bmi.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as u32;
+        bmi.bmiHeader.biWidth = width;
+        bmi.bmiHeader.biHeight = -height;
+        bmi.bmiHeader.biPlanes = 1;
+        bmi.bmiHeader.biBitCount = 32;
+        bmi.bmiHeader.biCompression = BI_RGB;
+
+        let mut bits: *mut std::ffi::c_void = ptr::null_mut();
+        let hbmp = CreateDIBSection(
+            hdc_mem,
+            &bmi,
+            DIB_RGB_COLORS,
+            &mut bits,
+            ptr::null_mut(),
+            0,
+        );
+        if hbmp.is_null() || bits.is_null() {
+            DeleteDC(hdc_mem);
+            ReleaseDC(ptr::null_mut(), hdc_screen);
+            return Err("CreateDIBSection failed".into());
+        }
+        let old = SelectObject(hdc_mem, hbmp as HGDIOBJ);
+        Ok(Self {
+            hdc_screen,
+            hdc_mem,
+            hbmp,
+            old,
+            bits: bits as *mut u8,
+            width,
+            height,
+            bgra,
+        })
     }
 
-    let hdc_screen = GetDC(ptr::null_mut());
-    let hdc_mem = CreateCompatibleDC(hdc_screen);
-    let mut bmi: BITMAPINFO = std::mem::zeroed();
-    bmi.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as u32;
-    bmi.bmiHeader.biWidth = width;
-    bmi.bmiHeader.biHeight = -height;
-    bmi.bmiHeader.biPlanes = 1;
-    bmi.bmiHeader.biBitCount = 32;
-    bmi.bmiHeader.biCompression = BI_RGB;
+    unsafe fn blit(&mut self, hwnd: HWND, rgba: &[u8]) -> Result<(), String> {
+        if rgba.len() != self.bgra.len() {
+            return Err("pixel buffer size mismatch".into());
+        }
+        for (i, chunk) in rgba.chunks_exact(4).enumerate() {
+            let r = chunk[0] as u16;
+            let g = chunk[1] as u16;
+            let b = chunk[2] as u16;
+            let a = chunk[3] as u16;
+            let o = i * 4;
+            self.bgra[o] = ((b * a) / 255) as u8;
+            self.bgra[o + 1] = ((g * a) / 255) as u8;
+            self.bgra[o + 2] = ((r * a) / 255) as u8;
+            self.bgra[o + 3] = a as u8;
+        }
+        ptr::copy_nonoverlapping(self.bgra.as_ptr(), self.bits, self.bgra.len());
 
-    let mut bits: *mut std::ffi::c_void = ptr::null_mut();
-    let hbmp = CreateDIBSection(
-        hdc_mem,
-        &bmi,
-        DIB_RGB_COLORS,
-        &mut bits,
-        ptr::null_mut(),
-        0,
-    );
-    if hbmp.is_null() || bits.is_null() {
-        DeleteDC(hdc_mem);
-        ReleaseDC(ptr::null_mut(), hdc_screen);
-        return Err("CreateDIBSection failed".into());
+        let mut size = SIZE {
+            cx: self.width,
+            cy: self.height,
+        };
+        let mut src = POINT { x: 0, y: 0 };
+        let mut dst = POINT { x: 0, y: 0 };
+        let mut blend = BLENDFUNCTION {
+            BlendOp: 0,
+            BlendFlags: 0,
+            SourceConstantAlpha: 255,
+            AlphaFormat: 1,
+        };
+        let ok = UpdateLayeredWindow(
+            hwnd,
+            self.hdc_screen,
+            &mut dst,
+            &mut size,
+            self.hdc_mem,
+            &mut src,
+            0,
+            &mut blend,
+            ULW_ALPHA,
+        );
+        if ok == 0 {
+            return Err("UpdateLayeredWindow failed".into());
+        }
+        Ok(())
     }
-    ptr::copy_nonoverlapping(bgra.as_ptr(), bits as *mut u8, bgra.len());
-    let old = SelectObject(hdc_mem, hbmp as HGDIOBJ);
+}
 
-    let mut size = SIZE {
-        cx: width,
-        cy: height,
-    };
-    let mut src = POINT { x: 0, y: 0 };
-    let mut dst = POINT { x: 0, y: 0 };
-    let mut blend = BLENDFUNCTION {
-        BlendOp: 0,
-        BlendFlags: 0,
-        SourceConstantAlpha: 255,
-        AlphaFormat: 1,
-    };
-    let ok = UpdateLayeredWindow(
-        hwnd,
-        hdc_screen,
-        &mut dst,
-        &mut size,
-        hdc_mem,
-        &mut src,
-        0,
-        &mut blend,
-        ULW_ALPHA,
-    );
-    SelectObject(hdc_mem, old);
-    DeleteObject(hbmp as HGDIOBJ);
-    DeleteDC(hdc_mem);
-    ReleaseDC(ptr::null_mut(), hdc_screen);
-    if ok == 0 {
-        return Err("UpdateLayeredWindow failed".into());
+impl Drop for DibBucket {
+    fn drop(&mut self) {
+        unsafe {
+            SelectObject(self.hdc_mem, self.old);
+            DeleteObject(self.hbmp as HGDIOBJ);
+            DeleteDC(self.hdc_mem);
+            ReleaseDC(ptr::null_mut(), self.hdc_screen);
+        }
     }
-    Ok(())
 }
 
 fn pump_peek() {
@@ -171,107 +241,170 @@ fn pump_peek() {
     }
 }
 
+fn overlay_thread_main(rx: mpsc::Receiver<OverlayCmd>) {
+    let screen_w = unsafe { GetSystemMetrics(SM_CXSCREEN) };
+    let screen_h = unsafe { GetSystemMetrics(SM_CYSCREEN) };
+    let (width, height, _scale) = capped_dims(screen_w, screen_h);
+
+    let hwnd = match unsafe { ensure_window(width, height) } {
+        Ok(h) => h,
+        Err(e) => {
+            tracing::error!("overlay window: {e}");
+            RUNNING.store(false, Ordering::SeqCst);
+            *shared().tx.lock() = None;
+            return;
+        }
+    };
+
+    let mut dib = match unsafe { DibBucket::new(width, height) } {
+        Ok(d) => d,
+        Err(e) => {
+            tracing::error!("overlay dib: {e}");
+            unsafe {
+                DestroyWindow(hwnd);
+            }
+            RUNNING.store(false, Ordering::SeqCst);
+            *shared().tx.lock() = None;
+            return;
+        }
+    };
+
+    let mut engine = Engine::default();
+    let mut pixmap = match tiny_skia::Pixmap::new(width as u32, height as u32) {
+        Some(p) => p,
+        None => {
+            tracing::error!("overlay pixmap alloc failed");
+            unsafe {
+                DestroyWindow(hwnd);
+            }
+            RUNNING.store(false, Ordering::SeqCst);
+            *shared().tx.lock() = None;
+            return;
+        }
+    };
+
+    let mut visible = false;
+
+    'outer: loop {
+        // Drain commands without blocking when animating; block briefly when idle.
+        let idle = engine.is_empty();
+        if idle {
+            match rx.recv_timeout(Duration::from_millis(200)) {
+                Ok(cmd) => {
+                    if apply_cmd(&mut engine, width, height, cmd) {
+                        break 'outer;
+                    }
+                }
+                Err(mpsc::RecvTimeoutError::Timeout) => {}
+                Err(mpsc::RecvTimeoutError::Disconnected) => break 'outer,
+            }
+        }
+        while let Ok(cmd) = rx.try_recv() {
+            if apply_cmd(&mut engine, width, height, cmd) {
+                break 'outer;
+            }
+        }
+
+        pump_peek();
+
+        if engine.is_empty() {
+            if visible {
+                unsafe {
+                    ShowWindow(hwnd, SW_HIDE);
+                }
+                visible = false;
+            }
+            continue;
+        }
+
+        let now = Instant::now();
+        let frame = engine.tick(now, width as f32, height as f32);
+        rasterize_into(&frame, &mut pixmap);
+        if let Err(e) = unsafe { dib.blit(hwnd, pixmap.data()) } {
+            tracing::warn!("overlay blit: {e}");
+        } else if !visible {
+            unsafe {
+                ShowWindow(hwnd, SW_SHOWNA);
+            }
+            visible = true;
+        }
+
+        if engine.is_empty() && visible {
+            unsafe {
+                ShowWindow(hwnd, SW_HIDE);
+            }
+            visible = false;
+        }
+
+        thread::sleep(Duration::from_millis(33));
+    }
+
+    unsafe {
+        ShowWindow(hwnd, SW_HIDE);
+        DestroyWindow(hwnd);
+    }
+    RUNNING.store(false, Ordering::SeqCst);
+    *shared().tx.lock() = None;
+}
+
+fn apply_cmd(engine: &mut Engine, width: i32, height: i32, cmd: OverlayCmd) -> bool {
+    match cmd {
+        OverlayCmd::Play { kind, seed } => {
+            engine.spawn(kind, seed, width as f32, height as f32);
+            false
+        }
+        OverlayCmd::Clear => {
+            engine.clear();
+            false
+        }
+        OverlayCmd::Shutdown => true,
+    }
+}
+
 fn ensure_loop() {
     if RUNNING.swap(true, Ordering::SeqCst) {
         return;
     }
-    thread::spawn(|| {
-        let width = unsafe { GetSystemMetrics(SM_CXSCREEN) };
-        let height = unsafe { GetSystemMetrics(SM_CYSCREEN) };
-        let hwnd = match unsafe { ensure_window(width, height) } {
-            Ok(h) => h,
-            Err(e) => {
-                tracing::error!("overlay window: {e}");
-                RUNNING.store(false, Ordering::SeqCst);
-                return;
+    let (tx, rx) = mpsc::channel();
+    *shared().tx.lock() = Some(tx);
+    match thread::Builder::new()
+        .name("hg-comm-overlay".into())
+        .spawn(move || {
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                overlay_thread_main(rx);
+            }));
+            if let Err(e) = result {
+                tracing::error!("comm overlay thread panicked: {e:?}");
             }
-        };
-        {
-            let mut g = state().lock();
-            *g = Some(OverlayState {
-                engine: Engine::default(),
-                hwnd: hwnd as usize,
-                width,
-                height,
-            });
+            RUNNING.store(false, Ordering::SeqCst);
+            *shared().tx.lock() = None;
+        }) {
+        Ok(_) => {}
+        Err(e) => {
+            tracing::error!("failed to spawn overlay thread: {e}");
+            RUNNING.store(false, Ordering::SeqCst);
+            *shared().tx.lock() = None;
         }
-
-        loop {
-            pump_peek();
-            let frame_data = {
-                let mut g = state().lock();
-                let Some(st) = g.as_mut() else {
-                    break;
-                };
-                if st.engine.is_empty() {
-                    unsafe {
-                        ShowWindow(st.hwnd as HWND, SW_HIDE);
-                    }
-                    drop(g);
-                    thread::sleep(Duration::from_millis(50));
-                    continue;
-                }
-                let now = Instant::now();
-                let frame = st.engine.tick(now, st.width as f32, st.height as f32);
-                let empty = st.engine.is_empty();
-                let hwnd = st.hwnd as HWND;
-                let w = st.width as u32;
-                let h = st.height as u32;
-                (frame, empty, hwnd, w, h)
-            };
-
-            if let Some(pm) = rasterize(&frame_data.0, frame_data.3, frame_data.4) {
-                let _ = unsafe {
-                    blit(
-                        frame_data.2,
-                        frame_data.3 as i32,
-                        frame_data.4 as i32,
-                        pm.data(),
-                    )
-                };
-                unsafe {
-                    ShowWindow(frame_data.2, SW_SHOWNA);
-                }
-            }
-            if frame_data.1 {
-                unsafe {
-                    ShowWindow(frame_data.2, SW_HIDE);
-                }
-            }
-            thread::sleep(Duration::from_millis(16));
-        }
-
-        if let Some(st) = state().lock().take() {
-            unsafe {
-                DestroyWindow(st.hwnd as HWND);
-            }
-        }
-        RUNNING.store(false, Ordering::SeqCst);
-    });
+    }
 }
 
-pub fn play(kind: ActionKind, seed: Option<u64>) {
+fn send_cmd(cmd: OverlayCmd) {
     ensure_loop();
+    // Wait briefly for the worker to publish its sender (already set before spawn).
     for _ in 0..50 {
-        if state().lock().is_some() {
-            break;
+        if let Some(tx) = shared().tx.lock().as_ref() {
+            let _ = tx.send(cmd);
+            return;
         }
         thread::sleep(Duration::from_millis(10));
     }
-    if let Some(st) = state().lock().as_mut() {
-        st.engine
-            .spawn(kind, seed, st.width as f32, st.height as f32);
-        unsafe {
-            ShowWindow(st.hwnd as HWND, SW_SHOWNA);
-        }
-    }
+}
+
+pub fn play(kind: ActionKind, seed: Option<u64>) {
+    // Never touch HWND from the Tauri command thread — only enqueue.
+    send_cmd(OverlayCmd::Play { kind, seed });
 }
 
 pub fn clear() {
-    if let Some(st) = state().lock().as_mut() {
-        st.engine.clear();
-        unsafe {
-            ShowWindow(st.hwnd as HWND, SW_HIDE);
-        }
-    }
+    send_cmd(OverlayCmd::Clear);
 }

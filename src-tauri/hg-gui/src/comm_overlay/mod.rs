@@ -27,8 +27,13 @@ use engine::ActionKind;
 pub fn play_comm_action(kind: String, seed: Option<i64>) -> Result<(), String> {
     let k = ActionKind::parse(&kind);
     let seed = seed.map(|s| s as u64);
-    present_impl::play(k, seed);
-    Ok(())
+    // Isolate present panics so a bad overlay frame cannot abort the whole app.
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        present_impl::play(k, seed);
+    })) {
+        Ok(()) => Ok(()),
+        Err(_) => Err("comm overlay panicked".into()),
+    }
 }
 
 #[tauri::command]

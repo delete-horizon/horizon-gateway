@@ -13,6 +13,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **LAN → tunnel connect**: Peer TCP listener advertises LAN hosts first; failed sends retry via tunnel endpoint / outbox.
 - **Comm action overlay**: Shared tiny-skia animation engine with Windows click-through layered HWND presenter (macOS/Linux degrade stubs). Action chips in chat rooms play short stacked overlays without stealing input focus.
 
+### Fixed
+
+- **Comm overlay crash**: Windows presenter no longer touches HWND from the Tauri command thread; raster/DIB buffers are reused with a resolution cap so action playback cannot OOM-abort the app.
+- **Missing workspace owner in members list**: Backfill migration + `listMembers` synthesizes `workspaces.owner_id` when the owner row is absent from `workspace_members`.
+
 ## [v2.8.3] - 2026-09-04
 
 ### Added

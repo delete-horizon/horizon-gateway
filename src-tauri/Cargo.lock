@@ -2083,7 +2083,7 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hg-core"
-version = "2.8.3"
+version = "2.8.4"
 dependencies = [
  "chrono",
  "serde",
@@ -2094,7 +2094,7 @@ dependencies = [
 
 [[package]]
 name = "hgc"
-version = "2.8.3"
+version = "2.8.4"
 dependencies = [
  "horizon-gateway-serve",
 ]
@@ -2165,7 +2165,7 @@ dependencies = [
 
 [[package]]
 name = "horizon-gateway"
-version = "2.8.3"
+version = "2.8.4"
 dependencies = [
  "aes-gcm",
  "base64 0.21.7",
@@ -2174,12 +2174,8 @@ dependencies = [
  "hg-core",
  "hkdf",
  "local-ip-address",
- "objc2",
- "objc2-app-kit",
- "objc2-foundation",
  "once_cell",
  "parking_lot",
- "png",
  "rand 0.8.5",
  "rustls",
  "serde",
@@ -2212,7 +2208,7 @@ dependencies = [
 
 [[package]]
 name = "horizon-gateway-serve"
-version = "2.8.3"
+version = "2.8.4"
 dependencies = [
  "aes-gcm",
  "axum",

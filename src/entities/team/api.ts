@@ -191,6 +191,10 @@ export async function setMemberRole(
 }
 
 export async function listMembers(workspaceId: string): Promise<WorkspaceMember[]> {
+  // Older workspaces sometimes have owner_id set without a workspace_members row.
+  // Only the owner can insert their own row (RLS: profile_id = auth.uid()).
+  await ensureOwnerMembership(workspaceId);
+
   const { data, error } = await supabase
     .from("workspace_members")
     .select(
@@ -206,7 +210,6 @@ export async function listMembers(workspaceId: string): Promise<WorkspaceMember[
     .eq("workspace_id", workspaceId)
     .order("created_at", { ascending: true });
   if (error) {
-    // Fallback without join if FK hint / RLS blocks relation (older DBs).
     console.warn("listMembers profile join failed, falling back:", error.message);
     const fallback = await supabase
       .from("workspace_members")
@@ -216,9 +219,86 @@ export async function listMembers(workspaceId: string): Promise<WorkspaceMember[
     if (fallback.error) {
       throw fallback.error;
     }
-    return (fallback.data ?? []) as WorkspaceMember[];
+    return await withSyntheticOwner(workspaceId, (fallback.data ?? []) as WorkspaceMember[]);
   }
-  return (data ?? []) as WorkspaceMember[];
+  return await withSyntheticOwner(workspaceId, (data ?? []) as WorkspaceMember[]);
+}
+
+/** If owner is still missing from members (RLS blocked repair), append a display-only row. */
+async function withSyntheticOwner(workspaceId: string, members: WorkspaceMember[]): Promise<WorkspaceMember[]> {
+  const { data: workspace } = await supabase
+    .from("workspaces")
+    .select("owner_id")
+    .eq("id", workspaceId)
+    .maybeSingle();
+  const ownerId = workspace?.owner_id as string | undefined;
+  if (!ownerId) {
+    return members;
+  }
+  if (members.some((m) => m.profile_id === ownerId)) {
+    return members.map((m) =>
+      m.profile_id === ownerId && m.role !== "owner" ? { ...m, role: "owner" as const } : m,
+    );
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("email, display_name, avatar_url")
+    .eq("id", ownerId)
+    .maybeSingle();
+
+  const synthetic: WorkspaceMember = {
+    id: `synthetic-owner:${workspaceId}`,
+    workspace_id: workspaceId,
+    profile_id: ownerId,
+    role: "owner",
+    created_at: new Date(0).toISOString(),
+    profile: profile
+      ? {
+          email: profile.email ?? null,
+          display_name: profile.display_name ?? null,
+          avatar_url: profile.avatar_url ?? null,
+        }
+      : null,
+  };
+  return [synthetic, ...members];
+}
+
+/** Ensure current user, if they are the workspace owner, has a workspace_members row. */
+export async function ensureOwnerMembership(workspaceId: string): Promise<void> {
+  const { data: userData } = await supabase.auth.getUser();
+  const uid = userData?.user?.id;
+  if (!uid) {
+    return;
+  }
+
+  const { data: workspace, error: wsError } = await supabase
+    .from("workspaces")
+    .select("owner_id")
+    .eq("id", workspaceId)
+    .maybeSingle();
+  if (wsError || !workspace?.owner_id || workspace.owner_id !== uid) {
+    return;
+  }
+
+  const { data: existing } = await supabase
+    .from("workspace_members")
+    .select("id, role")
+    .eq("workspace_id", workspaceId)
+    .eq("profile_id", uid)
+    .maybeSingle();
+
+  if (existing?.role === "owner") {
+    return;
+  }
+
+  const { error } = await supabase.from("workspace_members").upsert(
+    { workspace_id: workspaceId, profile_id: uid, role: "owner" },
+    { onConflict: "workspace_id,profile_id" },
+  );
+  if (error) {
+    console.warn("ensureOwnerMembership failed:", error.message);
+  }
 }
 
 export async function inviteMember(

@@ -384,6 +384,13 @@ export async function sendAction(opts: {
     createdAt,
   });
 
+  // Local preview — never fail the send if overlay is unavailable.
+  try {
+    await playCommAction(opts.actionKind, Date.now() % 100000);
+  } catch (e) {
+    console.warn("playCommAction (local) failed", e);
+  }
+
   const targets =
     room.kind === "dm"
       ? resolveDmTargets(room, opts.myId, peers)

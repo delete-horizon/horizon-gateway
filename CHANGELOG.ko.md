@@ -13,6 +13,11 @@
 - **LAN → 터널 연결**: TCP 리스너가 LAN을 먼저 광고하고, 실패 시 터널/outbox로 재시도.
 - **의사소통 액션 오버레이**: 공통 tiny-skia 엔진 + Windows click-through layered HWND(macOS/Linux는 degrade). 채팅 칩으로 짧은 중첩 애니 재생, 입력 포커스 유지.
 
+### Fixed (버그 수정)
+
+- **커무니케이션 오버레이 크래시**: Windows presenter가 Tauri 커맨드 스레드에서 HWND를 만지지 않도록 분리하고, 래스터/DIB 버퍼 재사용·해상도 상한으로 액션 재생 시 OOM 종료를 막음.
+- **멤버 목록에서 소유자 누락**: 백필 마이그레이션 + `listMembers`가 `workspace_members`에 owner 행이 없을 때 `workspaces.owner_id`를 합성 표시.
+
 ## [v2.8.3] - 2026-09-04
 
 ### Added (추가 기능)
