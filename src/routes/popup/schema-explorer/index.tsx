@@ -11,7 +11,12 @@ function PopupSchemaExplorerPage() {
   const t = lang === "ko" ? popupKo : popupEn;
   const { d } = Route.useSearch();
   const embedMode = useEmbedMode();
-  const page = <ApiSchemaPage initialDomainId={d} embedMode={embedMode === "standalone" ? "popup" : embedMode} />;
+  const page = (
+    <ApiSchemaPage
+      initialDomainId={d}
+      embedMode={embedMode === "standalone" || embedMode === "chat" ? "popup" : embedMode}
+    />
+  );
 
   if (embedMode === "detached") {
     return page;

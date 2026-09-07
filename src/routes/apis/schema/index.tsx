@@ -63,7 +63,7 @@ import {
   parseOpenApiSpec,
   type TagGroup,
 } from "@/shared/lib/openapi-parser";
-import { useEmbedMode } from "@/shared/lib/tauri/useEmbedMode";
+import { type EmbedMode, useEmbedMode } from "@/shared/lib/tauri/useEmbedMode";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
@@ -815,7 +815,7 @@ export function ApiSchemaPage({
   embedMode = "standalone",
 }: {
   initialDomainId?: number;
-  embedMode?: "standalone" | "popup" | "detached";
+  embedMode?: EmbedMode;
 } = {}) {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
