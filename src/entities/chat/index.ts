@@ -27,6 +27,7 @@ export {
   createGroupRoom,
   ensureDmRoom,
   flushOutbox,
+  getPeerPresence,
   handleIncomingFrame,
   loadInbox,
   loadMessages,

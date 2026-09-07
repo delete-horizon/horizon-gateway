@@ -47,8 +47,9 @@ export function TeamCommsRuntime() {
         if (cancelled) {
           return;
         }
+        void announcePresence({ workspaceId, profileId: myId, isHost: true }).catch(() => {});
         void flushOutbox(workspaceId).catch(() => {});
-        timer = window.setTimeout(tick, 8000);
+        timer = window.setTimeout(tick, 15000);
       };
       tick();
     })();

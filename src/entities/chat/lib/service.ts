@@ -235,7 +235,6 @@ async function deliverToPeer(peer: ChatPeerEndpoint, frame: ChatWireFrame) {
     frameJson: JSON.stringify(frame),
   });
   if (result.via === "none") {
-    // Escalate: try starting local tunnel and republish, then retry once with peer tunnel still null
     const started = await tryStartTunnel();
     if (started) {
       tunnelUrl = started;
@@ -256,8 +255,29 @@ async function deliverToPeer(peer: ChatPeerEndpoint, frame: ChatWireFrame) {
       frameJson: JSON.stringify(frame),
       createdAt: frame.createdAt,
     });
+    throw new Error(
+      "Peer unreachable (LAN/tunnel). Both apps must be open on the same network, and chat signaling tables must exist.",
+    );
   }
   return result;
+}
+
+function resolveDmTargets(
+  room: ChatRoom,
+  myId: string,
+  peers: ChatPeerEndpoint[],
+): ChatPeerEndpoint[] {
+  const peerId = room.memberIds.find((id) => id !== myId);
+  if (!peerId) {
+    throw new Error("DM peer missing");
+  }
+  const targets = peers.filter((p) => p.profileId === peerId);
+  if (targets.length === 0) {
+    throw new Error(
+      "Peer is offline or has not announced presence yet. Ask them to open Horizon Gateway (main window) while signed in.",
+    );
+  }
+  return targets;
 }
 
 export async function sendTextMessage(opts: {
@@ -297,18 +317,9 @@ export async function sendTextMessage(opts: {
   appendLocalMessage(local);
 
   if (room.kind === "dm") {
-    const peerId = room.memberIds.find((id) => id !== opts.myId);
-    const peer = peers.find((p) => p.profileId === peerId);
-    if (peer) {
+    const targets = resolveDmTargets(room, opts.myId, peers);
+    for (const peer of targets) {
       await deliverToPeer(peer, frame);
-    } else {
-      enqueueOutbox({
-        id,
-        roomId: opts.roomId,
-        peerProfileId: peerId ?? null,
-        frameJson: JSON.stringify(frame),
-        createdAt,
-      });
     }
   } else {
     const hostId = room.hostProfileId;
@@ -375,10 +386,18 @@ export async function sendAction(opts: {
 
   const targets =
     room.kind === "dm"
-      ? peers.filter((p) => room.memberIds.includes(p.profileId) && p.profileId !== opts.myId)
+      ? resolveDmTargets(room, opts.myId, peers)
       : room.hostProfileId === opts.myId
         ? peers.filter((p) => room.memberIds.includes(p.profileId) && p.profileId !== opts.myId)
         : peers.filter((p) => p.profileId === room.hostProfileId);
+
+  if (targets.length === 0) {
+    throw new Error(
+      room.kind === "group"
+        ? "Group host/members offline — they must have Gateway open."
+        : "Peer offline — they must have Gateway open.",
+    );
+  }
 
   for (const peer of targets) {
     await deliverToPeer(peer, frame);
@@ -484,6 +503,21 @@ export async function flushOutbox(workspaceId: string): Promise<void> {
       removeOutbox(item.id);
     }
   }
+}
+
+export async function getPeerPresence(
+  workspaceId: string,
+  peerProfileId: string,
+): Promise<{ online: boolean; lanHosts: string[]; lanPort: number; ageSec: number | null }> {
+  const peers = await refreshPeers(workspaceId);
+  const peer = peers.find((p) => p.profileId === peerProfileId);
+  if (!peer) {
+    return { online: false, lanHosts: [], lanPort: 0, ageSec: null };
+  }
+  const ageSec = Math.max(0, Math.floor((Date.now() - Date.parse(peer.updatedAt)) / 1000));
+  // Presence row older than 2 minutes → treat as stale/offline for UX
+  const online = ageSec < 120 && peer.lanPort > 0;
+  return { online, lanHosts: peer.lanHosts, lanPort: peer.lanPort, ageSec };
 }
 
 export function loadInbox(workspaceId: string): ChatRoom[] {

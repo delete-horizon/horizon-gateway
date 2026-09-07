@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import {
   getLocalRoom,
+  getPeerPresence,
   loadMessages,
   markRoomRead,
   sendAction,
@@ -36,6 +37,7 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [peerStatus, setPeerStatus] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const room = getLocalRoom(roomId);
 
@@ -60,10 +62,60 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
 
+  useEffect(() => {
+    const peerId = room?.memberIds.find((id) => id !== myId);
+    if (!peerId || room?.kind !== "dm") {
+      setPeerStatus(null);
+      return;
+    }
+    let cancelled = false;
+    const tick = () => {
+      void getPeerPresence(workspaceId, peerId)
+        .then((p) => {
+          if (cancelled) {
+            return;
+          }
+          if (!p.online) {
+            setPeerStatus(
+              lang === "ko"
+                ? "상대 오프라인 · Gateway 메인 창이 켜져 있어야 하고, 시그널링 테이블(마이그레이션)이 적용돼 있어야 합니다."
+                : "Peer offline · They need Gateway main window open, and chat signaling migration applied.",
+            );
+          } else {
+            setPeerStatus(
+              lang === "ko"
+                ? `상대 온라인 신호 · ${p.lanHosts[0] ?? "?"}:${p.lanPort}`
+                : `Peer presence · ${p.lanHosts[0] ?? "?"}:${p.lanPort}`,
+            );
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setPeerStatus(
+              lang === "ko"
+                ? "시그널링 조회 실패 · Supabase chat 마이그레이션을 확인하세요."
+                : "Signaling lookup failed · Check Supabase chat migration.",
+            );
+          }
+        });
+    };
+    tick();
+    const id = window.setInterval(tick, 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [workspaceId, myId, room?.kind, room?.memberIds, lang]);
+
   const title = room?.name ?? (room?.kind === "group" ? "Group" : "DM");
 
   return (
     <ChatShell title={title}>
+      {peerStatus && (
+        <div className="px-3 py-1.5 text-[10px] border-b border-base-300 bg-base-100 text-base-content/60 shrink-0">
+          {peerStatus}
+        </div>
+      )}
       <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-2">
         {messages.map((m) => {
           const mine = m.senderId === myId;
@@ -90,7 +142,7 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
         <div ref={bottomRef} />
       </div>
 
-      {error && <p className="px-3 text-[11px] text-error">{error}</p>}
+      {error && <p className="px-3 text-[11px] text-error whitespace-pre-wrap">{error}</p>}
 
       <div className="px-2 pt-1 flex flex-wrap gap-1">
         {ACTIONS.map((a) => (
@@ -108,6 +160,7 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
                   refresh();
                 } catch (e) {
                   setError(e instanceof Error ? e.message : String(e));
+                  refresh();
                 } finally {
                   setBusy(false);
                 }
@@ -136,6 +189,7 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
               refresh();
             } catch (err) {
               setError(err instanceof Error ? err.message : String(err));
+              refresh();
             } finally {
               setBusy(false);
             }
