@@ -35,6 +35,7 @@ export {
   sendAction,
   sendTextMessage,
 } from "./lib/service";
+export { ensureChatNotificationPermission, notifyIncomingChat } from "./lib/notify";
 export * from "./lib/crypto";
 export * from "./lib/transport";
 export * from "./api/signaling";

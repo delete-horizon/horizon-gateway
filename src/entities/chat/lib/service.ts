@@ -29,6 +29,7 @@ import {
   upsertLocalRoom,
 } from "./localStore";
 import { getTailscaleIp, playCommAction, sendChatFrame, startChatListener, tryStartTunnel } from "./transport";
+import { notifyIncomingChat } from "./notify";
 import type {
   ChatMessage,
   ChatPeerEndpoint,
@@ -374,15 +375,7 @@ export async function sendAction(opts: {
     actionKind: opts.actionKind,
     createdAt,
   };
-  appendLocalMessage({
-    id,
-    roomId: opts.roomId,
-    senderId: opts.myId,
-    kind: "action",
-    body: opts.actionKind,
-    actionKind: opts.actionKind,
-    createdAt,
-  });
+  // Actions are overlay-only — do not append chat bubbles.
 
   // Local preview — never fail the send if overlay is unavailable.
   try {
@@ -470,6 +463,17 @@ export async function handleIncomingFrame(raw: string, myId: string): Promise<vo
     return;
   }
 
+  // Actions: stacked overlay only — no chat row, unread, or OS notification.
+  if (frame.kind === "action") {
+    const kind = (frame.actionKind ?? body) as CommActionKind;
+    try {
+      await playCommAction(kind, Date.now() % 100000);
+    } catch (e) {
+      console.warn("playCommAction failed", e);
+    }
+    return;
+  }
+
   appendLocalMessage({
     id: frame.id,
     roomId: frame.roomId,
@@ -481,14 +485,15 @@ export async function handleIncomingFrame(raw: string, myId: string): Promise<vo
   });
   bumpUnread(frame.roomId, 1);
 
-  if (frame.kind === "action") {
-    const kind = (frame.actionKind ?? body) as CommActionKind;
-    try {
-      await playCommAction(kind, Date.now() % 100000);
-    } catch (e) {
-      console.warn("playCommAction failed", e);
-    }
-  }
+  void notifyIncomingChat({
+    id: frame.id,
+    roomId: frame.roomId,
+    senderId: frame.senderId,
+    kind: frame.kind,
+    body,
+    actionKind: frame.actionKind,
+    createdAt: frame.createdAt,
+  });
 
   window.dispatchEvent(new CustomEvent("hg-chat-updated", { detail: { roomId: frame.roomId } }));
 }
@@ -536,7 +541,8 @@ export function loadInbox(workspaceId: string): ChatRoom[] {
 }
 
 export function loadMessages(roomId: string): ChatMessage[] {
-  return listLocalMessages(roomId);
+  // Actions are overlay-only; hide any legacy action rows from older builds.
+  return listLocalMessages(roomId).filter((m) => m.kind !== "action");
 }
 
 export { markRoomRead, listChatRoomMeta };

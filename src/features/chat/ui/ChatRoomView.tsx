@@ -39,6 +39,7 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [peerStatus, setPeerStatus] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const room = getLocalRoom(roomId);
 
   const refresh = useCallback(() => {
@@ -46,8 +47,16 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
     markRoomRead(roomId);
   }, [roomId]);
 
+  const focusInput = useCallback(() => {
+    // disabled={busy} would steal focus on Enter — keep enabled and re-focus after send.
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+  }, []);
+
   useEffect(() => {
     refresh();
+    focusInput();
     const onUpd = (e: Event) => {
       const detail = (e as CustomEvent<{ roomId: string }>).detail;
       if (!detail?.roomId || detail.roomId === roomId) {
@@ -56,7 +65,7 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
     };
     window.addEventListener("hg-chat-updated", onUpd);
     return () => window.removeEventListener("hg-chat-updated", onUpd);
-  }, [refresh, roomId]);
+  }, [refresh, roomId, focusInput]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -157,12 +166,11 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
                 setError(null);
                 try {
                   await sendAction({ roomId, myId, workspaceId, actionKind: a.kind });
-                  refresh();
                 } catch (e) {
                   setError(e instanceof Error ? e.message : String(e));
-                  refresh();
                 } finally {
                   setBusy(false);
+                  focusInput();
                 }
               })();
             }}
@@ -177,7 +185,7 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
         onSubmit={(e) => {
           e.preventDefault();
           const body = text.trim();
-          if (!body) {
+          if (!body || busy) {
             return;
           }
           void (async () => {
@@ -192,16 +200,18 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
               refresh();
             } finally {
               setBusy(false);
+              focusInput();
             }
           })();
         }}
       >
         <Input
+          ref={inputRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={lang === "ko" ? "메시지" : "Message"}
           className="h-9 text-sm"
-          disabled={busy}
+          autoFocus
         />
         <Button type="submit" size="sm" className="h-9 px-3" disabled={busy || !text.trim()}>
           <Send className="w-4 h-4" />

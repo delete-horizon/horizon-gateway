@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { supabaseSessionAtom } from "@/entities/app";
 import {
   announcePresence,
+  ensureChatNotificationPermission,
   flushOutbox,
   handleIncomingFrame,
 } from "@/entities/chat";
@@ -28,6 +29,12 @@ export function TeamCommsRuntime() {
     let cancelled = false;
 
     void (async () => {
+      try {
+        await ensureChatNotificationPermission();
+      } catch {
+        /* optional */
+      }
+
       try {
         await announcePresence({ workspaceId, profileId: myId, isHost: true });
         started.current = true;
