@@ -7,6 +7,7 @@ import {
   upsertDeviceKey,
   upsertPeerSession,
 } from "../api/signaling";
+import type { ChatMessage, ChatPeerEndpoint, ChatRoom, CommActionKind } from "../types";
 import {
   deriveDmRoomKey,
   ensureChatIdentity,
@@ -28,14 +29,8 @@ import {
   removeOutbox,
   upsertLocalRoom,
 } from "./localStore";
-import { getTailscaleIp, playCommAction, sendChatFrame, startChatListener, tryStartTunnel } from "./transport";
 import { notifyIncomingChat } from "./notify";
-import type {
-  ChatMessage,
-  ChatPeerEndpoint,
-  ChatRoom,
-  CommActionKind,
-} from "../types";
+import { getTailscaleIp, playCommAction, sendChatFrame, startChatListener, tryStartTunnel } from "./transport";
 
 export interface ChatWireFrame {
   v: 1;
@@ -78,7 +73,7 @@ export async function announcePresence(opts: {
   if (tailscale && !lanHosts.includes(tailscale)) {
     lanHosts.push(tailscale);
   }
-  let tunnelUrl: string | null = null;
+  const tunnelUrl: string | null = null;
   // Tunnel is lazy: only when LAN send fails. Still advertise null until needed.
   await upsertPeerSession({
     workspaceId: opts.workspaceId,
@@ -263,11 +258,7 @@ async function deliverToPeer(peer: ChatPeerEndpoint, frame: ChatWireFrame) {
   return result;
 }
 
-function resolveDmTargets(
-  room: ChatRoom,
-  myId: string,
-  peers: ChatPeerEndpoint[],
-): ChatPeerEndpoint[] {
+function resolveDmTargets(room: ChatRoom, myId: string, peers: ChatPeerEndpoint[]): ChatPeerEndpoint[] {
   const peerId = room.memberIds.find((id) => id !== myId);
   if (!peerId) {
     throw new Error("DM peer missing");
@@ -379,7 +370,7 @@ export async function sendAction(opts: {
 
   // Local preview — never fail the send if overlay is unavailable.
   try {
-    await playCommAction(opts.actionKind, Date.now() % 100000);
+    await playCommAction(opts.actionKind, null);
   } catch (e) {
     console.warn("playCommAction (local) failed", e);
   }
@@ -467,7 +458,7 @@ export async function handleIncomingFrame(raw: string, myId: string): Promise<vo
   if (frame.kind === "action") {
     const kind = (frame.actionKind ?? body) as CommActionKind;
     try {
-      await playCommAction(kind, Date.now() % 100000);
+      await playCommAction(kind, null);
     } catch (e) {
       console.warn("playCommAction failed", e);
     }

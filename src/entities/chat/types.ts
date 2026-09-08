@@ -9,7 +9,16 @@ export interface ChatSendResult {
   via: "lan" | "tunnel" | "none" | string;
 }
 
-export type CommActionKind = "poke" | "sparkle" | "ping" | "float" | "burst" | "wave";
+export type CommActionKind =
+  | "poke"
+  | "sparkle"
+  | "ping"
+  | "float"
+  | "burst"
+  | "wave"
+  | "coffee_ask"
+  | "coffee_give"
+  | "fly";
 
 export interface ChatRoom {
   id: string;

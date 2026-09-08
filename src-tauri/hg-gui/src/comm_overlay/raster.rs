@@ -38,7 +38,8 @@ pub fn rasterize_into(frame: &Frame, pixmap: &mut Pixmap) {
                 rot,
                 tint,
                 alpha,
-            } => draw_cat(pixmap, x, y, scale, rot, tint, alpha),
+                mood,
+            } => draw_cat(pixmap, x, y, scale, rot, tint, alpha, mood),
             DrawCmd::Glow {
                 x,
                 y,
@@ -54,6 +55,29 @@ pub fn rasterize_into(frame: &Frame, pixmap: &mut Pixmap) {
                 rot,
                 rgba,
             } => draw_ray(pixmap, x, y, len, width, rot, rgba),
+            DrawCmd::Coffee {
+                x,
+                y,
+                scale,
+                rot,
+                alpha,
+                offer,
+            } => draw_coffee(pixmap, x, y, scale, rot, alpha, offer),
+            DrawCmd::Fly {
+                x,
+                y,
+                scale,
+                rot,
+                wing,
+                alpha,
+            } => draw_fly(pixmap, x, y, scale, rot, wing, alpha),
+            DrawCmd::Mark {
+                x,
+                y,
+                scale,
+                kind,
+                rgba,
+            } => draw_mark(pixmap, x, y, scale, kind, rgba),
         }
     }
 }
@@ -221,6 +245,7 @@ fn draw_cat(
     rot: f32,
     tint: [u8; 3],
     alpha: u8,
+    mood: u8,
 ) {
     if scale < 4.0 || alpha == 0 {
         return;
@@ -237,7 +262,7 @@ fn draw_cat(
     let inner_ear = [255, 170, 190, a(0.85)];
     let eye_w = [40, 40, 50, a(1.0)];
     let nose = [255, 140, 170, a(0.95)];
-    let blush = [255, 150, 170, a(0.35)];
+    let blush = [255, 150, 170, a(if mood == 1 { 0.15 } else { 0.35 })];
 
     let p = |x: f32, y: f32| rot2(cx, cy, cx + x * s, cy + y * s, rot);
 
@@ -254,7 +279,6 @@ fn draw_cat(
         if let Some(path) = pb.finish() {
             fill_path(pixmap, path, ear);
         }
-        // Inner ear
         let (itx, ity) = p(side * 0.55, -0.78);
         let (ib1x, ib1y) = p(side * 0.32, -0.38);
         let (ib2x, ib2y) = p(side * 0.72, -0.32);
@@ -268,27 +292,51 @@ fn draw_cat(
         }
     }
 
-    // Head
     let (hx, hy) = p(0.0, 0.0);
     fill_circle(pixmap, hx, hy, s * 0.72, fur);
 
-    // Blush
     let (blx, bly) = p(-0.38, 0.18);
     let (brx, bry) = p(0.38, 0.18);
     fill_circle(pixmap, blx, bly, s * 0.14, blush);
     fill_circle(pixmap, brx, bry, s * 0.14, blush);
 
-    // Eyes
-    let (elx, ely) = p(-0.26, -0.05);
-    let (erx, ery) = p(0.26, -0.05);
-    fill_circle(pixmap, elx, ely, s * 0.16, eye_w);
-    fill_circle(pixmap, erx, ery, s * 0.16, eye_w);
-    // Pupils
-    fill_circle(pixmap, elx, ely, s * 0.08, [30, 30, 40, a(1.0)]);
-    fill_circle(pixmap, erx, ery, s * 0.08, [30, 30, 40, a(1.0)]);
-    // Eye sparkle
-    fill_circle(pixmap, elx - s * 0.04, ely - s * 0.04, s * 0.035, [255, 255, 255, a(0.95)]);
-    fill_circle(pixmap, erx - s * 0.04, ery - s * 0.04, s * 0.035, [255, 255, 255, a(0.95)]);
+    // Eyes — mood changes expression
+    let (elx, ely) = p(-0.26, if mood == 1 { 0.0 } else { -0.05 });
+    let (erx, ery) = p(0.26, if mood == 1 { 0.0 } else { -0.05 });
+    if mood == 2 {
+        // derp: mismatched eyes
+        fill_circle(pixmap, elx, ely, s * 0.18, eye_w);
+        fill_circle(pixmap, erx, ery + s * 0.06, s * 0.12, eye_w);
+        fill_circle(pixmap, elx, ely, s * 0.07, [30, 30, 40, a(1.0)]);
+        fill_circle(pixmap, erx + s * 0.02, ery + s * 0.06, s * 0.05, [30, 30, 40, a(1.0)]);
+    } else {
+        fill_circle(pixmap, elx, ely, s * 0.16, eye_w);
+        fill_circle(pixmap, erx, ery, s * 0.16, eye_w);
+        let pupil = if mood == 1 { s * 0.1 } else { s * 0.08 };
+        fill_circle(pixmap, elx, ely + if mood == 1 { s * 0.02 } else { 0.0 }, pupil, [30, 30, 40, a(1.0)]);
+        fill_circle(pixmap, erx, ery + if mood == 1 { s * 0.02 } else { 0.0 }, pupil, [30, 30, 40, a(1.0)]);
+        fill_circle(pixmap, elx - s * 0.04, ely - s * 0.04, s * 0.035, [255, 255, 255, a(0.95)]);
+        fill_circle(pixmap, erx - s * 0.04, ery - s * 0.04, s * 0.035, [255, 255, 255, a(0.95)]);
+    }
+
+    // Angry brows
+    if mood == 1 {
+        let stroke = Stroke {
+            width: (s * 0.07).max(1.5),
+            ..Stroke::default()
+        };
+        let brow = paint_rgba([60, 40, 40, a(0.95)]);
+        for side in [-1.0_f32, 1.0] {
+            let (x0, y0) = p(side * 0.12, -0.28);
+            let (x1, y1) = p(side * 0.42, -0.38);
+            let mut pb = PathBuilder::new();
+            pb.move_to(x0, y0);
+            pb.line_to(x1, y1);
+            if let Some(path) = pb.finish() {
+                pixmap.stroke_path(&path, &brow, &stroke, Transform::identity(), None);
+            }
+        }
+    }
 
     // Nose
     let mut pb = PathBuilder::new();
@@ -322,24 +370,205 @@ fn draw_cat(
         }
     }
 
-    // Tiny smile
+    // Mouth
     let mut pb = PathBuilder::new();
-    let (m0x, m0y) = p(-0.12, 0.32);
-    let (m1x, m1y) = p(0.0, 0.40);
-    let (m2x, m2y) = p(0.12, 0.32);
-    pb.move_to(m0x, m0y);
-    pb.quad_to(m1x, m1y, m2x, m2y);
+    if mood == 1 {
+        // flat annoyed mouth
+        let (m0x, m0y) = p(-0.14, 0.38);
+        let (m1x, m1y) = p(0.14, 0.36);
+        pb.move_to(m0x, m0y);
+        pb.line_to(m1x, m1y);
+    } else if mood == 2 {
+        let (m0x, m0y) = p(-0.1, 0.34);
+        let (m1x, m1y) = p(0.05, 0.48);
+        let (m2x, m2y) = p(0.16, 0.3);
+        pb.move_to(m0x, m0y);
+        pb.quad_to(m1x, m1y, m2x, m2y);
+    } else {
+        let (m0x, m0y) = p(-0.12, 0.32);
+        let (m1x, m1y) = p(0.0, 0.40);
+        let (m2x, m2y) = p(0.12, 0.32);
+        pb.move_to(m0x, m0y);
+        pb.quad_to(m1x, m1y, m2x, m2y);
+    }
     if let Some(path) = pb.finish() {
         let smile = Stroke {
-            width: (s * 0.045).max(1.0),
+            width: (s * 0.05).max(1.0),
             ..Stroke::default()
         };
         pixmap.stroke_path(
             &path,
-            &paint_rgba([120, 90, 100, a(0.7)]),
+            &paint_rgba([120, 90, 100, a(0.75)]),
             &smile,
             Transform::identity(),
             None,
         );
+    }
+}
+
+fn draw_coffee(
+    pixmap: &mut Pixmap,
+    cx: f32,
+    cy: f32,
+    scale: f32,
+    rot: f32,
+    alpha: u8,
+    offer: bool,
+) {
+    if scale < 4.0 || alpha == 0 {
+        return;
+    }
+    let s = scale;
+    let a = |k: f32| ((alpha as f32) * k).round().clamp(0.0, 255.0) as u8;
+    let cup = if offer {
+        [255, 236, 210, a(1.0)]
+    } else {
+        [240, 230, 255, a(1.0)]
+    };
+    let coffee = [90, 50, 30, a(0.95)];
+    let steam = [200, 200, 210, a(0.45)];
+    let p = |x: f32, y: f32| rot2(cx, cy, cx + x * s, cy + y * s, rot);
+
+    // Cup body
+    let mut pb = PathBuilder::new();
+    let (tlx, tly) = p(-0.45, -0.15);
+    let (trx, try_) = p(0.45, -0.15);
+    let (brx, bry) = p(0.32, 0.55);
+    let (blx, bly) = p(-0.32, 0.55);
+    pb.move_to(tlx, tly);
+    pb.line_to(trx, try_);
+    pb.line_to(brx, bry);
+    pb.line_to(blx, bly);
+    pb.close();
+    if let Some(path) = pb.finish() {
+        fill_path(pixmap, path, cup);
+    }
+    // Coffee surface
+    fill_circle(
+        pixmap,
+        p(0.0, -0.08).0,
+        p(0.0, -0.08).1,
+        s * 0.38,
+        coffee,
+    );
+    // Handle
+    let (hx, hy) = p(0.55, 0.15);
+    stroke_circle(
+        pixmap,
+        hx,
+        hy,
+        s * 0.18,
+        s * 0.07,
+        [
+            cup[0].saturating_sub(40),
+            cup[1].saturating_sub(40),
+            cup[2].saturating_sub(40),
+            a(0.9),
+        ],
+    );
+    // Steam
+    for i in 0..3 {
+        let ox = (i as f32 - 1.0) * 0.18;
+        let (sx, sy) = p(ox, -0.35 - i as f32 * 0.08);
+        fill_circle(pixmap, sx, sy, s * 0.06, steam);
+        fill_circle(pixmap, sx + s * 0.04, sy - s * 0.12, s * 0.05, steam);
+    }
+    // Heart on offer
+    if offer {
+        let (hx, hy) = p(0.0, 0.2);
+        fill_heart(pixmap, hx, hy, s * 0.14, [255, 120, 150, a(0.9)]);
+    } else {
+        // ask: small "?"
+        draw_mark(pixmap, p(0.0, 0.18).0, p(0.0, 0.18).1, s * 0.2, 2, [80, 50, 40, a(0.85)]);
+    }
+}
+
+fn draw_fly(pixmap: &mut Pixmap, cx: f32, cy: f32, scale: f32, rot: f32, wing: f32, alpha: u8) {
+    if scale < 2.0 || alpha == 0 {
+        return;
+    }
+    let s = scale;
+    let a = |k: f32| ((alpha as f32) * k).round().clamp(0.0, 255.0) as u8;
+    let body = [35, 30, 28, a(1.0)];
+    let wing_c = [180, 190, 200, a(0.45)];
+    let p = |x: f32, y: f32| rot2(cx, cy, cx + x * s, cy + y * s, rot);
+    let flap = wing.sin().abs();
+
+    // Wings
+    for side in [-1.0_f32, 1.0] {
+        let mut pb = PathBuilder::new();
+        let (bx, by) = p(0.0, 0.0);
+        let (wx, wy) = p(side * (0.9 + flap * 0.5), -0.5 - flap * 0.3);
+        let (wx2, wy2) = p(side * 0.5, 0.2);
+        pb.move_to(bx, by);
+        pb.quad_to(wx, wy, wx2, wy2);
+        pb.close();
+        if let Some(path) = pb.finish() {
+            fill_path(pixmap, path, wing_c);
+        }
+    }
+    // Body
+    let (bx, by) = p(0.0, 0.0);
+    fill_circle(pixmap, bx, by, s * 0.45, body);
+    let (hx, hy) = p(0.0, -0.45);
+    fill_circle(pixmap, hx, hy, s * 0.28, body);
+    // Eyes
+    fill_circle(pixmap, p(-0.12, -0.5).0, p(-0.12, -0.5).1, s * 0.1, [255, 220, 80, a(1.0)]);
+    fill_circle(pixmap, p(0.12, -0.5).0, p(0.12, -0.5).1, s * 0.1, [255, 220, 80, a(1.0)]);
+}
+
+fn draw_mark(pixmap: &mut Pixmap, x: f32, y: f32, scale: f32, kind: u8, rgba: [u8; 4]) {
+    if scale < 2.0 || rgba[3] == 0 {
+        return;
+    }
+    match kind {
+        0 => {
+            // 💢-like vein burst
+            for i in 0..4 {
+                let ang = i as f32 * std::f32::consts::FRAC_PI_2 + 0.4;
+                let mut pb = PathBuilder::new();
+                pb.move_to(x, y);
+                pb.line_to(x + ang.cos() * scale, y + ang.sin() * scale);
+                if let Some(path) = pb.finish() {
+                    let stroke = Stroke {
+                        width: (scale * 0.22).max(1.5),
+                        ..Stroke::default()
+                    };
+                    pixmap.stroke_path(&path, &paint_rgba(rgba), &stroke, Transform::identity(), None);
+                }
+            }
+            fill_circle(pixmap, x, y, scale * 0.25, rgba);
+        }
+        1 => {
+            // sweat drop
+            let mut pb = PathBuilder::new();
+            pb.move_to(x, y - scale * 0.6);
+            pb.quad_to(x + scale * 0.45, y + scale * 0.1, x, y + scale * 0.55);
+            pb.quad_to(x - scale * 0.45, y + scale * 0.1, x, y - scale * 0.6);
+            pb.close();
+            if let Some(path) = pb.finish() {
+                fill_path(pixmap, path, rgba);
+            }
+        }
+        _ => {
+            // "ㅋ"-ish blob glyph (two arcs)
+            let stroke = Stroke {
+                width: (scale * 0.22).max(1.2),
+                ..Stroke::default()
+            };
+            let mut pb = PathBuilder::new();
+            pb.move_to(x - scale * 0.35, y - scale * 0.35);
+            pb.quad_to(x, y - scale * 0.55, x + scale * 0.2, y - scale * 0.15);
+            pb.line_to(x - scale * 0.05, y + scale * 0.35);
+            if let Some(path) = pb.finish() {
+                pixmap.stroke_path(&path, &paint_rgba(rgba), &stroke, Transform::identity(), None);
+            }
+            let mut pb = PathBuilder::new();
+            pb.move_to(x + scale * 0.05, y - scale * 0.05);
+            pb.quad_to(x + scale * 0.45, y + scale * 0.05, x + scale * 0.15, y + scale * 0.4);
+            if let Some(path) = pb.finish() {
+                pixmap.stroke_path(&path, &paint_rgba(rgba), &stroke, Transform::identity(), None);
+            }
+        }
     }
 }

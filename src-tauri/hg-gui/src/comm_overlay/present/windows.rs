@@ -18,8 +18,8 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetSystemMetrics,
     PeekMessageW, RegisterClassW, ShowWindow, TranslateMessage, UpdateLayeredWindow, CS_HREDRAW,
     CS_VREDRAW, MSG, PM_REMOVE, SM_CXSCREEN, SM_CYSCREEN, SW_HIDE, SW_SHOWNA, ULW_ALPHA,
-    WM_DESTROY, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
-    WS_EX_TRANSPARENT, WS_POPUP,
+    WM_DESTROY, WM_LBUTTONDOWN, WM_NCHITTEST, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE,
+    WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
 };
 
 use crate::comm_overlay::engine::{ActionKind, Engine};
@@ -27,6 +27,7 @@ use crate::comm_overlay::raster::rasterize_into;
 
 enum OverlayCmd {
     Play { kind: ActionKind, seed: Option<u64> },
+    Catch { x: f32, y: f32 },
     Clear,
     Shutdown,
 }
@@ -35,6 +36,8 @@ struct Shared {
     tx: Mutex<Option<Sender<OverlayCmd>>>,
 }
 
+/// Catchable hit circles in overlay client coords (x, y, radius).
+static HIT_TARGETS: OnceCell<Mutex<Vec<(f32, f32, f32)>>> = OnceCell::new();
 static SHARED: OnceCell<Shared> = OnceCell::new();
 static RUNNING: AtomicBool = AtomicBool::new(false);
 
@@ -44,11 +47,41 @@ fn shared() -> &'static Shared {
     })
 }
 
+fn hit_targets() -> &'static Mutex<Vec<(f32, f32, f32)>> {
+    HIT_TARGETS.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+fn hit_test_client(x: f32, y: f32) -> bool {
+    hit_targets().lock().iter().any(|&(tx, ty, r)| {
+        let dx = tx - x;
+        let dy = ty - y;
+        dx * dx + dy * dy <= r * r
+    })
+}
+
 unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, w: WPARAM, l: LPARAM) -> LRESULT {
-    if msg == WM_DESTROY {
-        return 0;
+    match msg {
+        WM_DESTROY => 0,
+        WM_NCHITTEST => {
+            // Overlay sits at (0,0); screen coords map to client for the primary top-left canvas.
+            let sx = (l & 0xFFFF) as i16 as f32;
+            let sy = ((l >> 16) & 0xFFFF) as i16 as f32;
+            if hit_test_client(sx, sy) {
+                1 // HTCLIENT
+            } else {
+                -1 // HTTRANSPARENT — pass click through
+            }
+        }
+        WM_LBUTTONDOWN => {
+            let x = (l & 0xFFFF) as i16 as f32;
+            let y = ((l >> 16) & 0xFFFF) as i16 as f32;
+            if let Some(tx) = shared().tx.lock().as_ref() {
+                let _ = tx.send(OverlayCmd::Catch { x, y });
+            }
+            0
+        }
+        _ => DefWindowProcW(hwnd, msg, w, l),
     }
-    DefWindowProcW(hwnd, msg, w, l)
 }
 
 fn to_wide(s: &str) -> Vec<u16> {
@@ -88,7 +121,7 @@ unsafe fn ensure_window(width: i32, height: i32) -> Result<HWND, String> {
     let _ = RegisterClassW(&wc);
 
     let hwnd = CreateWindowExW(
-        WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW,
+        WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW,
         class.as_ptr(),
         name.as_ptr(),
         WS_POPUP,
@@ -309,6 +342,7 @@ fn overlay_thread_main(rx: mpsc::Receiver<OverlayCmd>) {
 
         if engine.is_empty() {
             if visible {
+                *hit_targets().lock() = Vec::new();
                 unsafe {
                     ShowWindow(hwnd, SW_HIDE);
                 }
@@ -319,6 +353,7 @@ fn overlay_thread_main(rx: mpsc::Receiver<OverlayCmd>) {
 
         let now = Instant::now();
         let frame = engine.tick(now, width as f32, height as f32);
+        *hit_targets().lock() = engine.catch_targets();
         rasterize_into(&frame, &mut pixmap);
         if let Err(e) = unsafe { dib.blit(hwnd, pixmap.data()) } {
             tracing::warn!("overlay blit: {e}");
@@ -330,6 +365,7 @@ fn overlay_thread_main(rx: mpsc::Receiver<OverlayCmd>) {
         }
 
         if engine.is_empty() && visible {
+            *hit_targets().lock() = Vec::new();
             unsafe {
                 ShowWindow(hwnd, SW_HIDE);
             }
@@ -353,8 +389,14 @@ fn apply_cmd(engine: &mut Engine, width: i32, height: i32, cmd: OverlayCmd) -> b
             engine.spawn(kind, seed, width as f32, height as f32);
             false
         }
+        OverlayCmd::Catch { x, y } => {
+            let _ = engine.try_catch(x, y);
+            *hit_targets().lock() = engine.catch_targets();
+            false
+        }
         OverlayCmd::Clear => {
             engine.clear();
+            *hit_targets().lock() = Vec::new();
             false
         }
         OverlayCmd::Shutdown => true,

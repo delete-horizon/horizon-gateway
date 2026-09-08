@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.8.5] - 2026-09-08
+
+### Added
+
+- **Coffee & fly comm actions**: “Buy me coffee” / “Coffee on me” overlays, plus buzzing flies you can click-catch on the desktop (up to 100; empty overlay stays click-through).
+- **Chaotic overlay variety**: Stronger randomization (position/scale/mood) and cheekier cat expressions (angry/derp marks).
+
 ## [v2.8.4] - 2026-09-07
 
 ### Added

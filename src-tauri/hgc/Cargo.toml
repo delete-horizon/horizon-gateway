@@ -3,7 +3,7 @@ workspace = true
 
 [package]
 name = "hgc"
-version = "2.8.4"
+version = "2.8.5"
 edition = "2021"
 description = "Horizon Gateway CLI (asInvoker console client)"
 

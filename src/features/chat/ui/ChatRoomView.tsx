@@ -3,14 +3,14 @@ import { Send } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import {
+  type ChatMessage,
+  type CommActionKind,
   getLocalRoom,
   getPeerPresence,
   loadMessages,
   markRoomRead,
   sendAction,
   sendTextMessage,
-  type ChatMessage,
-  type CommActionKind,
 } from "@/entities/chat";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
@@ -23,6 +23,9 @@ const ACTIONS: { kind: CommActionKind; label: { ko: string; en: string } }[] = [
   { kind: "float", label: { ko: "둥둥", en: "Float" } },
   { kind: "burst", label: { ko: "팡", en: "Burst" } },
   { kind: "wave", label: { ko: "흔들", en: "Wave" } },
+  { kind: "coffee_ask", label: { ko: "커피 사주세요", en: "Buy me coffee" } },
+  { kind: "coffee_give", label: { ko: "커피 사줄게요", en: "Coffee on me" } },
+  { kind: "fly", label: { ko: "날파리", en: "Fly" } },
 ];
 
 interface ChatRoomViewProps {
@@ -69,10 +72,10 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length]);
+  }, [messages]);
 
   useEffect(() => {
-    const peerId = room?.memberIds.find((id) => id !== myId);
+    const peerId = room?.memberIds.find((memberId) => memberId !== myId);
     if (!peerId || room?.kind !== "dm") {
       setPeerStatus(null);
       return;
@@ -109,10 +112,10 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
         });
     };
     tick();
-    const id = window.setInterval(tick, 5000);
+    const intervalId = window.setInterval(tick, 5000);
     return () => {
       cancelled = true;
-      window.clearInterval(id);
+      window.clearInterval(intervalId);
     };
   }, [workspaceId, myId, room?.kind, room?.memberIds, lang]);
 
@@ -152,6 +155,12 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
       </div>
 
       {error && <p className="px-3 text-[11px] text-error whitespace-pre-wrap">{error}</p>}
+
+      <p className="px-3 text-[10px] text-base-content/45">
+        {lang === "ko"
+          ? "날파리는 화면 위를 날아다니며 클릭으로 잡을 수 있어요 (최대 100)."
+          : "Flies buzz on-screen — click to catch (max 100)."}
+      </p>
 
       <div className="px-2 pt-1 flex flex-wrap gap-1">
         {ACTIONS.map((a) => (
