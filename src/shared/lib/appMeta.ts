@@ -1,5 +1,5 @@
 /** Kept in sync with `package.json` `version`. Update via `pnpm version:*` scripts. */
-export const APP_VERSION = "2.8.5";
+export const APP_VERSION = "2.8.6";
 
 /**
  * Short, coarse OS label safe for feedback/telemetry metadata.

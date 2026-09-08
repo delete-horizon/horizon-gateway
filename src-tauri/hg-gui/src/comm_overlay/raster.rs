@@ -71,6 +71,13 @@ pub fn rasterize_into(frame: &Frame, pixmap: &mut Pixmap) {
                 wing,
                 alpha,
             } => draw_fly(pixmap, x, y, scale, rot, wing, alpha),
+            DrawCmd::Swatter {
+                x,
+                y,
+                scale,
+                rot,
+                alpha,
+            } => draw_swatter(pixmap, x, y, scale, rot, alpha),
             DrawCmd::Mark {
                 x,
                 y,
@@ -515,6 +522,67 @@ fn draw_fly(pixmap: &mut Pixmap, cx: f32, cy: f32, scale: f32, rot: f32, wing: f
     // Eyes
     fill_circle(pixmap, p(-0.12, -0.5).0, p(-0.12, -0.5).1, s * 0.1, [255, 220, 80, a(1.0)]);
     fill_circle(pixmap, p(0.12, -0.5).0, p(0.12, -0.5).1, s * 0.1, [255, 220, 80, a(1.0)]);
+}
+
+fn draw_swatter(pixmap: &mut Pixmap, cx: f32, cy: f32, scale: f32, rot: f32, alpha: u8) {
+    if scale < 0.4 || alpha == 0 {
+        return;
+    }
+    let s = 42.0 * scale;
+    let a = |k: f32| ((alpha as f32) * k).round().clamp(0.0, 255.0) as u8;
+    let p = |x: f32, y: f32| rot2(cx, cy, cx + x * s, cy + y * s, rot);
+    let handle = [120, 72, 40, a(0.95)];
+    let head = [55, 120, 200, a(0.55)];
+    let mesh = [40, 90, 170, a(0.75)];
+
+    // Handle
+    let mut pb = PathBuilder::new();
+    let (h0x, h0y) = p(0.05, 0.15);
+    let (h1x, h1y) = p(0.12, 0.95);
+    let (h2x, h2y) = p(-0.02, 0.98);
+    let (h3x, h3y) = p(-0.08, 0.18);
+    pb.move_to(h0x, h0y);
+    pb.line_to(h1x, h1y);
+    pb.line_to(h2x, h2y);
+    pb.line_to(h3x, h3y);
+    pb.close();
+    if let Some(path) = pb.finish() {
+        fill_path(pixmap, path, handle);
+    }
+
+    // Head oval
+    let (hx, hy) = p(0.0, -0.35);
+    fill_circle(pixmap, hx, hy, s * 0.42, head);
+    stroke_circle(pixmap, hx, hy, s * 0.42, 2.2, mesh);
+
+    // Mesh grid
+    for i in -2..=2 {
+        let t = i as f32 * 0.14;
+        let (ax, ay) = p(t, -0.68);
+        let (bx, by) = p(t, -0.02);
+        let mut line = PathBuilder::new();
+        line.move_to(ax, ay);
+        line.line_to(bx, by);
+        if let Some(path) = line.finish() {
+            let stroke = Stroke {
+                width: 1.4,
+                ..Stroke::default()
+            };
+            pixmap.stroke_path(&path, &paint_rgba(mesh), &stroke, Transform::identity(), None);
+        }
+        let (ax, ay) = p(-0.28, -0.35 + t);
+        let (bx, by) = p(0.28, -0.35 + t);
+        let mut line = PathBuilder::new();
+        line.move_to(ax, ay);
+        line.line_to(bx, by);
+        if let Some(path) = line.finish() {
+            let stroke = Stroke {
+                width: 1.4,
+                ..Stroke::default()
+            };
+            pixmap.stroke_path(&path, &paint_rgba(mesh), &stroke, Transform::identity(), None);
+        }
+    }
 }
 
 fn draw_mark(pixmap: &mut Pixmap, x: f32, y: f32, scale: f32, kind: u8, rgba: [u8; 4]) {

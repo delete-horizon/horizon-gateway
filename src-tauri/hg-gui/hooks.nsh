@@ -35,7 +35,10 @@
     CopyFiles /SILENT "$INSTDIR\resources\icon.ico" "$INSTDIR\icon.ico"
   skip_icon:
 
+  ; Never prompt for PATH during silent/passive/auto-update installs.
   IfSilent skip_path
+  IntCmp $UpdateMode 1 skip_path skip_path_ask skip_path_ask
+  skip_path_ask:
   MessageBox MB_YESNO|MB_ICONQUESTION "Do you want to add Horizon Gateway to your environment variables (PATH)?$\r$\nThis allows you to run 'hgc' and 'horizon-gateway' from any terminal." IDNO skip_path
   nsExec::Exec `powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command "$path = [System.Environment]::GetEnvironmentVariable('Path', 'User'); if ($path -split ';' -notcontains '$INSTDIR') { [System.Environment]::SetEnvironmentVariable('Path', ($path + ';$INSTDIR').Trim(';'), 'User') }"`
   skip_path:

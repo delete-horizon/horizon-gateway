@@ -5,7 +5,8 @@ use rand::Rng;
 pub const MAX_FX: usize = 14;
 pub const MAX_FLIES: usize = 100;
 pub const DEFAULT_TTL_MS: u64 = 2600;
-pub const FLY_TTL_MS: u64 = 120_000;
+pub const FLY_TTL_MS: u64 = 20_000;
+pub const SWATTER_REACH: f32 = 56.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ActionKind {
@@ -127,6 +128,14 @@ pub enum DrawCmd {
         scale: f32,
         rot: f32,
         wing: f32,
+        alpha: u8,
+    },
+    /// Fly swatter drawn at cursor while flies are active.
+    Swatter {
+        x: f32,
+        y: f32,
+        scale: f32,
+        rot: f32,
         alpha: u8,
     },
     /// Annoy marks: 0=💢 vein, 1=sweat, 2=ㅋ blob
@@ -291,7 +300,7 @@ impl Engine {
         self.sprites
             .iter()
             .filter(|s| s.catchable)
-            .map(|s| (s.x, s.y, 18.0 * s.scale))
+            .map(|s| (s.x, s.y, SWATTER_REACH * s.scale.max(0.7)))
             .collect()
     }
 
@@ -302,7 +311,7 @@ impl Engine {
             if !s.catchable {
                 continue;
             }
-            let r = 22.0 * s.scale;
+            let r = SWATTER_REACH * s.scale.max(0.7);
             let dx = s.x - x;
             let dy = s.y - y;
             let d2 = dx * dx + dy * dy;
@@ -320,7 +329,13 @@ impl Engine {
         }
     }
 
-    pub fn tick(&mut self, now: Instant, width: f32, height: f32) -> Frame {
+    pub fn tick(
+        &mut self,
+        now: Instant,
+        width: f32,
+        height: f32,
+        cursor: Option<(f32, f32)>,
+    ) -> Frame {
         self.bounds_w = width.max(1.0);
         self.bounds_h = height.max(1.0);
         let dt = 1.0 / 30.0;
@@ -639,16 +654,30 @@ impl Engine {
                 ActionKind::Fly => {
                     let phase = now.duration_since(s.born).as_secs_f32() * 40.0 + (s.seed % 20) as f32;
                     let rot = s.vy.atan2(s.vx) + phase.sin() * 0.4;
+                    let life_fade = if t > 0.85 {
+                        ((1.0 - t) / 0.15).clamp(0.0, 1.0)
+                    } else {
+                        1.0
+                    };
                     cmds.push(DrawCmd::Fly {
                         x: s.x,
                         y: s.y,
                         scale: 10.0 * sc,
                         rot,
                         wing: phase,
-                        alpha: 230,
+                        alpha: a(life_fade, 230.0),
                     });
                 }
             }
+        }
+        if let Some((cx, cy)) = cursor.filter(|_| self.has_catchables()) {
+            cmds.push(DrawCmd::Swatter {
+                x: cx,
+                y: cy,
+                scale: 1.15,
+                rot: -0.55,
+                alpha: 230,
+            });
         }
         Frame { cmds }
     }

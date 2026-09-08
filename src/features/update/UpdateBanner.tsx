@@ -12,6 +12,10 @@ export interface UpdateBannerProps {
   onDismiss?: () => void;
 }
 
+function isWindows(): boolean {
+  return navigator.userAgent.includes("Windows");
+}
+
 export function UpdateBanner({ update, onDismiss }: UpdateBannerProps) {
   const setPendingUpdate = useSetAtom(pendingUpdateAtom);
   const [isInstalling, setIsInstalling] = useState(false);
@@ -32,7 +36,9 @@ export function UpdateBanner({ update, onDismiss }: UpdateBannerProps) {
         }
       });
       setPendingUpdate(null);
-      await relaunch();
+      if (!isWindows()) {
+        await relaunch();
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setInstallError(message);

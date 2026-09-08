@@ -6,6 +6,10 @@ import { commands } from "@/shared/api";
 import { toastError, toastInfo } from "@/shared/ui/toast";
 import { pendingUpdateAtom } from "./store";
 
+function isWindows(): boolean {
+  return navigator.userAgent.includes("Windows");
+}
+
 export function useInstallUpdate() {
   const setPendingUpdate = useSetAtom(pendingUpdateAtom);
   const [isInstalling, setIsInstalling] = useState(false);
@@ -20,9 +24,13 @@ export function useInstallUpdate() {
         } catch (prepErr) {
           console.warn("Failed to cleanly prepare serve for update:", prepErr);
         }
+        // Windows: downloadAndInstall launches the NSIS installer and exits this process.
+        // Do not call relaunch() — it races the installer and aborts the update.
         await update.downloadAndInstall();
         setPendingUpdate(null);
-        await relaunch();
+        if (!isWindows()) {
+          await relaunch();
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         toastError(labels?.failed ? `${labels.failed}: ${message}` : message);

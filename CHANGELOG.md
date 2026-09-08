@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.8.6] - 2026-09-08
+
+### Fixed
+
+- **Windows auto-update install**: Prefer NSIS (`setup.exe`) for `windows-x86_64` updater artifacts; use passive install mode and skip `relaunch()` on Windows so the installer is not raced/aborted. Skip PATH prompt during silent/update installs.
+- **Comm overlay coverage**: Use the full primary-monitor size (up to 4K) so flies/actions are not stuck in a 1920×1080 top-left cap.
+
+### Added
+
+- **Fly swatter**: Cursor-following swatter while flies are active, with a larger catch radius; flies expire after 20s.
+
 ## [v2.8.5] - 2026-09-08
 
 ### Added

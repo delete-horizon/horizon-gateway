@@ -15,7 +15,7 @@ use windows_sys::Win32::Graphics::Gdi::{
 };
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetSystemMetrics,
+    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetCursorPos, GetSystemMetrics,
     PeekMessageW, RegisterClassW, ShowWindow, TranslateMessage, UpdateLayeredWindow, CS_HREDRAW,
     CS_VREDRAW, MSG, PM_REMOVE, SM_CXSCREEN, SM_CYSCREEN, SW_HIDE, SW_SHOWNA, ULW_ALPHA,
     WM_DESTROY, WM_LBUTTONDOWN, WM_NCHITTEST, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE,
@@ -88,18 +88,19 @@ fn to_wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
-/// Cap raster size so a 4K/8K desktop cannot OOM the process.
-fn capped_dims(screen_w: i32, screen_h: i32) -> (i32, i32, f32) {
-    const MAX_W: i32 = 1920;
-    const MAX_H: i32 = 1080;
-    let screen_w = screen_w.max(1);
-    let screen_h = screen_h.max(1);
-    let scale = (MAX_W as f32 / screen_w as f32)
-        .min(MAX_H as f32 / screen_h as f32)
-        .min(1.0);
-    let w = ((screen_w as f32) * scale).round().max(1.0) as i32;
-    let h = ((screen_h as f32) * scale).round().max(1.0) as i32;
-    (w, h, scale)
+/// Primary-monitor pixel size with a hard pixel budget (avoids OOM on exotic setups).
+fn overlay_dims(screen_w: i32, screen_h: i32) -> (i32, i32) {
+    const MAX_PX: i32 = 3840 * 2160;
+    let w = screen_w.max(1);
+    let h = screen_h.max(1);
+    if w.saturating_mul(h) <= MAX_PX {
+        return (w, h);
+    }
+    let scale = ((MAX_PX as f32) / (w as f32 * h as f32)).sqrt().min(1.0);
+    (
+        ((w as f32) * scale).round().max(1.0) as i32,
+        ((h as f32) * scale).round().max(1.0) as i32,
+    )
 }
 
 unsafe fn ensure_window(width: i32, height: i32) -> Result<HWND, String> {
@@ -154,7 +155,7 @@ struct DibBucket {
 impl DibBucket {
     unsafe fn new(width: i32, height: i32) -> Result<Self, String> {
         let px = (width as usize).saturating_mul(height as usize).saturating_mul(4);
-        if px == 0 || px > 1920 * 1080 * 4 {
+        if px == 0 || px > 3840 * 2160 * 4 {
             return Err("overlay size out of range".into());
         }
         let mut bgra = Vec::new();
@@ -274,10 +275,21 @@ fn pump_peek() {
     }
 }
 
+fn read_cursor_client() -> Option<(f32, f32)> {
+    let mut pt = POINT { x: 0, y: 0 };
+    unsafe {
+        if GetCursorPos(&mut pt) == 0 {
+            return None;
+        }
+    }
+    // Overlay window is created at primary origin (0,0).
+    Some((pt.x as f32, pt.y as f32))
+}
+
 fn overlay_thread_main(rx: mpsc::Receiver<OverlayCmd>) {
     let screen_w = unsafe { GetSystemMetrics(SM_CXSCREEN) };
     let screen_h = unsafe { GetSystemMetrics(SM_CYSCREEN) };
-    let (width, height, _scale) = capped_dims(screen_w, screen_h);
+    let (width, height) = overlay_dims(screen_w, screen_h);
 
     let hwnd = match unsafe { ensure_window(width, height) } {
         Ok(h) => h,
@@ -352,7 +364,8 @@ fn overlay_thread_main(rx: mpsc::Receiver<OverlayCmd>) {
         }
 
         let now = Instant::now();
-        let frame = engine.tick(now, width as f32, height as f32);
+        let cursor = read_cursor_client();
+        let frame = engine.tick(now, width as f32, height as f32, cursor);
         *hit_targets().lock() = engine.catch_targets();
         rasterize_into(&frame, &mut pixmap);
         if let Err(e) = unsafe { dib.blit(hwnd, pixmap.data()) } {

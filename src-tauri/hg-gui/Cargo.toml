@@ -3,7 +3,7 @@ workspace = true
 
 [package]
 name = "horizon-gateway"
-version = "2.8.5"
+version = "2.8.6"
 description = "Horizon Gateway Tauri GUI shell"
 authors = ["you"]
 edition = "2021"
