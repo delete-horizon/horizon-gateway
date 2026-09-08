@@ -10,8 +10,10 @@ use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
 use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, SIZE, WPARAM};
 use windows_sys::Win32::Graphics::Gdi::{
-    CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, GetDC, ReleaseDC, SelectObject,
-    BITMAPINFO, BITMAPINFOHEADER, BI_RGB, BLENDFUNCTION, DIB_RGB_COLORS, HBITMAP, HDC, HGDIOBJ,
+    CreateCompatibleDC, CreateDIBSection, CreateFontW, DeleteDC, DeleteObject, GetDC, ReleaseDC,
+    SelectObject, SetBkMode, SetTextAlign, SetTextColor, TextOutW, BITMAPINFO, BITMAPINFOHEADER,
+    BI_RGB, BLENDFUNCTION, DIB_RGB_COLORS, FW_SEMIBOLD, HBITMAP, HDC, HGDIOBJ, TRANSPARENT,
+    TA_CENTER, TA_TOP,
 };
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
@@ -22,12 +24,23 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
 };
 
-use crate::comm_overlay::engine::{ActionKind, Engine};
+use crate::comm_overlay::engine::{ActionKind, Engine, OverlayTool};
 use crate::comm_overlay::raster::rasterize_into;
 
 enum OverlayCmd {
-    Play { kind: ActionKind, seed: Option<u64> },
-    Catch { x: f32, y: f32 },
+    Play {
+        kind: ActionKind,
+        seed: Option<u64>,
+        count: u32,
+        from_label: Option<String>,
+    },
+    SetTool {
+        tool: OverlayTool,
+    },
+    Catch {
+        x: f32,
+        y: f32,
+    },
     Clear,
     Shutdown,
 }
@@ -207,7 +220,12 @@ impl DibBucket {
         })
     }
 
-    unsafe fn blit(&mut self, hwnd: HWND, rgba: &[u8]) -> Result<(), String> {
+    unsafe fn blit(
+        &mut self,
+        hwnd: HWND,
+        rgba: &[u8],
+        banners: &[(String, f32, f32)],
+    ) -> Result<(), String> {
         if rgba.len() != self.bgra.len() {
             return Err("pixel buffer size mismatch".into());
         }
@@ -223,6 +241,10 @@ impl DibBucket {
             self.bgra[o + 3] = a as u8;
         }
         ptr::copy_nonoverlapping(self.bgra.as_ptr(), self.bits, self.bgra.len());
+
+        if !banners.is_empty() {
+            paint_banners_gdi(self.hdc_mem, self.bits, self.width, self.height, banners);
+        }
 
         let mut size = SIZE {
             cx: self.width,
@@ -252,6 +274,68 @@ impl DibBucket {
         }
         Ok(())
     }
+}
+
+/// Draw UTF-16 labels with GDI, then force opaque alpha in the painted rows.
+unsafe fn paint_banners_gdi(
+    hdc: HDC,
+    bits: *mut u8,
+    width: i32,
+    height: i32,
+    banners: &[(String, f32, f32)],
+) {
+    let face = to_wide("Segoe UI");
+    let font = CreateFontW(
+        22,
+        0,
+        0,
+        0,
+        FW_SEMIBOLD as i32,
+        0,
+        0,
+        0,
+        1, // DEFAULT_CHARSET
+        0,
+        0,
+        5, // CLEARTYPE_QUALITY
+        0,
+        face.as_ptr(),
+    );
+    if font.is_null() {
+        return;
+    }
+    let old = SelectObject(hdc, font as HGDIOBJ);
+    SetBkMode(hdc, TRANSPARENT as i32);
+    SetTextAlign(hdc, TA_CENTER | TA_TOP);
+    SetTextColor(hdc, 0x00F0F0F0);
+
+    for (text, x, y) in banners {
+        let wide = to_wide(text);
+        let len = wide.len().saturating_sub(1) as i32;
+        if len <= 0 {
+            continue;
+        }
+        TextOutW(hdc, x.round() as i32, y.round() as i32, wide.as_ptr(), len);
+
+        // GDI often leaves alpha=0 on DIBs; force opacity around the line.
+        let row0 = (y.round() as i32 - 2).clamp(0, height - 1);
+        let row1 = (y.round() as i32 + 26).clamp(0, height - 1);
+        for row in row0..=row1 {
+            let row_off = (row as usize).saturating_mul(width as usize).saturating_mul(4);
+            for col in 0..width as usize {
+                let o = row_off + col * 4;
+                let b = *bits.add(o);
+                let g = *bits.add(o + 1);
+                let r = *bits.add(o + 2);
+                if b | g | r != 0 {
+                    *bits.add(o + 3) = 235;
+                }
+            }
+        }
+    }
+
+    SelectObject(hdc, old);
+    DeleteObject(font as HGDIOBJ);
 }
 
 impl Drop for DibBucket {
@@ -366,9 +450,9 @@ fn overlay_thread_main(rx: mpsc::Receiver<OverlayCmd>) {
         let now = Instant::now();
         let cursor = read_cursor_client();
         let frame = engine.tick(now, width as f32, height as f32, cursor);
-        *hit_targets().lock() = engine.catch_targets();
+        *hit_targets().lock() = engine.hit_zones(width as f32, height as f32, cursor);
         rasterize_into(&frame, &mut pixmap);
-        if let Err(e) = unsafe { dib.blit(hwnd, pixmap.data()) } {
+        if let Err(e) = unsafe { dib.blit(hwnd, pixmap.data(), &frame.banners) } {
             tracing::warn!("overlay blit: {e}");
         } else if !visible {
             unsafe {
@@ -398,13 +482,23 @@ fn overlay_thread_main(rx: mpsc::Receiver<OverlayCmd>) {
 
 fn apply_cmd(engine: &mut Engine, width: i32, height: i32, cmd: OverlayCmd) -> bool {
     match cmd {
-        OverlayCmd::Play { kind, seed } => {
-            engine.spawn(kind, seed, width as f32, height as f32);
+        OverlayCmd::Play {
+            kind,
+            seed,
+            count,
+            from_label,
+        } => {
+            engine.spawn_n(kind, seed, width as f32, height as f32, count, from_label);
+            false
+        }
+        OverlayCmd::SetTool { tool } => {
+            engine.set_tool(tool);
+            *hit_targets().lock() = engine.hit_zones(width as f32, height as f32, read_cursor_client());
             false
         }
         OverlayCmd::Catch { x, y } => {
-            let _ = engine.try_catch(x, y);
-            *hit_targets().lock() = engine.catch_targets();
+            let _ = engine.on_click(x, y, width as f32, height as f32);
+            *hit_targets().lock() = engine.hit_zones(width as f32, height as f32, read_cursor_client());
             false
         }
         OverlayCmd::Clear => {
@@ -455,9 +549,20 @@ fn send_cmd(cmd: OverlayCmd) {
     }
 }
 
-pub fn play(kind: ActionKind, seed: Option<u64>) {
+pub fn play(kind: ActionKind, seed: Option<u64>, count: u32, from_label: Option<String>) {
     // Never touch HWND from the Tauri command thread — only enqueue.
-    send_cmd(OverlayCmd::Play { kind, seed });
+    send_cmd(OverlayCmd::Play {
+        kind,
+        seed,
+        count,
+        from_label,
+    });
+}
+
+pub fn set_tool(tool: &str) {
+    send_cmd(OverlayCmd::SetTool {
+        tool: OverlayTool::parse(tool),
+    });
 }
 
 pub fn clear() {

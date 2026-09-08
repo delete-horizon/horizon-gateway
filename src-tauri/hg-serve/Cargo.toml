@@ -3,7 +3,7 @@ workspace = true
 
 [package]
 name = "horizon-gateway-serve"
-version = "2.8.6"
+version = "2.8.7"
 edition = "2021"
 description = "Headless Horizon Gateway backend (proxy, mock, transparent proxy)"
 

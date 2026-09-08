@@ -78,6 +78,8 @@ pub fn rasterize_into(frame: &Frame, pixmap: &mut Pixmap) {
                 rot,
                 alpha,
             } => draw_swatter(pixmap, x, y, scale, rot, alpha),
+            DrawCmd::SprayCloud { x, y, r, alpha } => draw_spray_cloud(pixmap, x, y, r, alpha),
+            DrawCmd::ArmChip { x, y, w, h } => draw_arm_chip(pixmap, x, y, w, h),
             DrawCmd::Mark {
                 x,
                 y,
@@ -583,6 +585,36 @@ fn draw_swatter(pixmap: &mut Pixmap, cx: f32, cy: f32, scale: f32, rot: f32, alp
             pixmap.stroke_path(&path, &paint_rgba(mesh), &stroke, Transform::identity(), None);
         }
     }
+}
+
+fn draw_spray_cloud(pixmap: &mut Pixmap, x: f32, y: f32, r: f32, alpha: u8) {
+    if r < 4.0 || alpha == 0 {
+        return;
+    }
+    fill_circle(pixmap, x, y, r, [140, 210, 255, alpha.saturating_div(3)]);
+    fill_circle(pixmap, x - r * 0.2, y - r * 0.15, r * 0.55, [180, 230, 255, alpha]);
+    fill_circle(pixmap, x + r * 0.25, y + r * 0.1, r * 0.4, [160, 220, 255, alpha]);
+    stroke_circle(pixmap, x, y, r, 2.0, [80, 160, 220, alpha.saturating_add(40).min(255)]);
+}
+
+fn draw_arm_chip(pixmap: &mut Pixmap, x: f32, y: f32, w: f32, h: f32) {
+    let left = x - w * 0.5;
+    let top = y - h * 0.5;
+    // Rounded pill background
+    fill_circle(pixmap, left + h * 0.5, y, h * 0.5, [20, 120, 90, 220]);
+    fill_circle(pixmap, left + w - h * 0.5, y, h * 0.5, [20, 120, 90, 220]);
+    let mut pb = PathBuilder::new();
+    pb.move_to(left + h * 0.5, top);
+    pb.line_to(left + w - h * 0.5, top);
+    pb.line_to(left + w - h * 0.5, top + h);
+    pb.line_to(left + h * 0.5, top + h);
+    pb.close();
+    if let Some(path) = pb.finish() {
+        fill_path(pixmap, path, [20, 120, 90, 220]);
+    }
+    // Spray bottle glyph
+    fill_circle(pixmap, x - 28.0, y - 2.0, 9.0, [220, 250, 255, 240]);
+    fill_circle(pixmap, x - 28.0, y + 8.0, 6.0, [100, 190, 230, 230]);
 }
 
 fn draw_mark(pixmap: &mut Pixmap, x: f32, y: f32, scale: f32, kind: u8, rgba: [u8; 4]) {

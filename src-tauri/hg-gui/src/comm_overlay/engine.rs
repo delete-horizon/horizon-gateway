@@ -7,6 +7,32 @@ pub const MAX_FLIES: usize = 100;
 pub const DEFAULT_TTL_MS: u64 = 2600;
 pub const FLY_TTL_MS: u64 = 20_000;
 pub const SWATTER_REACH: f32 = 56.0;
+pub const SPRAY_RADIUS: f32 = 96.0;
+pub const MAX_FLY_BURST: u32 = 40;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum OverlayTool {
+    #[default]
+    None,
+    /// Cursor-local spray: rest of the desktop stays click-through.
+    Spray,
+}
+
+impl OverlayTool {
+    pub fn parse(s: &str) -> Self {
+        match s.to_ascii_lowercase().as_str() {
+            "spray" | "스프레이" => Self::Spray,
+            _ => Self::None,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Spray => "spray",
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ActionKind {
@@ -58,6 +84,7 @@ pub struct Sprite {
     pub vx: f32,
     pub vy: f32,
     pub catchable: bool,
+    pub from_label: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -130,13 +157,27 @@ pub enum DrawCmd {
         wing: f32,
         alpha: u8,
     },
-    /// Fly swatter drawn at cursor while flies are active.
+    /// Fly swatter drawn at cursor while spray tool is armed.
     Swatter {
         x: f32,
         y: f32,
         scale: f32,
         rot: f32,
         alpha: u8,
+    },
+    /// Mist cloud for the spray tool.
+    SprayCloud {
+        x: f32,
+        y: f32,
+        r: f32,
+        alpha: u8,
+    },
+    /// Bottom-right arm chip (visual); hit handled separately.
+    ArmChip {
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
     },
     /// Annoy marks: 0=💢 vein, 1=sweat, 2=ㅋ blob
     Mark {
@@ -151,6 +192,8 @@ pub enum DrawCmd {
 #[derive(Clone, Debug, Default)]
 pub struct Frame {
     pub cmds: Vec<DrawCmd>,
+    /// Sender banners drawn via platform text (GDI on Windows).
+    pub banners: Vec<(String, f32, f32)>,
 }
 
 #[derive(Default)]
@@ -161,6 +204,7 @@ pub struct Engine {
     last_y: f32,
     bounds_w: f32,
     bounds_h: f32,
+    tool: OverlayTool,
 }
 
 fn ease_out(t: f32) -> f32 {
@@ -187,7 +231,48 @@ fn hash_u64(s: u64) -> u64 {
 }
 
 impl Engine {
-    pub fn spawn(&mut self, kind: ActionKind, seed: Option<u64>, width: f32, height: f32) {
+    pub fn set_tool(&mut self, tool: OverlayTool) {
+        self.tool = tool;
+        if !self.has_catchables() {
+            self.tool = OverlayTool::None;
+        }
+    }
+
+    pub fn tool(&self) -> OverlayTool {
+        self.tool
+    }
+
+    pub fn spawn_n(
+        &mut self,
+        kind: ActionKind,
+        seed: Option<u64>,
+        width: f32,
+        height: f32,
+        count: u32,
+        from_label: Option<String>,
+    ) {
+        let n = if kind.is_fly() {
+            count.clamp(1, MAX_FLY_BURST)
+        } else {
+            1
+        };
+        let label = from_label
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+        for i in 0..n {
+            let s = seed.map(|base| base ^ ((i as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15)));
+            self.spawn(kind, s, width, height, label.clone());
+        }
+    }
+
+    pub fn spawn(
+        &mut self,
+        kind: ActionKind,
+        seed: Option<u64>,
+        width: f32,
+        height: f32,
+        from_label: Option<String>,
+    ) {
         self.bounds_w = width.max(1.0);
         self.bounds_h = height.max(1.0);
         let mut rng = rand::thread_rng();
@@ -252,6 +337,7 @@ impl Engine {
             vx,
             vy,
             catchable: kind.is_fly(),
+            from_label,
         });
         self.next_id = self.next_id.wrapping_add(1);
 
@@ -285,6 +371,7 @@ impl Engine {
 
     pub fn clear(&mut self) {
         self.sprites.clear();
+        self.tool = OverlayTool::None;
     }
 
     pub fn is_empty(&self) -> bool {
@@ -295,38 +382,66 @@ impl Engine {
         self.sprites.iter().any(|s| s.catchable)
     }
 
-    /// Hit targets in overlay pixel space: (x, y, radius).
-    pub fn catch_targets(&self) -> Vec<(f32, f32, f32)> {
-        self.sprites
-            .iter()
-            .filter(|s| s.catchable)
-            .map(|s| (s.x, s.y, SWATTER_REACH * s.scale.max(0.7)))
-            .collect()
+    fn arm_chip_center(width: f32, height: f32) -> (f32, f32) {
+        (width - 78.0, height - 52.0)
     }
 
-    /// Returns true if a catchable near (x,y) was removed.
-    pub fn try_catch(&mut self, x: f32, y: f32) -> bool {
-        let mut best: Option<(usize, f32)> = None;
-        for (i, s) in self.sprites.iter().enumerate() {
-            if !s.catchable {
-                continue;
+    /// Zones that should receive mouse (everything else stays click-through).
+    pub fn hit_zones(&self, width: f32, height: f32, cursor: Option<(f32, f32)>) -> Vec<(f32, f32, f32)> {
+        if !self.has_catchables() {
+            return Vec::new();
+        }
+        match self.tool {
+            OverlayTool::Spray => cursor
+                .map(|(x, y)| vec![(x, y, SPRAY_RADIUS)])
+                .unwrap_or_default(),
+            OverlayTool::None => {
+                let (cx, cy) = Self::arm_chip_center(width, height);
+                vec![(cx, cy, 52.0)]
             }
-            let r = SWATTER_REACH * s.scale.max(0.7);
-            let dx = s.x - x;
-            let dy = s.y - y;
-            let d2 = dx * dx + dy * dy;
-            if d2 <= r * r {
-                if best.map(|(_, bd)| d2 < bd).unwrap_or(true) {
-                    best = Some((i, d2));
+        }
+    }
+
+    pub fn on_click(&mut self, x: f32, y: f32, width: f32, height: f32) -> bool {
+        if !self.has_catchables() {
+            self.tool = OverlayTool::None;
+            return false;
+        }
+        match self.tool {
+            OverlayTool::None => {
+                let (cx, cy) = Self::arm_chip_center(width, height);
+                let dx = x - cx;
+                let dy = y - cy;
+                if dx * dx + dy * dy <= 52.0 * 52.0 {
+                    self.tool = OverlayTool::Spray;
+                    true
+                } else {
+                    false
                 }
             }
+            OverlayTool::Spray => {
+                let hit = self.try_spray(x, y, SPRAY_RADIUS);
+                if !self.has_catchables() {
+                    self.tool = OverlayTool::None;
+                }
+                hit
+            }
         }
-        if let Some((i, _)) = best {
-            self.sprites.remove(i);
-            true
-        } else {
-            false
-        }
+    }
+
+    /// Returns true if any catchable in radius was removed.
+    pub fn try_spray(&mut self, x: f32, y: f32, radius: f32) -> bool {
+        let r2 = radius * radius;
+        let before = self.sprites.len();
+        self.sprites.retain(|s| {
+            if !s.catchable {
+                return true;
+            }
+            let dx = s.x - x;
+            let dy = s.y - y;
+            dx * dx + dy * dy > r2
+        });
+        self.sprites.len() != before
     }
 
     pub fn tick(
@@ -670,15 +785,73 @@ impl Engine {
                 }
             }
         }
-        if let Some((cx, cy)) = cursor.filter(|_| self.has_catchables()) {
-            cmds.push(DrawCmd::Swatter {
-                x: cx,
-                y: cy,
-                scale: 1.15,
-                rot: -0.55,
-                alpha: 230,
-            });
+
+        let mut banners = Vec::new();
+        if self.has_catchables() {
+            let mut labels: Vec<(String, usize)> = Vec::new();
+            for s in &self.sprites {
+                if !s.catchable {
+                    continue;
+                }
+                let name = s
+                    .from_label
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|v| !v.is_empty())
+                    .unwrap_or("누군가");
+                if let Some((_, n)) = labels.iter_mut().find(|(l, _)| l == name) {
+                    *n += 1;
+                } else {
+                    labels.push((name.to_string(), 1));
+                }
+            }
+            let mut y = 28.0;
+            for (name, n) in labels {
+                let text = if n > 1 {
+                    format!("{name} · 똥파리 ×{n}")
+                } else {
+                    format!("{name} · 똥파리")
+                };
+                banners.push((text, width * 0.5, y));
+                y += 28.0;
+            }
         }
-        Frame { cmds }
+
+        match self.tool {
+            OverlayTool::Spray => {
+                if let Some((cx, cy)) = cursor.filter(|_| self.has_catchables()) {
+                    cmds.push(DrawCmd::SprayCloud {
+                        x: cx,
+                        y: cy,
+                        r: SPRAY_RADIUS,
+                        alpha: 90,
+                    });
+                    cmds.push(DrawCmd::Swatter {
+                        x: cx + 18.0,
+                        y: cy + 10.0,
+                        scale: 0.95,
+                        rot: -0.55,
+                        alpha: 210,
+                    });
+                }
+            }
+            OverlayTool::None if self.has_catchables() => {
+                let (cx, cy) = Self::arm_chip_center(width, height);
+                cmds.push(DrawCmd::ArmChip {
+                    x: cx,
+                    y: cy,
+                    w: 120.0,
+                    h: 44.0,
+                });
+                banners.push(("스프레이".into(), cx, cy));
+            }
+            _ => {}
+        }
+
+        if !self.has_catchables() {
+            self.tool = OverlayTool::None;
+        }
+
+        Frame { cmds, banners }
     }
 }

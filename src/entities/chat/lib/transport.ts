@@ -25,13 +25,20 @@ export async function sendChatFrame(opts: {
   tunnelUrl: string | null;
   frameJson: string;
 }): Promise<ChatSendResult> {
-  return unwrap(
-    await commands.chatSendFrame(opts.lanHosts, opts.lanPort, opts.tunnelUrl, opts.frameJson),
-  );
+  return unwrap(await commands.chatSendFrame(opts.lanHosts, opts.lanPort, opts.tunnelUrl, opts.frameJson));
 }
 
-export async function playCommAction(kind: CommActionKind, seed?: number | null): Promise<void> {
-  unwrap(await commands.playCommAction(kind, seed ?? null));
+export async function playCommAction(
+  kind: CommActionKind,
+  seed?: number | null,
+  count?: number | null,
+  fromLabel?: string | null,
+): Promise<void> {
+  unwrap(await commands.playCommAction(kind, seed ?? null, count ?? null, fromLabel ?? null));
+}
+
+export async function setCommOverlayTool(tool: "none" | "spray"): Promise<void> {
+  unwrap(await commands.setCommOverlayTool(tool));
 }
 
 export async function clearCommOverlay(): Promise<void> {

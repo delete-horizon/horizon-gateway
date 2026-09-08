@@ -1,7 +1,7 @@
 import { useAtomValue } from "jotai";
 import { Send } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { languageAtom } from "@/entities/app";
+import { languageAtom, supabaseProfileAtom, userProfileAtom } from "@/entities/app";
 import {
   type ChatMessage,
   type CommActionKind,
@@ -11,6 +11,7 @@ import {
   markRoomRead,
   sendAction,
   sendTextMessage,
+  setCommOverlayTool,
 } from "@/entities/chat";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
@@ -25,8 +26,9 @@ const ACTIONS: { kind: CommActionKind; label: { ko: string; en: string } }[] = [
   { kind: "wave", label: { ko: "흔들", en: "Wave" } },
   { kind: "coffee_ask", label: { ko: "커피 사주세요", en: "Buy me coffee" } },
   { kind: "coffee_give", label: { ko: "커피 사줄게요", en: "Coffee on me" } },
-  { kind: "fly", label: { ko: "날파리", en: "Fly" } },
 ];
+
+const FLY_COUNTS = [1, 5, 10, 20] as const;
 
 interface ChatRoomViewProps {
   roomId: string;
@@ -36,14 +38,20 @@ interface ChatRoomViewProps {
 
 export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
   const lang = useAtomValue(languageAtom);
+  const dbProfile = useAtomValue(supabaseProfileAtom);
+  const localProfile = useAtomValue(userProfileAtom);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [peerStatus, setPeerStatus] = useState<string | null>(null);
+  const [sprayOn, setSprayOn] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const room = getLocalRoom(roomId);
+
+  const senderLabel =
+    dbProfile?.display_name?.trim() || localProfile.name?.trim() || dbProfile?.email?.split("@")[0] || "나";
 
   const refresh = useCallback(() => {
     setMessages(loadMessages(roomId));
@@ -119,6 +127,40 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
     };
   }, [workspaceId, myId, room?.kind, room?.memberIds, lang]);
 
+  const runAction = useCallback(
+    async (kind: CommActionKind, count = 1) => {
+      setBusy(true);
+      setError(null);
+      try {
+        await sendAction({
+          roomId,
+          myId,
+          workspaceId,
+          actionKind: kind,
+          count,
+          senderLabel,
+        });
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setBusy(false);
+        focusInput();
+      }
+    },
+    [roomId, myId, workspaceId, senderLabel, focusInput],
+  );
+
+  const toggleSpray = useCallback(async () => {
+    const next = !sprayOn;
+    setSprayOn(next);
+    try {
+      await setCommOverlayTool(next ? "spray" : "none");
+    } catch (e) {
+      setSprayOn(!next);
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, [sprayOn]);
+
   const title = room?.name ?? (room?.kind === "group" ? "Group" : "DM");
 
   return (
@@ -158,33 +200,47 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
 
       <p className="px-3 text-[10px] text-base-content/45">
         {lang === "ko"
-          ? "날파리는 화면 위를 날아다니며 클릭으로 잡을 수 있어요 (최대 100)."
-          : "Flies buzz on-screen — click to catch (max 100)."}
+          ? "임티는 상대 화면에만 보입니다. 똥파리는 기본 클릭 통과 · 우하단 스프레이(또는 아래 토글)로만 잡아요."
+          : "Actions show on the peer only. Flies stay click-through — arm spray (corner chip or toggle) to catch."}
       </p>
 
-      <div className="px-2 pt-1 flex flex-wrap gap-1">
+      <div className="px-2 pt-1 flex flex-wrap gap-1 items-center">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void toggleSpray()}
+          className={`text-[10px] px-2 py-1 rounded-full border disabled:opacity-40 ${
+            sprayOn
+              ? "border-emerald-500 bg-emerald-600 text-white"
+              : "border-base-300 bg-base-100 hover:bg-base-300/40"
+          }`}
+        >
+          {lang === "ko" ? (sprayOn ? "스프레이 ON" : "스프레이") : sprayOn ? "Spray ON" : "Spray"}
+        </button>
         {ACTIONS.map((a) => (
           <button
             key={a.kind}
             type="button"
             disabled={busy}
             className="text-[10px] px-2 py-1 rounded-full border border-base-300 bg-base-100 hover:bg-base-300/40 disabled:opacity-40"
-            onClick={() => {
-              void (async () => {
-                setBusy(true);
-                setError(null);
-                try {
-                  await sendAction({ roomId, myId, workspaceId, actionKind: a.kind });
-                } catch (e) {
-                  setError(e instanceof Error ? e.message : String(e));
-                } finally {
-                  setBusy(false);
-                  focusInput();
-                }
-              })();
-            }}
+            onClick={() => void runAction(a.kind)}
           >
             {lang === "ko" ? a.label.ko : a.label.en}
+          </button>
+        ))}
+      </div>
+
+      <div className="px-2 pb-1 flex flex-wrap gap-1 items-center">
+        <span className="text-[10px] text-base-content/50 mr-1">{lang === "ko" ? "똥파리" : "Flies"}</span>
+        {FLY_COUNTS.map((n) => (
+          <button
+            key={n}
+            type="button"
+            disabled={busy}
+            className="text-[10px] px-2 py-1 rounded-full border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 disabled:opacity-40"
+            onClick={() => void runAction("fly", n)}
+          >
+            ×{n}
           </button>
         ))}
       </div>
@@ -219,10 +275,9 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={lang === "ko" ? "메시지" : "Message"}
-          className="h-9 text-sm"
-          autoFocus
+          className="flex-1"
         />
-        <Button type="submit" size="sm" className="h-9 px-3" disabled={busy || !text.trim()}>
+        <Button type="submit" size="icon" disabled={busy || !text.trim()}>
           <Send className="w-4 h-4" />
         </Button>
       </form>

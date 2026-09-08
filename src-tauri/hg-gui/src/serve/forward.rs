@@ -20,6 +20,7 @@ const GUI_ONLY_COMMANDS: &[&str] = &[
     "chat_stop_listener",
     "chat_send_frame",
     "play_comm_action",
+    "set_comm_overlay_tool",
     "clear_comm_overlay",
     "plugin:updater|check",
     "plugin:updater|download_and_install",

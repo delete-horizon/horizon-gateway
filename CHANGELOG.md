@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.8.7] - 2026-09-08
+
+### Added
+
+- **Multi-fly bursts**: Send 1 / 5 / 10 / 20 flies at once from chat.
+- **Spray tool**: Flies stay fully click-through by default; arm spray via chat toggle or the corner chip to catch without blocking work.
+- **Sender labels**: Receiver overlay shows who sent the flies (`Name · 똥파리 ×N`).
+
+### Changed
+
+- **Receiver-only actions**: Comm overlays no longer play on the sender’s machine — only peers see them.
+
 ## [v2.8.6] - 2026-09-08
 
 ### Fixed

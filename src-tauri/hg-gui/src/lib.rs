@@ -23,7 +23,7 @@ use command::window_commands::{
     capture_app_screenshot, open_annotation_dialog, open_external_url, open_inspector_window,
     open_window, prepare_for_update, quit_app, trigger_os_snip,
 };
-use comm_overlay::{clear_comm_overlay, play_comm_action};
+use comm_overlay::{clear_comm_overlay, play_comm_action, set_comm_overlay_tool};
 
 pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
     tauri_specta::Builder::<tauri::Wry>::new().commands(tauri_specta::collect_commands![
@@ -46,6 +46,7 @@ pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         chat_stop_listener,
         chat_send_frame,
         play_comm_action,
+        set_comm_overlay_tool,
         clear_comm_overlay,
     ])
 }

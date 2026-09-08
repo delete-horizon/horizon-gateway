@@ -40,6 +40,10 @@ export interface ChatWireFrame {
   kind: "text" | "system" | "action";
   ciphertext: string;
   actionKind?: CommActionKind;
+  /** How many overlays to spawn (flies). Defaults to 1. */
+  actionCount?: number;
+  /** Display name at send time — overlay label on receiver. */
+  senderLabel?: string;
   createdAt: string;
 }
 
@@ -346,6 +350,10 @@ export async function sendAction(opts: {
   myId: string;
   workspaceId: string;
   actionKind: CommActionKind;
+  /** Burst size for flies (clamped server/client side). */
+  count?: number;
+  /** Shown on receiver overlay. */
+  senderLabel?: string;
 }): Promise<void> {
   const room = getLocalRoom(opts.roomId);
   if (!room) {
@@ -356,6 +364,8 @@ export async function sendAction(opts: {
   const createdAt = new Date().toISOString();
   const id = uuid();
   const ciphertext = await sealChatPayload(roomKey, opts.actionKind);
+  const actionCount = opts.actionKind === "fly" ? Math.max(1, Math.min(40, Math.floor(opts.count ?? 1))) : 1;
+  const senderLabel = opts.senderLabel?.trim() || undefined;
   const frame: ChatWireFrame = {
     v: 1,
     id,
@@ -364,16 +374,11 @@ export async function sendAction(opts: {
     kind: "action",
     ciphertext,
     actionKind: opts.actionKind,
+    actionCount,
+    senderLabel,
     createdAt,
   };
-  // Actions are overlay-only — do not append chat bubbles.
-
-  // Local preview — never fail the send if overlay is unavailable.
-  try {
-    await playCommAction(opts.actionKind, null);
-  } catch (e) {
-    console.warn("playCommAction (local) failed", e);
-  }
+  // Actions are overlay-only on the *receiver* — do not play locally for the sender.
 
   const targets =
     room.kind === "dm"
@@ -457,8 +462,10 @@ export async function handleIncomingFrame(raw: string, myId: string): Promise<vo
   // Actions: stacked overlay only — no chat row, unread, or OS notification.
   if (frame.kind === "action") {
     const kind = (frame.actionKind ?? body) as CommActionKind;
+    const count = frame.actionCount ?? 1;
+    const fromLabel = frame.senderLabel?.trim() || null;
     try {
-      await playCommAction(kind, null);
+      await playCommAction(kind, null, count, fromLabel);
     } catch (e) {
       console.warn("playCommAction failed", e);
     }
