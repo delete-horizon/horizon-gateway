@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Missing workspace owner in members list**: Backfill migration + `listMembers` synthesizes `workspaces.owner_id` when the owner row is absent from `workspace_members`.
 - **Chat input focus**: Sending with Enter no longer disables the message field (focus stays for rapid typing).
 - **Chat notifications**: OS notifications for incoming text only; actions stay overlay-only (stacked sprites, no chat bubbles/unread spam).
+- **Cuter comm overlays**: Procedural cats, hearts, soft glows, light rays, and star bursts replace the flat circle chips.
 
 ## [v2.8.3] - 2026-09-04
 

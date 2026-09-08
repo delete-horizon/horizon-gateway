@@ -17,9 +17,9 @@ import { Input } from "@/shared/ui/input/Input";
 import { ChatShell } from "./ChatShell";
 
 const ACTIONS: { kind: CommActionKind; label: { ko: string; en: string } }[] = [
-  { kind: "poke", label: { ko: "콕", en: "Poke" } },
+  { kind: "poke", label: { ko: "냥", en: "Cat" } },
   { kind: "sparkle", label: { ko: "반짝", en: "Sparkle" } },
-  { kind: "ping", label: { ko: "핑", en: "Ping" } },
+  { kind: "ping", label: { ko: "오로라", en: "Aurora" } },
   { kind: "float", label: { ko: "둥둥", en: "Float" } },
   { kind: "burst", label: { ko: "팡", en: "Burst" } },
   { kind: "wave", label: { ko: "흔들", en: "Wave" } },
