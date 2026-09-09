@@ -1,13 +1,5 @@
-export type {
-  ChatConnState,
-  ChatMessage,
-  ChatMessageKind,
-  ChatOutboxItem,
-  ChatPeerEndpoint,
-  ChatRoom,
-  ChatRoomKind,
-  CommActionKind,
-} from "./types";
+export * from "./api/signaling";
+export * from "./lib/crypto";
 export {
   appendLocalMessage,
   bumpUnread,
@@ -17,10 +9,14 @@ export {
   listLocalMessages,
   listLocalRooms,
   listOutbox,
+  markMessageDelivered,
   markRoomRead,
   removeOutbox,
+  toggleReaction,
+  updateLocalMessage,
   upsertLocalRoom,
 } from "./lib/localStore";
+export { ensureChatNotificationPermission, notifyIncomingChat } from "./lib/notify";
 export {
   announcePresence,
   bootstrapChatIdentity,
@@ -33,10 +29,20 @@ export {
   loadMessages,
   refreshPeers,
   sendAction,
+  sendReaction,
   sendTextMessage,
+  sendTypingSignal,
 } from "./lib/service";
-export { ensureChatNotificationPermission, notifyIncomingChat } from "./lib/notify";
-export * from "./lib/crypto";
 export * from "./lib/transport";
-export * from "./api/signaling";
-
+export type {
+  ChatConnState,
+  ChatMessage,
+  ChatMessageKind,
+  ChatOutboxItem,
+  ChatPeerEndpoint,
+  ChatReaction,
+  ChatRoom,
+  ChatRoomKind,
+  ChatWireFrameKind,
+  CommActionKind,
+} from "./types";

@@ -62,6 +62,52 @@ export function appendLocalMessage(message: ChatMessage): void {
   }
 }
 
+export function updateLocalMessage(
+  roomId: string,
+  messageId: string,
+  updater: (message: ChatMessage) => ChatMessage,
+): ChatMessage | null {
+  const list = listLocalMessages(roomId);
+  const idx = list.findIndex((m) => m.id === messageId);
+  if (idx < 0) {
+    return null;
+  }
+  const updated = updater(list[idx]);
+  list[idx] = updated;
+  writeJson(MESSAGES_PREFIX + roomId, list);
+  return updated;
+}
+
+export function markMessageDelivered(roomId: string, messageId: string): ChatMessage | null {
+  return updateLocalMessage(roomId, messageId, (msg) => ({
+    ...msg,
+    pending: false,
+    delivered: true,
+  }));
+}
+
+export function toggleReaction(roomId: string, messageId: string, emoji: string, senderId: string): ChatMessage | null {
+  return updateLocalMessage(roomId, messageId, (msg) => {
+    const reactions = [...(msg.reactions ?? [])];
+    const existingIdx = reactions.findIndex((r) => r.emoji === emoji);
+    if (existingIdx >= 0) {
+      const existing = reactions[existingIdx];
+      const hasSender = existing.senderIds.includes(senderId);
+      const nextSenders = hasSender
+        ? existing.senderIds.filter((id) => id !== senderId)
+        : [...existing.senderIds, senderId];
+      if (nextSenders.length === 0) {
+        reactions.splice(existingIdx, 1);
+      } else {
+        reactions[existingIdx] = { ...existing, senderIds: nextSenders };
+      }
+    } else {
+      reactions.push({ emoji, senderIds: [senderId] });
+    }
+    return { ...msg, reactions };
+  });
+}
+
 export function bumpUnread(roomId: string, delta = 1): void {
   const room = getLocalRoom(roomId);
   if (!room) {

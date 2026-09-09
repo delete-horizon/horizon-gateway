@@ -34,6 +34,13 @@ export interface ChatRoom {
   unread: number;
 }
 
+export type ChatWireFrameKind = "text" | "system" | "action" | "typing" | "reaction" | "ack";
+
+export interface ChatReaction {
+  emoji: string;
+  senderIds: string[];
+}
+
 export interface ChatMessage {
   id: string;
   roomId: string;
@@ -43,8 +50,12 @@ export interface ChatMessage {
   /** Action payload when kind === "action". */
   actionKind?: CommActionKind;
   createdAt: string;
-  /** True when still waiting for peer/host delivery. */
+  /** True when still waiting for local peer/host delivery. */
   pending?: boolean;
+  /** True when delivered acknowledgment has been received from peer. */
+  delivered?: boolean;
+  /** Emoji reactions on this message. */
+  reactions?: ChatReaction[];
 }
 
 export interface ChatPeerEndpoint {

@@ -7,7 +7,7 @@ import {
   upsertDeviceKey,
   upsertPeerSession,
 } from "../api/signaling";
-import type { ChatMessage, ChatPeerEndpoint, ChatRoom, CommActionKind } from "../types";
+import type { ChatMessage, ChatPeerEndpoint, ChatRoom, ChatWireFrameKind, CommActionKind } from "../types";
 import {
   deriveDmRoomKey,
   ensureChatIdentity,
@@ -25,8 +25,11 @@ import {
   listLocalMessages,
   listLocalRooms,
   listOutbox,
+  markMessageDelivered,
   markRoomRead,
   removeOutbox,
+  toggleReaction,
+  updateLocalMessage,
   upsertLocalRoom,
 } from "./localStore";
 import { notifyIncomingChat } from "./notify";
@@ -37,7 +40,7 @@ export interface ChatWireFrame {
   id: string;
   roomId: string;
   senderId: string;
-  kind: "text" | "system" | "action";
+  kind: ChatWireFrameKind;
   ciphertext: string;
   actionKind?: CommActionKind;
   /** How many overlays to spawn (flies). Defaults to 1. */
@@ -342,6 +345,9 @@ export async function sendTextMessage(opts: {
     }
   }
 
+  updateLocalMessage(opts.roomId, id, (m) => ({ ...m, pending: false }));
+  window.dispatchEvent(new CustomEvent("hg-chat-updated", { detail: { roomId: opts.roomId } }));
+
   return { ...local, pending: false };
 }
 
@@ -378,7 +384,6 @@ export async function sendAction(opts: {
     senderLabel,
     createdAt,
   };
-  // Actions are overlay-only on the *receiver* — do not play locally for the sender.
 
   const targets =
     room.kind === "dm"
@@ -397,6 +402,137 @@ export async function sendAction(opts: {
 
   for (const peer of targets) {
     await deliverToPeer(peer, frame);
+  }
+
+  // Sender local echo feedback
+  try {
+    const echoLabel = senderLabel ? `${senderLabel} (나)` : "(나)";
+    await playCommAction(opts.actionKind, null, 1, echoLabel);
+  } catch (err) {
+    console.warn("play local echo action failed", err);
+  }
+}
+
+export async function sendTypingSignal(opts: {
+  roomId: string;
+  myId: string;
+  workspaceId: string;
+  senderLabel?: string;
+}): Promise<void> {
+  const room = getLocalRoom(opts.roomId);
+  if (!room) {
+    return;
+  }
+  try {
+    const peers = await refreshPeers(opts.workspaceId);
+    const roomKey = await getOrDeriveRoomKey(room, opts.myId, peers);
+    const ciphertext = await sealChatPayload(roomKey, "typing");
+    const frame: ChatWireFrame = {
+      v: 1,
+      id: uuid(),
+      roomId: opts.roomId,
+      senderId: opts.myId,
+      kind: "typing",
+      ciphertext,
+      senderLabel: opts.senderLabel?.trim() || undefined,
+      createdAt: new Date().toISOString(),
+    };
+
+    const targets =
+      room.kind === "dm"
+        ? resolveDmTargets(room, opts.myId, peers)
+        : peers.filter((p) => room.memberIds.includes(p.profileId) && p.profileId !== opts.myId);
+
+    for (const peer of targets) {
+      void sendChatFrame({
+        lanHosts: peer.lanHosts,
+        lanPort: peer.lanPort,
+        tunnelUrl: peer.tunnelUrl,
+        frameJson: JSON.stringify(frame),
+      }).catch(() => {});
+    }
+  } catch {
+    /* typing signal is best-effort */
+  }
+}
+
+export async function sendReaction(opts: {
+  roomId: string;
+  myId: string;
+  workspaceId: string;
+  targetMessageId: string;
+  emoji: string;
+}): Promise<void> {
+  const room = getLocalRoom(opts.roomId);
+  if (!room) {
+    throw new Error("Room not found");
+  }
+
+  toggleReaction(opts.roomId, opts.targetMessageId, opts.emoji, opts.myId);
+  window.dispatchEvent(new CustomEvent("hg-chat-updated", { detail: { roomId: opts.roomId } }));
+
+  const peers = await refreshPeers(opts.workspaceId);
+  const roomKey = await getOrDeriveRoomKey(room, opts.myId, peers);
+  const payload = JSON.stringify({ targetMessageId: opts.targetMessageId, emoji: opts.emoji });
+  const ciphertext = await sealChatPayload(roomKey, payload);
+  const frame: ChatWireFrame = {
+    v: 1,
+    id: uuid(),
+    roomId: opts.roomId,
+    senderId: opts.myId,
+    kind: "reaction",
+    ciphertext,
+    createdAt: new Date().toISOString(),
+  };
+
+  const targets =
+    room.kind === "dm"
+      ? resolveDmTargets(room, opts.myId, peers)
+      : room.hostProfileId === opts.myId
+        ? peers.filter((p) => room.memberIds.includes(p.profileId) && p.profileId !== opts.myId)
+        : peers.filter((p) => p.profileId === room.hostProfileId);
+
+  for (const peer of targets) {
+    await deliverToPeer(peer, frame);
+  }
+}
+
+async function sendAckToPeer(opts: {
+  roomId: string;
+  myId: string;
+  workspaceId: string;
+  targetPeerId: string;
+  messageId: string;
+}): Promise<void> {
+  try {
+    const room = getLocalRoom(opts.roomId);
+    if (!room) {
+      return;
+    }
+    const peers = await refreshPeers(opts.workspaceId);
+    const peer = peers.find((p) => p.profileId === opts.targetPeerId);
+    if (!peer) {
+      return;
+    }
+    const roomKey = await getOrDeriveRoomKey(room, opts.myId, peers);
+    const ciphertext = await sealChatPayload(roomKey, JSON.stringify({ messageId: opts.messageId }));
+    const frame: ChatWireFrame = {
+      v: 1,
+      id: uuid(),
+      roomId: opts.roomId,
+      senderId: opts.myId,
+      kind: "ack",
+      ciphertext,
+      createdAt: new Date().toISOString(),
+    };
+    void sendChatFrame({
+      lanHosts: peer.lanHosts,
+      lanPort: peer.lanPort,
+      tunnelUrl: peer.tunnelUrl,
+      frameJson: JSON.stringify(frame),
+    }).catch(() => {});
+  } catch (e) {
+    console.warn("sendAckToPeer failed", e);
   }
 }
 
@@ -424,6 +560,19 @@ export async function handleIncomingFrame(raw: string, myId: string): Promise<vo
         await deliverToPeer(peer, frame);
       }
     }
+  }
+
+  if (frame.kind === "typing") {
+    window.dispatchEvent(
+      new CustomEvent("hg-chat-typing", {
+        detail: {
+          roomId: frame.roomId,
+          senderId: frame.senderId,
+          senderLabel: frame.senderLabel,
+        },
+      }),
+    );
+    return;
   }
 
   if (frame.kind === "system") {
@@ -459,6 +608,32 @@ export async function handleIncomingFrame(raw: string, myId: string): Promise<vo
     return;
   }
 
+  if (frame.kind === "ack") {
+    try {
+      const parsed = JSON.parse(body) as { messageId: string };
+      if (parsed?.messageId) {
+        markMessageDelivered(frame.roomId, parsed.messageId);
+        window.dispatchEvent(new CustomEvent("hg-chat-updated", { detail: { roomId: frame.roomId } }));
+      }
+    } catch (e) {
+      console.warn("Failed to parse ack payload", e);
+    }
+    return;
+  }
+
+  if (frame.kind === "reaction") {
+    try {
+      const parsed = JSON.parse(body) as { targetMessageId: string; emoji: string };
+      if (parsed?.targetMessageId && parsed?.emoji) {
+        toggleReaction(frame.roomId, parsed.targetMessageId, parsed.emoji, frame.senderId);
+        window.dispatchEvent(new CustomEvent("hg-chat-updated", { detail: { roomId: frame.roomId } }));
+      }
+    } catch (e) {
+      console.warn("Failed to parse reaction payload", e);
+    }
+    return;
+  }
+
   // Actions: stacked overlay only — no chat row, unread, or OS notification.
   if (frame.kind === "action") {
     const kind = (frame.actionKind ?? body) as CommActionKind;
@@ -480,6 +655,7 @@ export async function handleIncomingFrame(raw: string, myId: string): Promise<vo
     body,
     actionKind: frame.actionKind,
     createdAt: frame.createdAt,
+    delivered: true,
   });
   bumpUnread(frame.roomId, 1);
 
@@ -492,6 +668,16 @@ export async function handleIncomingFrame(raw: string, myId: string): Promise<vo
     actionKind: frame.actionKind,
     createdAt: frame.createdAt,
   });
+
+  if (room?.workspaceId) {
+    void sendAckToPeer({
+      roomId: frame.roomId,
+      myId,
+      workspaceId: room.workspaceId,
+      targetPeerId: frame.senderId,
+      messageId: frame.id,
+    });
+  }
 
   window.dispatchEvent(new CustomEvent("hg-chat-updated", { detail: { roomId: frame.roomId } }));
 }

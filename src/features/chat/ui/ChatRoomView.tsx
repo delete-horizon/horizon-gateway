@@ -1,5 +1,5 @@
 import { useAtomValue } from "jotai";
-import { Send } from "lucide-react";
+import { Send, SmilePlus } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { languageAtom, supabaseProfileAtom, userProfileAtom } from "@/entities/app";
 import {
@@ -10,7 +10,9 @@ import {
   loadMessages,
   markRoomRead,
   sendAction,
+  sendReaction,
   sendTextMessage,
+  sendTypingSignal,
   setCommOverlayTool,
 } from "@/entities/chat";
 import { Button } from "@/shared/ui/button/Button";
@@ -29,6 +31,7 @@ const ACTIONS: { kind: CommActionKind; label: { ko: string; en: string } }[] = [
 ];
 
 const FLY_COUNTS = [1, 5, 10, 20] as const;
+const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🔥"] as const;
 
 interface ChatRoomViewProps {
   roomId: string;
@@ -46,8 +49,13 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [peerStatus, setPeerStatus] = useState<string | null>(null);
   const [sprayOn, setSprayOn] = useState(false);
+  const [typingPeer, setTypingPeer] = useState<{ senderId: string; senderLabel?: string } | null>(null);
+  const [activeReactionId, setActiveReactionId] = useState<string | null>(null);
+
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const typingTimerRef = useRef<number | null>(null);
+  const lastTypingSentRef = useRef<number>(0);
   const room = getLocalRoom(roomId);
 
   const senderLabel =
@@ -59,7 +67,6 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
   }, [roomId]);
 
   const focusInput = useCallback(() => {
-    // disabled={busy} would steal focus on Enter — keep enabled and re-focus after send.
     requestAnimationFrame(() => {
       inputRef.current?.focus();
     });
@@ -74,13 +81,33 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
         refresh();
       }
     };
+    const onTyping = (e: Event) => {
+      const detail = (e as CustomEvent<{ roomId: string; senderId: string; senderLabel?: string }>).detail;
+      if (detail?.roomId === roomId && detail.senderId !== myId) {
+        setTypingPeer({ senderId: detail.senderId, senderLabel: detail.senderLabel });
+        if (typingTimerRef.current) {
+          window.clearTimeout(typingTimerRef.current);
+        }
+        typingTimerRef.current = window.setTimeout(() => {
+          setTypingPeer(null);
+        }, 3000);
+      }
+    };
+
     window.addEventListener("hg-chat-updated", onUpd);
-    return () => window.removeEventListener("hg-chat-updated", onUpd);
-  }, [refresh, roomId, focusInput]);
+    window.addEventListener("hg-chat-typing", onTyping);
+    return () => {
+      window.removeEventListener("hg-chat-updated", onUpd);
+      window.removeEventListener("hg-chat-typing", onTyping);
+      if (typingTimerRef.current) {
+        window.clearTimeout(typingTimerRef.current);
+      }
+    };
+  }, [refresh, roomId, myId, focusInput]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, typingPeer]);
 
   useEffect(() => {
     const peerId = room?.memberIds.find((memberId) => memberId !== myId);
@@ -161,6 +188,25 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
     }
   }, [sprayOn]);
 
+  const handleToggleReaction = useCallback(
+    async (targetMessageId: string, emoji: string) => {
+      try {
+        await sendReaction({
+          roomId,
+          myId,
+          workspaceId,
+          targetMessageId,
+          emoji,
+        });
+        setActiveReactionId(null);
+        refresh();
+      } catch (e) {
+        console.warn("sendReaction failed", e);
+      }
+    },
+    [roomId, myId, workspaceId, refresh],
+  );
+
   const title = room?.name ?? (room?.kind === "group" ? "Group" : "DM");
 
   return (
@@ -170,29 +216,131 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
           {peerStatus}
         </div>
       )}
-      <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-2">
+      <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-3">
         {messages.map((m) => {
           const mine = m.senderId === myId;
+          const showPicker = activeReactionId === m.id;
           return (
-            <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-              <div
-                className={`max-w-[80%] rounded-2xl px-3 py-1.5 text-sm ${
-                  mine ? "bg-emerald-600 text-white rounded-br-md" : "bg-base-100 border border-base-300 rounded-bl-md"
-                }`}
-              >
-                {m.kind === "action" ? (
-                  <span className="opacity-90 text-xs font-medium">✨ {m.actionKind ?? m.body}</span>
-                ) : (
-                  <span className="whitespace-pre-wrap break-words">{m.body}</span>
-                )}
-                <div className={`text-[9px] mt-0.5 ${mine ? "text-white/60" : "text-base-content/35"}`}>
-                  {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  {m.pending ? " · …" : ""}
+            <div key={m.id} className={`flex flex-col ${mine ? "items-end" : "items-start"}`}>
+              <div className="group relative max-w-[80%]">
+                <div
+                  className={`rounded-2xl px-3 py-1.5 text-sm transition-all ${
+                    mine
+                      ? "bg-emerald-600 text-white rounded-br-md"
+                      : "bg-base-100 border border-base-300 rounded-bl-md text-base-content"
+                  }`}
+                >
+                  {m.kind === "action" ? (
+                    <span className="opacity-90 text-xs font-medium">✨ {m.actionKind ?? m.body}</span>
+                  ) : (
+                    <span className="whitespace-pre-wrap break-words">{m.body}</span>
+                  )}
+                  <div
+                    className={`text-[9px] mt-0.5 flex items-center justify-end gap-1 ${
+                      mine ? "text-white/70" : "text-base-content/40"
+                    }`}
+                  >
+                    <span>{new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                    {mine && (
+                      <span className="inline-flex items-center">
+                        {m.pending ? (
+                          <span className="opacity-70 animate-pulse">· …</span>
+                        ) : m.delivered ? (
+                          <span
+                            className="text-emerald-200 font-bold tracking-tighter"
+                            title={lang === "ko" ? "상대방 수신 완료" : "Delivered"}
+                          >
+                            ✓✓
+                          </span>
+                        ) : (
+                          <span className="opacity-80" title={lang === "ko" ? "발송 완료" : "Sent"}>
+                            ✓
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </div>
                 </div>
+
+                {/* Quick Reaction Button (Hover/Click) */}
+                <div
+                  className={`absolute top-0 ${
+                    mine ? "-left-8" : "-right-8"
+                  } opacity-0 group-hover:opacity-100 transition-opacity z-10`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setActiveReactionId(showPicker ? null : m.id)}
+                    className="p-1 rounded-full bg-base-100 border border-base-300 shadow-sm hover:bg-base-200 text-base-content/60"
+                    title={lang === "ko" ? "리액션 추가" : "Add reaction"}
+                  >
+                    <SmilePlus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* Emoji Picker Popover */}
+                {showPicker && (
+                  <div
+                    className={`absolute bottom-full mb-1 ${
+                      mine ? "right-0" : "left-0"
+                    } flex items-center gap-1 p-1 bg-base-100/95 backdrop-blur-sm border border-base-300 rounded-full shadow-lg z-20 animate-in fade-in zoom-in-95`}
+                  >
+                    {QUICK_REACTIONS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => void handleToggleReaction(m.id, emoji)}
+                        className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-base-200 text-sm hover:scale-125 transition-transform"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
+
+              {/* Reaction Badges */}
+              {m.reactions && m.reactions.length > 0 && (
+                <div className={`flex flex-wrap gap-1 mt-1 ${mine ? "justify-end" : "justify-start"}`}>
+                  {m.reactions.map((r) => {
+                    const hasMine = r.senderIds.includes(myId);
+                    return (
+                      <button
+                        key={r.emoji}
+                        type="button"
+                        onClick={() => void handleToggleReaction(m.id, r.emoji)}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] border transition-all ${
+                          hasMine
+                            ? "border-emerald-500/60 bg-emerald-500/15 text-emerald-600 font-semibold shadow-xs"
+                            : "border-base-300 bg-base-100 hover:bg-base-200/80 text-base-content/70"
+                        }`}
+                      >
+                        <span>{r.emoji}</span>
+                        <span>{r.senderIds.length}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}
+
+        {/* Typing indicator */}
+        {typingPeer && (
+          <div className="flex items-center gap-1.5 px-3 py-1 text-[11px] text-base-content/55 italic animate-in fade-in">
+            <span className="inline-flex gap-0.5 items-center">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce [animation-delay:-0.3s]" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce [animation-delay:-0.15s]" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce" />
+            </span>
+            <span>
+              {typingPeer.senderLabel ?? (lang === "ko" ? "상대방" : "Peer")}
+              {lang === "ko" ? "님이 입력하고 있습니다..." : " is typing..."}
+            </span>
+          </div>
+        )}
+
         <div ref={bottomRef} />
       </div>
 
@@ -273,7 +421,14 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
         <Input
           ref={inputRef}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            setText(e.target.value);
+            const now = Date.now();
+            if (now - lastTypingSentRef.current > 1500 && e.target.value.trim().length > 0) {
+              lastTypingSentRef.current = now;
+              void sendTypingSignal({ roomId, myId, workspaceId, senderLabel });
+            }
+          }}
           placeholder={lang === "ko" ? "메시지" : "Message"}
           className="flex-1"
         />
