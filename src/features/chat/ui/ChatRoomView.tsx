@@ -1,12 +1,14 @@
 import { useAtomValue } from "jotai";
-import { Send, SmilePlus } from "lucide-react";
+import { Check, Send, SmilePlus, UserPlus, Users, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { languageAtom, supabaseProfileAtom, userProfileAtom } from "@/entities/app";
 import {
   type ChatMessage,
+  type ChatRoom,
   type CommActionKind,
   getLocalRoom,
   getPeerPresence,
+  inviteMembersToGroupRoom,
   loadMessages,
   markRoomRead,
   sendAction,
@@ -15,6 +17,7 @@ import {
   sendTypingSignal,
   setCommOverlayTool,
 } from "@/entities/chat";
+import { listMembers } from "@/entities/team";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
 import { ChatShell } from "./ChatShell";
@@ -44,6 +47,7 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
   const dbProfile = useAtomValue(supabaseProfileAtom);
   const localProfile = useAtomValue(userProfileAtom);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [room, setRoom] = useState<ChatRoom | null>(() => getLocalRoom(roomId));
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,19 +56,38 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
   const [typingPeer, setTypingPeer] = useState<{ senderId: string; senderLabel?: string } | null>(null);
   const [activeReactionId, setActiveReactionId] = useState<string | null>(null);
 
+  const [workspaceMembers, setWorkspaceMembers] = useState<{ id: string; label: string }[]>([]);
+  const [showMembersModal, setShowMembersModal] = useState(false);
+  const [selectedInviteIds, setSelectedInviteIds] = useState<string[]>([]);
+
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const typingTimerRef = useRef<number | null>(null);
   const lastTypingSentRef = useRef<number>(0);
-  const room = getLocalRoom(roomId);
 
   const senderLabel =
     dbProfile?.display_name?.trim() || localProfile.name?.trim() || dbProfile?.email?.split("@")[0] || "나";
 
   const refresh = useCallback(() => {
     setMessages(loadMessages(roomId));
+    setRoom(getLocalRoom(roomId));
     markRoomRead(roomId);
   }, [roomId]);
+
+  useEffect(() => {
+    if (workspaceId) {
+      void listMembers(workspaceId)
+        .then((list) =>
+          setWorkspaceMembers(
+            list.map((m) => ({
+              id: m.profile_id,
+              label: m.profile?.display_name || m.profile?.email || m.profile_id,
+            })),
+          ),
+        )
+        .catch(console.error);
+    }
+  }, [workspaceId]);
 
   const focusInput = useCallback(() => {
     requestAnimationFrame(() => {
@@ -105,6 +128,7 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
     };
   }, [refresh, roomId, myId, focusInput]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scroll to bottom on new message or typing indicator
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, typingPeer]);
@@ -207,6 +231,35 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
     [roomId, myId, workspaceId, refresh],
   );
 
+  const invitableMembers = workspaceMembers.filter((m) => !room?.memberIds.includes(m.id));
+
+  const handleInvite = useCallback(async () => {
+    if (selectedInviteIds.length === 0) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await inviteMembersToGroupRoom({
+        roomId,
+        workspaceId,
+        myId,
+        newMemberIds: selectedInviteIds,
+      });
+      setSelectedInviteIds([]);
+      setShowMembersModal(false);
+      refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }, [roomId, workspaceId, myId, selectedInviteIds, refresh]);
+
+  const toggleInviteMember = (id: string) => {
+    setSelectedInviteIds((prev) => (prev.includes(id) ? prev.filter((mId) => mId !== id) : [...prev, id]));
+  };
+
   const title = room?.name ?? (room?.kind === "group" ? "Group" : "DM");
 
   return (
@@ -214,6 +267,133 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
       {peerStatus && (
         <div className="px-3 py-1.5 text-[10px] border-b border-base-300 bg-base-100 text-base-content/60 shrink-0">
           {peerStatus}
+        </div>
+      )}
+      {room?.kind === "group" && (
+        <div className="flex items-center justify-between px-3 py-1.5 border-b border-base-300 bg-base-100 text-xs shrink-0">
+          <div className="flex items-center gap-1.5 text-base-content/75 min-w-0">
+            <Users className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span className="font-semibold truncate">{room.name}</span>
+            <span className="text-[11px] text-base-content/40 shrink-0">({room.memberIds.length}명)</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowMembersModal((prev) => !prev)}
+            className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border border-emerald-500/40 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-colors font-medium shrink-0"
+          >
+            <UserPlus className="w-3 h-3" />
+            <span>{lang === "ko" ? "멤버 / 초대" : "Members"}</span>
+          </button>
+        </div>
+      )}
+
+      {/* Members & Invite Modal */}
+      {showMembersModal && room?.kind === "group" && (
+        <div className="p-3 border-b border-base-300 bg-base-100/95 space-y-3 z-30 shadow-md animate-in fade-in slide-in-from-top-2 shrink-0">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-bold text-base-content/80 flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5 text-emerald-600" />
+              <span>{lang === "ko" ? "그룹 멤버 관리" : "Group Members"}</span>
+            </h4>
+            <button
+              type="button"
+              onClick={() => setShowMembersModal(false)}
+              className="p-1 rounded-md text-base-content/40 hover:text-base-content hover:bg-base-200"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="space-y-1">
+            <p className="text-[10px] font-semibold text-base-content/50 uppercase tracking-wider">
+              {lang === "ko" ? `현재 참여자 (${room.memberIds.length}명)` : `Current (${room.memberIds.length})`}
+            </p>
+            <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
+              {room.memberIds.map((mId) => {
+                const label =
+                  workspaceMembers.find((wm) => wm.id === mId)?.label || (mId === myId ? "나" : mId.slice(0, 8));
+                const isHost = mId === room.hostProfileId;
+                const isMe = mId === myId;
+                return (
+                  <span
+                    key={mId}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] bg-base-200 text-base-content/80 border border-base-300"
+                  >
+                    <span>{label}</span>
+                    {isHost && (
+                      <span className="text-[9px] px-1 rounded bg-amber-500/20 text-amber-600 font-semibold">
+                        {lang === "ko" ? "방장" : "Host"}
+                      </span>
+                    )}
+                    {isMe && !isHost && (
+                      <span className="text-[9px] px-1 rounded bg-emerald-500/20 text-emerald-600 font-semibold">
+                        {lang === "ko" ? "나" : "Me"}
+                      </span>
+                    )}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-1.5 pt-1 border-t border-base-300">
+            <p className="text-[10px] font-semibold text-base-content/50 uppercase tracking-wider">
+              {lang === "ko" ? "새 멤버 초대하기" : "Invite Members"}
+            </p>
+            {invitableMembers.length > 0 ? (
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                  {invitableMembers.map((member) => {
+                    const selected = selectedInviteIds.includes(member.id);
+                    return (
+                      <button
+                        key={member.id}
+                        type="button"
+                        onClick={() => toggleInviteMember(member.id)}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] transition-colors border ${
+                          selected
+                            ? "bg-emerald-500/15 border-emerald-500 text-emerald-600 font-medium"
+                            : "bg-base-200 border-base-300 text-base-content/70 hover:bg-base-300"
+                        }`}
+                      >
+                        <span
+                          className={`w-3 h-3 rounded-full flex items-center justify-center border text-[8px] ${
+                            selected
+                              ? "bg-emerald-600 border-emerald-600 text-white"
+                              : "border-base-content/30 bg-base-100"
+                          }`}
+                        >
+                          {selected && <Check className="w-2.5 h-2.5" />}
+                        </span>
+                        <span>{member.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    disabled={selectedInviteIds.length === 0 || busy}
+                    onClick={() => void handleInvite()}
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>
+                      {lang === "ko"
+                        ? `선택한 ${selectedInviteIds.length}명 초대`
+                        : `Invite (${selectedInviteIds.length})`}
+                    </span>
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-[11px] text-base-content/40 italic">
+                {lang === "ko"
+                  ? "워크스페이스의 모든 멤버가 이미 참여 중입니다."
+                  : "All workspace members are already in this room."}
+              </p>
+            )}
+          </div>
         </div>
       )}
       <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-3">

@@ -153,33 +153,6 @@ export async function createGroupRoom(opts: {
   const roomKey = await generateGroupRoomKey();
   roomKeys.set(id, roomKey);
 
-  const peers = await refreshPeers(opts.workspaceId);
-  for (const peer of peers) {
-    if (!members.includes(peer.profileId) || peer.profileId === opts.myId) {
-      continue;
-    }
-    try {
-      const wrapped = await wrapRoomKey(roomKey, peer.x25519Public);
-      const frame: ChatWireFrame = {
-        v: 1,
-        id: uuid(),
-        roomId: id,
-        senderId: opts.myId,
-        kind: "system",
-        ciphertext: await sealChatPayload(roomKey, JSON.stringify({ type: "room_key_wrap", wrapped })),
-        createdAt: new Date().toISOString(),
-      };
-      // Also send wrapped key in clear system channel field via ciphertext of a dedicated envelope
-      await deliverToPeer(peer, {
-        ...frame,
-        ciphertext: wrapped,
-        kind: "system",
-      });
-    } catch (e) {
-      console.warn("wrap room key to peer failed", peer.profileId, e);
-    }
-  }
-
   const room: ChatRoom = {
     id,
     workspaceId: opts.workspaceId,
@@ -193,6 +166,34 @@ export async function createGroupRoom(opts: {
     unread: 0,
   };
   upsertLocalRoom(room);
+
+  const peers = await refreshPeers(opts.workspaceId);
+  for (const peer of peers) {
+    if (!members.includes(peer.profileId) || peer.profileId === opts.myId) {
+      continue;
+    }
+    try {
+      const wrapped = await wrapRoomKey(roomKey, peer.x25519Public);
+      const invitePayload = JSON.stringify({
+        type: "group_invite",
+        wrappedKey: wrapped,
+        room,
+      });
+      const frame: ChatWireFrame = {
+        v: 1,
+        id: uuid(),
+        roomId: id,
+        senderId: opts.myId,
+        kind: "system",
+        ciphertext: invitePayload,
+        createdAt: new Date().toISOString(),
+      };
+      await deliverToPeer(peer, frame);
+    } catch (e) {
+      console.warn("wrap room key to peer failed", peer.profileId, e);
+    }
+  }
+
   try {
     await upsertChatRoomMeta({
       id: room.id,
@@ -206,6 +207,147 @@ export async function createGroupRoom(opts: {
     console.warn("group meta upsert failed:", e);
   }
   return room;
+}
+
+export async function inviteMembersToGroupRoom(opts: {
+  roomId: string;
+  workspaceId: string;
+  myId: string;
+  newMemberIds: string[];
+}): Promise<ChatRoom> {
+  const room = getLocalRoom(opts.roomId);
+  if (!room || room.kind !== "group") {
+    throw new Error("Group room not found");
+  }
+
+  const updatedMembers = Array.from(new Set([...room.memberIds, ...opts.newMemberIds]));
+  const peers = await refreshPeers(opts.workspaceId);
+  const roomKey = await getOrDeriveRoomKey(room, opts.myId, peers);
+
+  const updatedRoom: ChatRoom = {
+    ...room,
+    memberIds: updatedMembers,
+  };
+  upsertLocalRoom(updatedRoom);
+
+  // 1. Deliver group_invite with room metadata to new members
+  for (const peerId of opts.newMemberIds) {
+    const peer = peers.find((p) => p.profileId === peerId);
+    if (!peer) {
+      continue;
+    }
+    try {
+      const wrapped = await wrapRoomKey(roomKey, peer.x25519Public);
+      const invitePayload = JSON.stringify({
+        type: "group_invite",
+        wrappedKey: wrapped,
+        room: updatedRoom,
+      });
+      const frame: ChatWireFrame = {
+        v: 1,
+        id: uuid(),
+        roomId: room.id,
+        senderId: opts.myId,
+        kind: "system",
+        ciphertext: invitePayload,
+        createdAt: new Date().toISOString(),
+      };
+      await deliverToPeer(peer, frame);
+    } catch (e) {
+      console.warn("invite peer failed", peerId, e);
+    }
+  }
+
+  // 2. Deliver member_joined notification to existing members
+  for (const memberId of room.memberIds) {
+    if (memberId === opts.myId) {
+      continue;
+    }
+    const peer = peers.find((p) => p.profileId === memberId);
+    if (!peer) {
+      continue;
+    }
+    try {
+      const joinedPayload = JSON.stringify({
+        type: "member_joined",
+        memberIds: updatedMembers,
+      });
+      const frame: ChatWireFrame = {
+        v: 1,
+        id: uuid(),
+        roomId: room.id,
+        senderId: opts.myId,
+        kind: "system",
+        ciphertext: joinedPayload,
+        createdAt: new Date().toISOString(),
+      };
+      await deliverToPeer(peer, frame);
+    } catch (e) {
+      console.warn("notify joined failed", memberId, e);
+    }
+  }
+
+  // 3. Update Supabase chat_rooms metadata
+  try {
+    await upsertChatRoomMeta({
+      id: updatedRoom.id,
+      workspaceId: updatedRoom.workspaceId,
+      kind: "group",
+      name: updatedRoom.name,
+      hostProfileId: updatedRoom.hostProfileId,
+      memberIds: updatedMembers,
+    });
+  } catch (e) {
+    console.warn("update group meta failed:", e);
+  }
+
+  // 4. Append local system notice
+  appendLocalMessage({
+    id: uuid(),
+    roomId: room.id,
+    senderId: opts.myId,
+    kind: "system",
+    body: `${opts.newMemberIds.length}명의 멤버를 초대했습니다.`,
+    createdAt: new Date().toISOString(),
+  });
+
+  window.dispatchEvent(new CustomEvent("hg-chat-updated", { detail: { roomId: room.id } }));
+  return updatedRoom;
+}
+
+export async function syncRemoteRooms(workspaceId: string, myId: string): Promise<ChatRoom[]> {
+  try {
+    const remoteRooms = await listChatRoomMeta(workspaceId);
+    for (const r of remoteRooms) {
+      if (r.member_ids.includes(myId)) {
+        const local = getLocalRoom(r.id);
+        if (!local) {
+          const room: ChatRoom = {
+            id: r.id,
+            workspaceId: r.workspace_id,
+            kind: r.kind,
+            name: r.name,
+            memberIds: r.member_ids,
+            hostProfileId: r.host_profile_id,
+            createdAt: r.created_at,
+            lastMessageAt: null,
+            lastPreview: null,
+            unread: 0,
+          };
+          upsertLocalRoom(room);
+        } else if (JSON.stringify([...local.memberIds].sort()) !== JSON.stringify([...r.member_ids].sort())) {
+          upsertLocalRoom({
+            ...local,
+            memberIds: r.member_ids,
+            name: r.name ?? local.name,
+          });
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("syncRemoteRooms failed:", e);
+  }
+  return loadInbox(workspaceId);
 }
 
 async function getOrDeriveRoomKey(room: ChatRoom, myId: string, peers: ChatPeerEndpoint[]): Promise<string> {
@@ -576,13 +718,45 @@ export async function handleIncomingFrame(raw: string, myId: string): Promise<vo
   }
 
   if (frame.kind === "system") {
-    // room key wrap: ciphertext is wrapped key blob
     try {
+      let wrappedKey = frame.ciphertext;
+      let invitedRoom: ChatRoom | null = null;
+
+      try {
+        const parsed = JSON.parse(frame.ciphertext);
+        if (parsed?.type === "group_invite" && parsed.wrappedKey && parsed.room) {
+          wrappedKey = parsed.wrappedKey;
+          invitedRoom = parsed.room as ChatRoom;
+        } else if (parsed?.type === "member_joined" && Array.isArray(parsed.memberIds)) {
+          const currentRoom = getLocalRoom(frame.roomId);
+          if (currentRoom) {
+            upsertLocalRoom({ ...currentRoom, memberIds: parsed.memberIds });
+            window.dispatchEvent(new CustomEvent("hg-chat-updated", { detail: { roomId: frame.roomId } }));
+          }
+          return;
+        }
+      } catch {
+        // legacy raw base64 wrapped key string
+      }
+
       const { unwrapRoomKey } = await import("./crypto");
-      const key = await unwrapRoomKey(frame.ciphertext);
+      const key = await unwrapRoomKey(wrappedKey);
       roomKeys.set(frame.roomId, key);
-    } catch {
-      /* ignore */
+
+      if (invitedRoom) {
+        upsertLocalRoom(invitedRoom);
+        appendLocalMessage({
+          id: uuid(),
+          roomId: frame.roomId,
+          senderId: frame.senderId,
+          kind: "system",
+          body: `${frame.senderLabel || "호스트"}님이 회원님을 그룹에 초대했습니다.`,
+          createdAt: new Date().toISOString(),
+        });
+        window.dispatchEvent(new CustomEvent("hg-chat-updated", { detail: { roomId: frame.roomId } }));
+      }
+    } catch (e) {
+      console.warn("handle system frame failed", e);
     }
     return;
   }

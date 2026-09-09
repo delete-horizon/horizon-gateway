@@ -25,6 +25,7 @@ export {
   flushOutbox,
   getPeerPresence,
   handleIncomingFrame,
+  inviteMembersToGroupRoom,
   loadInbox,
   loadMessages,
   refreshPeers,
@@ -32,6 +33,7 @@ export {
   sendReaction,
   sendTextMessage,
   sendTypingSignal,
+  syncRemoteRooms,
 } from "./lib/service";
 export * from "./lib/transport";
 export type {
