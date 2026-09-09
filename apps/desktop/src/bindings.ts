@@ -92,6 +92,7 @@ export const commands = {
 	openAnnotationDialog: (selector: string, content: string, tagName: string, thumbnail: string) => typedError<null, string>(__TAURI_INVOKE("open_annotation_dialog", { selector, content, tagName, thumbnail })),
 	quitApp: () => typedError<null, string>(__TAURI_INVOKE("quit_app")),
 	prepareForUpdate: () => typedError<null, string>(__TAURI_INVOKE("prepare_for_update")),
+	installWindowsUpdate: () => typedError<null, string>(__TAURI_INVOKE("install_windows_update")),
 	captureAppScreenshot: () => typedError<string, string>(__TAURI_INVOKE("capture_app_screenshot")),
 	triggerOsSnip: () => typedError<null, string>(__TAURI_INVOKE("trigger_os_snip")),
 	chatEnsureIdentity: () => typedError<{ deviceId: string, publicKey: string }, string>(__TAURI_INVOKE("chat_ensure_identity")),

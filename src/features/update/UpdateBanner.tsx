@@ -30,15 +30,18 @@ export function UpdateBanner({ update, onDismiss }: UpdateBannerProps) {
       } catch (prepErr) {
         console.warn("Failed to cleanly prepare serve for update:", prepErr);
       }
+      if (isWindows()) {
+        await commands.installWindowsUpdate();
+        setPendingUpdate(null);
+        return;
+      }
       await update.downloadAndInstall((event) => {
         if (event.event === "Finished") {
           setIsInstalling(false);
         }
       });
       setPendingUpdate(null);
-      if (!isWindows()) {
-        await relaunch();
-      }
+      await relaunch();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setInstallError(message);

@@ -12,6 +12,7 @@ mod comm_overlay;
 
 mod command {
     pub mod window_commands;
+    pub mod windows_update;
 }
 
 use chat::{
@@ -23,6 +24,7 @@ use command::window_commands::{
     capture_app_screenshot, open_annotation_dialog, open_external_url, open_inspector_window,
     open_window, prepare_for_update, quit_app, trigger_os_snip,
 };
+use command::windows_update::install_windows_update;
 use comm_overlay::{clear_comm_overlay, play_comm_action, set_comm_overlay_tool};
 
 pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
@@ -33,6 +35,7 @@ pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         open_annotation_dialog,
         quit_app,
         prepare_for_update,
+        install_windows_update,
         capture_app_screenshot,
         trigger_os_snip,
         chat_ensure_identity,

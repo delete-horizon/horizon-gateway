@@ -24,13 +24,17 @@ export function useInstallUpdate() {
         } catch (prepErr) {
           console.warn("Failed to cleanly prepare serve for update:", prepErr);
         }
-        // Windows: downloadAndInstall launches the NSIS installer and exits this process.
-        // Do not call relaunch() — it races the installer and aborts the update.
+
+        if (isWindows()) {
+          // Elevated NSIS launch (UAC). Process exits on success.
+          await commands.installWindowsUpdate();
+          setPendingUpdate(null);
+          return;
+        }
+
         await update.downloadAndInstall();
         setPendingUpdate(null);
-        if (!isWindows()) {
-          await relaunch();
-        }
+        await relaunch();
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         toastError(labels?.failed ? `${labels.failed}: ${message}` : message);
