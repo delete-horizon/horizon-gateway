@@ -16,6 +16,7 @@ import {
   sealChatPayload,
   wrapRoomKey,
 } from "./crypto";
+import { emitChatTyping, emitChatUpdated } from "./events";
 import {
   appendLocalMessage,
   bumpUnread,
@@ -48,6 +49,14 @@ export interface ChatWireFrame {
   /** Display name at send time — overlay label on receiver. */
   senderLabel?: string;
   createdAt: string;
+}
+
+export interface InviteMembersResult {
+  room: ChatRoom;
+  /** Peers that accepted delivery immediately. */
+  deliveredIds: string[];
+  /** Offline / unreachable — queued in outbox for later flush. */
+  pendingIds: string[];
 }
 
 const roomKeys = new Map<string, string>();
@@ -142,6 +151,53 @@ export async function ensureDmRoom(opts: {
   return room;
 }
 
+async function buildGroupInviteFrame(opts: {
+  room: ChatRoom;
+  myId: string;
+  roomKey: string;
+  peerPublicKey: string;
+}): Promise<ChatWireFrame> {
+  const wrapped = await wrapRoomKey(opts.roomKey, opts.peerPublicKey);
+  const roomCipher = await sealChatPayload(opts.roomKey, JSON.stringify(opts.room));
+  return {
+    v: 1,
+    id: uuid(),
+    roomId: opts.room.id,
+    senderId: opts.myId,
+    kind: "system",
+    ciphertext: JSON.stringify({
+      type: "group_invite",
+      wrappedKey: wrapped,
+      roomCipher,
+    }),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+async function deliverOrEnqueueInvite(
+  peer: ChatPeerEndpoint | undefined,
+  peerId: string,
+  frame: ChatWireFrame,
+): Promise<"delivered" | "pending"> {
+  if (!peer) {
+    enqueueOutbox({
+      id: frame.id,
+      roomId: frame.roomId,
+      peerProfileId: peerId,
+      frameJson: JSON.stringify(frame),
+      createdAt: frame.createdAt,
+    });
+    return "pending";
+  }
+  try {
+    await deliverToPeer(peer, frame);
+    return "delivered";
+  } catch (e) {
+    console.warn("invite deliver failed; left in outbox if queued", peerId, e);
+    return "pending";
+  }
+}
+
 export async function createGroupRoom(opts: {
   workspaceId: string;
   myId: string;
@@ -168,29 +224,25 @@ export async function createGroupRoom(opts: {
   upsertLocalRoom(room);
 
   const peers = await refreshPeers(opts.workspaceId);
-  for (const peer of peers) {
-    if (!members.includes(peer.profileId) || peer.profileId === opts.myId) {
+  for (const memberId of members) {
+    if (memberId === opts.myId) {
+      continue;
+    }
+    const peer = peers.find((p) => p.profileId === memberId);
+    if (!peer?.x25519Public) {
+      console.warn("group create: peer has no device key yet; invite deferred", memberId);
       continue;
     }
     try {
-      const wrapped = await wrapRoomKey(roomKey, peer.x25519Public);
-      const invitePayload = JSON.stringify({
-        type: "group_invite",
-        wrappedKey: wrapped,
+      const frame = await buildGroupInviteFrame({
         room,
+        myId: opts.myId,
+        roomKey,
+        peerPublicKey: peer.x25519Public,
       });
-      const frame: ChatWireFrame = {
-        v: 1,
-        id: uuid(),
-        roomId: id,
-        senderId: opts.myId,
-        kind: "system",
-        ciphertext: invitePayload,
-        createdAt: new Date().toISOString(),
-      };
-      await deliverToPeer(peer, frame);
+      await deliverOrEnqueueInvite(peer, memberId, frame);
     } catch (e) {
-      console.warn("wrap room key to peer failed", peer.profileId, e);
+      console.warn("wrap room key to peer failed", memberId, e);
     }
   }
 
@@ -206,6 +258,7 @@ export async function createGroupRoom(opts: {
   } catch (e) {
     console.warn("group meta upsert failed:", e);
   }
+  emitChatUpdated(room.id);
   return room;
 }
 
@@ -214,13 +267,21 @@ export async function inviteMembersToGroupRoom(opts: {
   workspaceId: string;
   myId: string;
   newMemberIds: string[];
-}): Promise<ChatRoom> {
+}): Promise<InviteMembersResult> {
   const room = getLocalRoom(opts.roomId);
   if (!room || room.kind !== "group") {
     throw new Error("Group room not found");
   }
+  if (room.hostProfileId && room.hostProfileId !== opts.myId) {
+    throw new Error("Only the group host can invite members");
+  }
 
-  const updatedMembers = Array.from(new Set([...room.memberIds, ...opts.newMemberIds]));
+  const uniqueNew = Array.from(new Set(opts.newMemberIds.filter((id) => id && id !== opts.myId)));
+  if (uniqueNew.length === 0) {
+    throw new Error("No members selected to invite");
+  }
+
+  const updatedMembers = Array.from(new Set([...room.memberIds, ...uniqueNew]));
   const peers = await refreshPeers(opts.workspaceId);
   const roomKey = await getOrDeriveRoomKey(room, opts.myId, peers);
 
@@ -228,37 +289,53 @@ export async function inviteMembersToGroupRoom(opts: {
     ...room,
     memberIds: updatedMembers,
   };
-  upsertLocalRoom(updatedRoom);
 
-  // 1. Deliver group_invite with room metadata to new members
-  for (const peerId of opts.newMemberIds) {
+  const deliveredIds: string[] = [];
+  const pendingIds: string[] = [];
+
+  // 1. Deliver sealed group_invite to new members (outbox if offline)
+  for (const peerId of uniqueNew) {
     const peer = peers.find((p) => p.profileId === peerId);
-    if (!peer) {
+    if (!peer?.x25519Public) {
+      pendingIds.push(peerId);
       continue;
     }
     try {
-      const wrapped = await wrapRoomKey(roomKey, peer.x25519Public);
-      const invitePayload = JSON.stringify({
-        type: "group_invite",
-        wrappedKey: wrapped,
+      const frame = await buildGroupInviteFrame({
         room: updatedRoom,
+        myId: opts.myId,
+        roomKey,
+        peerPublicKey: peer.x25519Public,
       });
-      const frame: ChatWireFrame = {
-        v: 1,
-        id: uuid(),
-        roomId: room.id,
-        senderId: opts.myId,
-        kind: "system",
-        ciphertext: invitePayload,
-        createdAt: new Date().toISOString(),
-      };
-      await deliverToPeer(peer, frame);
+      const status = await deliverOrEnqueueInvite(peer, peerId, frame);
+      if (status === "delivered") {
+        deliveredIds.push(peerId);
+      } else {
+        pendingIds.push(peerId);
+      }
     } catch (e) {
       console.warn("invite peer failed", peerId, e);
+      pendingIds.push(peerId);
     }
   }
 
-  // 2. Deliver member_joined notification to existing members
+  if (deliveredIds.length === 0 && pendingIds.length === uniqueNew.length) {
+    const withoutKeys = uniqueNew.filter((id) => !peers.find((p) => p.profileId === id)?.x25519Public);
+    if (withoutKeys.length === uniqueNew.length) {
+      throw new Error(
+        "Invitees have no chat key yet — they must open Gateway (signed in) once before you can invite them.",
+      );
+    }
+  }
+
+  upsertLocalRoom(updatedRoom);
+
+  // 2. Sealed member_joined to existing members (auth via room key + host check on receive)
+  const joinedPlain = JSON.stringify({
+    type: "member_joined",
+    memberIds: updatedMembers,
+  });
+  const joinedCipher = await sealChatPayload(roomKey, joinedPlain);
   for (const memberId of room.memberIds) {
     if (memberId === opts.myId) {
       continue;
@@ -268,17 +345,13 @@ export async function inviteMembersToGroupRoom(opts: {
       continue;
     }
     try {
-      const joinedPayload = JSON.stringify({
-        type: "member_joined",
-        memberIds: updatedMembers,
-      });
       const frame: ChatWireFrame = {
         v: 1,
         id: uuid(),
         roomId: room.id,
         senderId: opts.myId,
         kind: "system",
-        ciphertext: joinedPayload,
+        ciphertext: joinedCipher,
         createdAt: new Date().toISOString(),
       };
       await deliverToPeer(peer, frame);
@@ -301,18 +374,19 @@ export async function inviteMembersToGroupRoom(opts: {
     console.warn("update group meta failed:", e);
   }
 
-  // 4. Append local system notice
+  // 4. Append local system notice (honest about pending delivery)
+  const pendingNote = pendingIds.length > 0 ? ` (오프라인 ${pendingIds.length}명은 재연결 시 자동 재시도)` : "";
   appendLocalMessage({
     id: uuid(),
     roomId: room.id,
     senderId: opts.myId,
     kind: "system",
-    body: `${opts.newMemberIds.length}명의 멤버를 초대했습니다.`,
+    body: `${uniqueNew.length}명의 멤버를 초대했습니다.${pendingNote}`,
     createdAt: new Date().toISOString(),
   });
 
-  window.dispatchEvent(new CustomEvent("hg-chat-updated", { detail: { roomId: room.id } }));
-  return updatedRoom;
+  emitChatUpdated(room.id);
+  return { room: updatedRoom, deliveredIds, pendingIds };
 }
 
 export async function syncRemoteRooms(workspaceId: string, myId: string): Promise<ChatRoom[]> {
@@ -488,7 +562,7 @@ export async function sendTextMessage(opts: {
   }
 
   updateLocalMessage(opts.roomId, id, (m) => ({ ...m, pending: false }));
-  window.dispatchEvent(new CustomEvent("hg-chat-updated", { detail: { roomId: opts.roomId } }));
+  emitChatUpdated(opts.roomId);
 
   return { ...local, pending: false };
 }
@@ -545,14 +619,7 @@ export async function sendAction(opts: {
   for (const peer of targets) {
     await deliverToPeer(peer, frame);
   }
-
-  // Sender local echo feedback
-  try {
-    const echoLabel = senderLabel ? `${senderLabel} (나)` : "(나)";
-    await playCommAction(opts.actionKind, null, 1, echoLabel);
-  } catch (err) {
-    console.warn("play local echo action failed", err);
-  }
+  // Receiver-only overlays — no local echo.
 }
 
 export async function sendTypingSignal(opts: {
@@ -611,31 +678,46 @@ export async function sendReaction(opts: {
   }
 
   toggleReaction(opts.roomId, opts.targetMessageId, opts.emoji, opts.myId);
-  window.dispatchEvent(new CustomEvent("hg-chat-updated", { detail: { roomId: opts.roomId } }));
+  emitChatUpdated(opts.roomId);
 
-  const peers = await refreshPeers(opts.workspaceId);
-  const roomKey = await getOrDeriveRoomKey(room, opts.myId, peers);
-  const payload = JSON.stringify({ targetMessageId: opts.targetMessageId, emoji: opts.emoji });
-  const ciphertext = await sealChatPayload(roomKey, payload);
-  const frame: ChatWireFrame = {
-    v: 1,
-    id: uuid(),
-    roomId: opts.roomId,
-    senderId: opts.myId,
-    kind: "reaction",
-    ciphertext,
-    createdAt: new Date().toISOString(),
-  };
+  try {
+    const peers = await refreshPeers(opts.workspaceId);
+    const roomKey = await getOrDeriveRoomKey(room, opts.myId, peers);
+    const payload = JSON.stringify({ targetMessageId: opts.targetMessageId, emoji: opts.emoji });
+    const ciphertext = await sealChatPayload(roomKey, payload);
+    const frame: ChatWireFrame = {
+      v: 1,
+      id: uuid(),
+      roomId: opts.roomId,
+      senderId: opts.myId,
+      kind: "reaction",
+      ciphertext,
+      createdAt: new Date().toISOString(),
+    };
 
-  const targets =
-    room.kind === "dm"
-      ? resolveDmTargets(room, opts.myId, peers)
-      : room.hostProfileId === opts.myId
-        ? peers.filter((p) => room.memberIds.includes(p.profileId) && p.profileId !== opts.myId)
-        : peers.filter((p) => p.profileId === room.hostProfileId);
+    const targets =
+      room.kind === "dm"
+        ? resolveDmTargets(room, opts.myId, peers)
+        : room.hostProfileId === opts.myId
+          ? peers.filter((p) => room.memberIds.includes(p.profileId) && p.profileId !== opts.myId)
+          : peers.filter((p) => p.profileId === room.hostProfileId);
 
-  for (const peer of targets) {
-    await deliverToPeer(peer, frame);
+    if (targets.length === 0) {
+      throw new Error(
+        room.kind === "group"
+          ? "Group host/members offline — they must have Gateway open."
+          : "Peer offline — they must have Gateway open.",
+      );
+    }
+
+    for (const peer of targets) {
+      await deliverToPeer(peer, frame);
+    }
+  } catch (e) {
+    // Roll back optimistic toggle
+    toggleReaction(opts.roomId, opts.targetMessageId, opts.emoji, opts.myId);
+    emitChatUpdated(opts.roomId);
+    throw e;
   }
 }
 
@@ -691,7 +773,7 @@ export async function handleIncomingFrame(raw: string, myId: string): Promise<vo
 
   // Host fan-out: if we are host of a group and this isn't addressed only to us, rebroadcast
   const room = getLocalRoom(frame.roomId);
-  if (room?.kind === "group" && room.hostProfileId === myId) {
+  if (room?.kind === "group" && room.hostProfileId === myId && frame.kind !== "system") {
     const peers = await refreshPeers(room.workspaceId);
     for (const memberId of room.memberIds) {
       if (memberId === myId || memberId === frame.senderId) {
@@ -704,36 +786,87 @@ export async function handleIncomingFrame(raw: string, myId: string): Promise<vo
     }
   }
 
+  async function resolveRoomKey(): Promise<string | null> {
+    let key = roomKeys.get(frame.roomId) ?? null;
+    if (!key && room) {
+      try {
+        const peers = await refreshPeers(room.workspaceId);
+        key = await getOrDeriveRoomKey(room, myId, peers);
+      } catch {
+        return null;
+      }
+    }
+    return key;
+  }
+
   if (frame.kind === "typing") {
-    window.dispatchEvent(
-      new CustomEvent("hg-chat-typing", {
-        detail: {
-          roomId: frame.roomId,
-          senderId: frame.senderId,
-          senderLabel: frame.senderLabel,
-        },
-      }),
-    );
+    const roomKey = await resolveRoomKey();
+    if (!roomKey) {
+      return;
+    }
+    try {
+      const body = await openChatPayload(roomKey, frame.ciphertext);
+      if (body !== "typing") {
+        return;
+      }
+    } catch {
+      return;
+    }
+    emitChatTyping({
+      roomId: frame.roomId,
+      senderId: frame.senderId,
+      senderLabel: frame.senderLabel,
+    });
     return;
   }
 
   if (frame.kind === "system") {
     try {
+      // Sealed member_joined (room-key auth) — reject plaintext member_joined.
+      const roomKeyForJoined = await resolveRoomKey();
+      if (roomKeyForJoined) {
+        try {
+          const opened = await openChatPayload(roomKeyForJoined, frame.ciphertext);
+          const joined = JSON.parse(opened) as { type?: string; memberIds?: string[] };
+          if (joined?.type === "member_joined" && Array.isArray(joined.memberIds)) {
+            const currentRoom = getLocalRoom(frame.roomId);
+            if (
+              currentRoom &&
+              currentRoom.hostProfileId === frame.senderId &&
+              joined.memberIds.every((id) => typeof id === "string")
+            ) {
+              upsertLocalRoom({ ...currentRoom, memberIds: joined.memberIds });
+              emitChatUpdated(frame.roomId);
+            }
+            return;
+          }
+        } catch {
+          /* not a sealed member_joined — try invite envelope */
+        }
+      }
+
       let wrappedKey = frame.ciphertext;
       let invitedRoom: ChatRoom | null = null;
+      let roomCipher: string | null = null;
 
       try {
-        const parsed = JSON.parse(frame.ciphertext);
-        if (parsed?.type === "group_invite" && parsed.wrappedKey && parsed.room) {
-          wrappedKey = parsed.wrappedKey;
-          invitedRoom = parsed.room as ChatRoom;
-        } else if (parsed?.type === "member_joined" && Array.isArray(parsed.memberIds)) {
-          const currentRoom = getLocalRoom(frame.roomId);
-          if (currentRoom) {
-            upsertLocalRoom({ ...currentRoom, memberIds: parsed.memberIds });
-            window.dispatchEvent(new CustomEvent("hg-chat-updated", { detail: { roomId: frame.roomId } }));
-          }
+        const parsed = JSON.parse(frame.ciphertext) as {
+          type?: string;
+          wrappedKey?: string;
+          room?: ChatRoom;
+          roomCipher?: string;
+        };
+        if (parsed?.type === "member_joined") {
+          // Plaintext member_joined from older clients — ignore (unauthenticated).
           return;
+        }
+        if (parsed?.type === "group_invite" && parsed.wrappedKey) {
+          wrappedKey = parsed.wrappedKey;
+          roomCipher = typeof parsed.roomCipher === "string" ? parsed.roomCipher : null;
+          // Legacy plaintext room (older hosts) — still validate host/id below.
+          if (!roomCipher && parsed.room) {
+            invitedRoom = parsed.room;
+          }
         }
       } catch {
         // legacy raw base64 wrapped key string
@@ -743,7 +876,26 @@ export async function handleIncomingFrame(raw: string, myId: string): Promise<vo
       const key = await unwrapRoomKey(wrappedKey);
       roomKeys.set(frame.roomId, key);
 
+      if (roomCipher) {
+        try {
+          invitedRoom = JSON.parse(await openChatPayload(key, roomCipher)) as ChatRoom;
+        } catch {
+          console.warn("group_invite roomCipher open failed");
+          return;
+        }
+      }
+
       if (invitedRoom) {
+        if (
+          invitedRoom.id !== frame.roomId ||
+          invitedRoom.kind !== "group" ||
+          invitedRoom.hostProfileId !== frame.senderId ||
+          !Array.isArray(invitedRoom.memberIds) ||
+          !invitedRoom.memberIds.includes(myId)
+        ) {
+          console.warn("group_invite rejected: invalid room metadata or sender");
+          return;
+        }
         upsertLocalRoom(invitedRoom);
         appendLocalMessage({
           id: uuid(),
@@ -753,7 +905,7 @@ export async function handleIncomingFrame(raw: string, myId: string): Promise<vo
           body: `${frame.senderLabel || "호스트"}님이 회원님을 그룹에 초대했습니다.`,
           createdAt: new Date().toISOString(),
         });
-        window.dispatchEvent(new CustomEvent("hg-chat-updated", { detail: { roomId: frame.roomId } }));
+        emitChatUpdated(frame.roomId);
       }
     } catch (e) {
       console.warn("handle system frame failed", e);
@@ -761,17 +913,9 @@ export async function handleIncomingFrame(raw: string, myId: string): Promise<vo
     return;
   }
 
-  let roomKey = roomKeys.get(frame.roomId);
-  if (!roomKey && room) {
-    try {
-      const peers = await refreshPeers(room.workspaceId);
-      roomKey = await getOrDeriveRoomKey(room, myId, peers);
-    } catch {
-      console.warn("Cannot decrypt chat frame — missing room key");
-      return;
-    }
-  }
+  const roomKey = await resolveRoomKey();
   if (!roomKey) {
+    console.warn("Cannot decrypt chat frame — missing room key");
     return;
   }
 
@@ -787,7 +931,7 @@ export async function handleIncomingFrame(raw: string, myId: string): Promise<vo
       const parsed = JSON.parse(body) as { messageId: string };
       if (parsed?.messageId) {
         markMessageDelivered(frame.roomId, parsed.messageId);
-        window.dispatchEvent(new CustomEvent("hg-chat-updated", { detail: { roomId: frame.roomId } }));
+        emitChatUpdated(frame.roomId);
       }
     } catch (e) {
       console.warn("Failed to parse ack payload", e);
@@ -800,7 +944,7 @@ export async function handleIncomingFrame(raw: string, myId: string): Promise<vo
       const parsed = JSON.parse(body) as { targetMessageId: string; emoji: string };
       if (parsed?.targetMessageId && parsed?.emoji) {
         toggleReaction(frame.roomId, parsed.targetMessageId, parsed.emoji, frame.senderId);
-        window.dispatchEvent(new CustomEvent("hg-chat-updated", { detail: { roomId: frame.roomId } }));
+        emitChatUpdated(frame.roomId);
       }
     } catch (e) {
       console.warn("Failed to parse reaction payload", e);
@@ -821,11 +965,17 @@ export async function handleIncomingFrame(raw: string, myId: string): Promise<vo
     return;
   }
 
+  // Drop unknown wire kinds so older/newer clients never store them as chat rows.
+  if (frame.kind !== "text") {
+    console.warn("Ignoring unknown chat frame kind", frame.kind);
+    return;
+  }
+
   appendLocalMessage({
     id: frame.id,
     roomId: frame.roomId,
     senderId: frame.senderId,
-    kind: frame.kind,
+    kind: "text",
     body,
     actionKind: frame.actionKind,
     createdAt: frame.createdAt,
@@ -837,7 +987,7 @@ export async function handleIncomingFrame(raw: string, myId: string): Promise<vo
     id: frame.id,
     roomId: frame.roomId,
     senderId: frame.senderId,
-    kind: frame.kind,
+    kind: "text",
     body,
     actionKind: frame.actionKind,
     createdAt: frame.createdAt,
@@ -853,7 +1003,7 @@ export async function handleIncomingFrame(raw: string, myId: string): Promise<vo
     });
   }
 
-  window.dispatchEvent(new CustomEvent("hg-chat-updated", { detail: { roomId: frame.roomId } }));
+  emitChatUpdated(frame.roomId);
 }
 
 export async function flushOutbox(workspaceId: string): Promise<void> {

@@ -16,6 +16,14 @@ function isWindows(): boolean {
   return navigator.userAgent.includes("Windows");
 }
 
+async function recoverServeAfterFailedUpdate(): Promise<void> {
+  try {
+    await commands.ensureServeRunning();
+  } catch (err) {
+    console.warn("Failed to restart serve after update failure:", err);
+  }
+}
+
 export function UpdateBanner({ update, onDismiss }: UpdateBannerProps) {
   const setPendingUpdate = useSetAtom(pendingUpdateAtom);
   const [isInstalling, setIsInstalling] = useState(false);
@@ -25,15 +33,15 @@ export function UpdateBanner({ update, onDismiss }: UpdateBannerProps) {
     setIsInstalling(true);
     setInstallError(null);
     try {
-      try {
-        await commands.prepareForUpdate();
-      } catch (prepErr) {
-        console.warn("Failed to cleanly prepare serve for update:", prepErr);
-      }
       if (isWindows()) {
         await commands.installWindowsUpdate();
         setPendingUpdate(null);
         return;
+      }
+      try {
+        await commands.prepareForUpdate();
+      } catch (prepErr) {
+        console.warn("Failed to cleanly prepare serve for update:", prepErr);
       }
       await update.downloadAndInstall((event) => {
         if (event.event === "Finished") {
@@ -43,6 +51,7 @@ export function UpdateBanner({ update, onDismiss }: UpdateBannerProps) {
       setPendingUpdate(null);
       await relaunch();
     } catch (err) {
+      await recoverServeAfterFailedUpdate();
       const message = err instanceof Error ? err.message : String(err);
       setInstallError(message);
       setIsInstalling(false);

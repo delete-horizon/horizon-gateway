@@ -21,8 +21,8 @@ use chat::{
     chat_wrap_room_key,
 };
 use command::window_commands::{
-    capture_app_screenshot, open_annotation_dialog, open_external_url, open_inspector_window,
-    open_window, prepare_for_update, quit_app, trigger_os_snip,
+    capture_app_screenshot, ensure_serve_running, open_annotation_dialog, open_external_url,
+    open_inspector_window, open_window, prepare_for_update, quit_app, trigger_os_snip,
 };
 use command::windows_update::install_windows_update;
 use comm_overlay::{clear_comm_overlay, play_comm_action, set_comm_overlay_tool};
@@ -35,6 +35,7 @@ pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         open_annotation_dialog,
         quit_app,
         prepare_for_update,
+        ensure_serve_running,
         install_windows_update,
         capture_app_screenshot,
         trigger_os_snip,

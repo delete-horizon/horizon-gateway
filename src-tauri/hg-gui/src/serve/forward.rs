@@ -7,6 +7,7 @@ const GUI_ONLY_COMMANDS: &[&str] = &[
     "open_external_url",
     "quit_app",
     "prepare_for_update",
+    "ensure_serve_running",
     "install_windows_update",
     "capture_app_screenshot",
     "trigger_os_snip",
@@ -51,5 +52,11 @@ mod tests {
     fn prepare_for_update_stays_in_gui() {
         assert!(is_gui_only("prepare_for_update"));
         assert!(!should_forward("prepare_for_update"));
+    }
+
+    #[test]
+    fn ensure_serve_running_stays_in_gui() {
+        assert!(is_gui_only("ensure_serve_running"));
+        assert!(!should_forward("ensure_serve_running"));
     }
 }

@@ -5,7 +5,7 @@
 //!
 //! This command downloads via the updater plugin, writes a persistent setup.exe,
 //! then ShellExecuteW("runas") so UAC is requested. On cancel/failure we return
-//! an error instead of exiting.
+//! an error instead of exiting, and restart serve if it was stopped.
 
 use tauri::AppHandle;
 
@@ -25,6 +25,13 @@ pub async fn install_windows_update(app: AppHandle) -> Result<(), String> {
 }
 
 #[cfg(windows)]
+fn restart_serve_best_effort() {
+    if let Err(e) = crate::serve::ensure_running() {
+        tracing::warn!("[gui] failed to restart serve after update failure: {e}");
+    }
+}
+
+#[cfg(windows)]
 async fn install_windows_update_inner(app: AppHandle) -> Result<(), String> {
     use std::os::windows::ffi::OsStrExt;
     use std::time::Duration;
@@ -34,10 +41,6 @@ async fn install_windows_update_inner(app: AppHandle) -> Result<(), String> {
     use windows_sys::w;
     use windows_sys::Win32::UI::Shell::ShellExecuteW;
     use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
-
-    // Ensure serve is not locking files in Program Files.
-    crate::serve::kill_serve_process();
-    crate::serve::mark_inactive();
 
     let updater = app.updater().map_err(|e| format!("updater: {e}"))?;
     let update = updater
@@ -88,6 +91,16 @@ async fn install_windows_update_inner(app: AppHandle) -> Result<(), String> {
         bytes.len()
     );
 
+    // Stop serve only after a good download, so UAC cancel / launch failure can recover.
+    crate::serve::kill_serve_process();
+    crate::serve::mark_inactive();
+    for _ in 0..30 {
+        if crate::serve::leftover_is_gone() {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+
     // Keep the file around for the elevated process (do not use tempfile Drop).
     let setup_wide: Vec<u16> = setup_path
         .as_os_str()
@@ -110,6 +123,7 @@ async fn install_windows_update_inner(app: AppHandle) -> Result<(), String> {
 
     let code = result as isize;
     if code <= 32 {
+        restart_serve_best_effort();
         let msg = match code {
             0 => "out of memory / resources",
             2 => "file not found",

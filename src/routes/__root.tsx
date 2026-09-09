@@ -16,7 +16,7 @@ import {
 import { CreateMockModal } from "@/entities/mocking";
 import { proxyPortInputAtom, proxyStatusAtom } from "@/entities/proxy";
 import { BugReportModal, bugReportModalOpenAtom } from "@/features/bug-report";
-import { TeamCommsRuntime } from "@/features/chat";
+import { ChatLiveBridge, TeamCommsRuntime } from "@/features/chat";
 import { CommandPalette, commandPaletteOpenAtom } from "@/features/command-palette";
 import { useHubHandoffSync } from "@/features/panel-stack";
 import { DetachedWindowLayout, PopupWindowLayout } from "@/features/popup-window";
@@ -139,11 +139,17 @@ const RootLayout = () => {
             <span className="mt-1 block text-xs opacity-80">{backendUnavailable}</span>
           </div>
         )}
-        {showUpdateBanner && !isDetached && !isHubPage && !isPopupWindow && !isDetachedWindow && !isChatWindow && update && (
-          <div className="mb-4">
-            <UpdateBanner update={update} onDismiss={() => setDismissedUpdate(true)} />
-          </div>
-        )}
+        {showUpdateBanner &&
+          !isDetached &&
+          !isHubPage &&
+          !isPopupWindow &&
+          !isDetachedWindow &&
+          !isChatWindow &&
+          update && (
+            <div className="mb-4">
+              <UpdateBanner update={update} onDismiss={() => setDismissedUpdate(true)} />
+            </div>
+          )}
         <Outlet />
       </div>
     </main>
@@ -207,6 +213,7 @@ const RootLayout = () => {
             </>
           )}
           {globalOverlays}
+          <ChatLiveBridge />
           {import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-right" /> : null}
         </div>
       </ErrorBoundary>
@@ -220,6 +227,7 @@ const RootLayout = () => {
           <AnimatePresence>{isLoading && <LoadingScreen key="global-loader" />}</AnimatePresence>
           {content}
           {globalOverlays}
+          <ChatLiveBridge />
           {import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-right" /> : null}
         </div>
       </ErrorBoundary>
@@ -235,6 +243,7 @@ const RootLayout = () => {
             {content}
           </DetachedWindowLayout>
           {globalOverlays}
+          <ChatLiveBridge />
           {import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-right" /> : null}
         </div>
       </ErrorBoundary>
@@ -251,6 +260,7 @@ const RootLayout = () => {
         </div>
 
         {globalOverlays}
+        <ChatLiveBridge />
         <TeamCommsRuntime />
         {import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-right" /> : null}
       </div>

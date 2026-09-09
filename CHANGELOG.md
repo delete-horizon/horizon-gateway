@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.8.8] - 2026-09-09
+
+### Fixed
+
+- **Windows update UAC**: Elevated NSIS launch (`runas`) with real error on cancel; stop serve only after a successful download and restart serve if install fails.
+- **Chat popup live sync**: BroadcastChannel + storage bridge so inbox/room popups refresh when the main window receives frames.
+- **Group invite auth**: Seal invite room metadata / `member_joined` with the room key; reject plaintext joins; host-only invites; validate invite metadata.
+- **Offline invites**: Queue undelivered invites in outbox and surface pending vs delivered instead of silent “success”.
+- **Reaction rollback**: Revert optimistic reactions when peer delivery fails.
+- **Unknown wire kinds**: Drop unrecognized frame kinds; require sealed typing payloads.
+
+### Added
+
+- **Chat reactions, typing, delivery acks**: Quick emoji reactions, typing indicator, and ✓✓ delivery acknowledgments.
+- **Group member invite UI**: Select workspace members to invite; realtime room member sync.
+
+### Changed
+
+- **Receiver-only actions**: Removed sender local echo so overlays stay peer-only (matches UI copy).
+
 ## [v2.8.7] - 2026-09-08
 
 ### Added

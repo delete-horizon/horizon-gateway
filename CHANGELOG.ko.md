@@ -4,6 +4,26 @@
 
 이 형식은 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)를 기반으로 합니다.
 
+## [v2.8.8] - 2026-09-09
+
+### Fixed (버그 수정)
+
+- **Windows 업데이트 UAC**: NSIS `runas` 승격 + 취소 시 실제 에러 반환. 다운로드 성공 후에만 serve 중지, 설치 실패 시 serve 재기동.
+- **채팅 팝업 실시간 동기화**: BroadcastChannel + storage 브릿지로 메인 창 수신 시 인박스/룸 팝업 갱신.
+- **그룹 초대 인증**: 초대 메타/`member_joined`를 room key로 seal, plaintext join 거부, 호스트만 초대, 초대 메타 검증.
+- **오프라인 초대**: 미전달 초대는 outbox에 넣고 delivered/pending을 UI에 표시.
+- **리액션 롤백**: 전달 실패 시 낙관적 리액션 되돌림.
+- **알 수 없는 wire kind**: 미지원 프레임 drop, typing은 seal 검증 필수.
+
+### Added (추가 기능)
+
+- **리액션·타이핑·수신 확인**: 빠른 이모지 리액션, 입력 중 표시, ✓✓ 전달 ack.
+- **그룹 멤버 초대 UI**: 워크스페이스 멤버 선택 초대 + 실시간 멤버 동기화.
+
+### Changed (변경)
+
+- **수신자만 임티**: 보낸 사람 local echo 제거 (UI 안내와 일치).
+
 ## [v2.8.7] - 2026-09-08
 
 ### Added (추가 기능)

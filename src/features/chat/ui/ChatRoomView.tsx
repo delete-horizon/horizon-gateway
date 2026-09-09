@@ -225,7 +225,8 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
         setActiveReactionId(null);
         refresh();
       } catch (e) {
-        console.warn("sendReaction failed", e);
+        setError(e instanceof Error ? e.message : String(e));
+        refresh();
       }
     },
     [roomId, myId, workspaceId, refresh],
@@ -240,7 +241,7 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
     setBusy(true);
     setError(null);
     try {
-      await inviteMembersToGroupRoom({
+      const result = await inviteMembersToGroupRoom({
         roomId,
         workspaceId,
         myId,
@@ -249,12 +250,19 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
       setSelectedInviteIds([]);
       setShowMembersModal(false);
       refresh();
+      if (result.pendingIds.length > 0) {
+        setError(
+          lang === "ko"
+            ? `초대 전송: 즉시 ${result.deliveredIds.length}명 · 오프라인 ${result.pendingIds.length}명은 Gateway를 켜면 자동 재시도합니다.`
+            : `Invites: ${result.deliveredIds.length} delivered · ${result.pendingIds.length} offline (retried when they open Gateway).`,
+        );
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
-  }, [roomId, workspaceId, myId, selectedInviteIds, refresh]);
+  }, [roomId, workspaceId, myId, selectedInviteIds, refresh, lang]);
 
   const toggleInviteMember = (id: string) => {
     setSelectedInviteIds((prev) => (prev.includes(id) ? prev.filter((mId) => mId !== id) : [...prev, id]));

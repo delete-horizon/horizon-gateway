@@ -138,6 +138,14 @@ pub fn prepare_for_update() -> Result<(), String> {
     Ok(())
 }
 
+/// Restart hg-serve after a cancelled/failed update left the backend stopped.
+#[tauri::command]
+#[specta::specta]
+pub fn ensure_serve_running() -> Result<(), String> {
+    tracing::info!("[gui] ensure_serve_running: recovering backend after update failure");
+    crate::serve::ensure_running()
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn capture_app_screenshot(_app: AppHandle) -> Result<String, String> {

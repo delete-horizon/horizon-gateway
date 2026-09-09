@@ -1,6 +1,13 @@
 export * from "./api/signaling";
 export * from "./lib/crypto";
 export {
+  CHAT_TYPING_EVENT,
+  CHAT_UPDATED_EVENT,
+  emitChatTyping,
+  emitChatUpdated,
+  installChatUiBridge,
+} from "./lib/events";
+export {
   appendLocalMessage,
   bumpUnread,
   dmRoomId,
@@ -17,6 +24,7 @@ export {
   upsertLocalRoom,
 } from "./lib/localStore";
 export { ensureChatNotificationPermission, notifyIncomingChat } from "./lib/notify";
+export type { InviteMembersResult } from "./lib/service";
 export {
   announcePresence,
   bootstrapChatIdentity,

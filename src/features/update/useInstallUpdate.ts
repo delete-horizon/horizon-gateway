@@ -10,6 +10,14 @@ function isWindows(): boolean {
   return navigator.userAgent.includes("Windows");
 }
 
+async function recoverServeAfterFailedUpdate(): Promise<void> {
+  try {
+    await commands.ensureServeRunning();
+  } catch (err) {
+    console.warn("Failed to restart serve after update failure:", err);
+  }
+}
+
 export function useInstallUpdate() {
   const setPendingUpdate = useSetAtom(pendingUpdateAtom);
   const [isInstalling, setIsInstalling] = useState(false);
@@ -19,23 +27,25 @@ export function useInstallUpdate() {
       setIsInstalling(true);
       try {
         toastInfo(labels?.installing ?? "Installing update…");
+
+        if (isWindows()) {
+          // Download first; kill serve only inside installWindowsUpdate before UAC.
+          await commands.installWindowsUpdate();
+          setPendingUpdate(null);
+          return;
+        }
+
         try {
           await commands.prepareForUpdate();
         } catch (prepErr) {
           console.warn("Failed to cleanly prepare serve for update:", prepErr);
         }
 
-        if (isWindows()) {
-          // Elevated NSIS launch (UAC). Process exits on success.
-          await commands.installWindowsUpdate();
-          setPendingUpdate(null);
-          return;
-        }
-
         await update.downloadAndInstall();
         setPendingUpdate(null);
         await relaunch();
       } catch (err) {
+        await recoverServeAfterFailedUpdate();
         const message = err instanceof Error ? err.message : String(err);
         toastError(labels?.failed ? `${labels.failed}: ${message}` : message);
         setIsInstalling(false);
