@@ -1,3 +1,7 @@
+/**
+ * Maps hub surface ids to lazy-loaded panels and detach sizes.
+ * Register new overlay surfaces here; do not mount them ad hoc from routes.
+ */
 import { type ComponentType, type LazyExoticComponent, lazy } from "react";
 import type { HubSurfaceId } from "../types";
 

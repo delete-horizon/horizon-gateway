@@ -1,3 +1,6 @@
+//! Headless Horizon Gateway backend: proxy, mock, storage, and the CLI library
+//! used by `hgc`. GUI talks to this process over the `hg-core` protocol.
+
 pub use hg_core::model;
 pub mod cli;
 pub mod command;

@@ -1,3 +1,7 @@
+/**
+ * Loads hub domain/group/proxy state from serve and keeps Jotai in sync.
+ * Shared by the hub window; do not duplicate this subscription per panel.
+ */
 import { atom, useAtom, useAtomValue } from "jotai";
 import { useCallback, useMemo } from "react";
 import { proxyActiveAtom } from "@/entities/app";
