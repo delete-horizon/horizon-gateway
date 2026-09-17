@@ -3,7 +3,7 @@ import { Check, ChevronDown, ChevronUp, MessageCircle, Plus, Users } from "lucid
 import { useCallback, useEffect, useState } from "react";
 import { languageAtom, supabaseSessionAtom } from "@/entities/app";
 import { type ChatRoom, createGroupRoom, loadInbox, syncRemoteRooms } from "@/entities/chat";
-import { openChatRoomWindow } from "@/shared/lib/tauri/openChatWindow";
+import { openChatRoomWindow, openOverlayPlaygroundWindow } from "@/shared/lib/tauri/openChatWindow";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
 import { ChatShell } from "./ChatShell";
@@ -60,6 +60,15 @@ export function ChatInboxView({ workspaceId, myId, memberOptions }: ChatInboxVie
 
   return (
     <ChatShell title={lang === "ko" ? "팀 채팅" : "Team Chat"}>
+      <div className="px-3 pt-3">
+        <button
+          type="button"
+          onClick={() => void openOverlayPlaygroundWindow()}
+          className="w-full text-left text-[11px] px-2 py-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15"
+        >
+          {lang === "ko" ? "오버레이 실험실 · 나한테 말 걸어보기" : "Overlay lab · talk to yourself"}
+        </button>
+      </div>
       <div className="flex-1 min-h-0 overflow-y-auto">
         {rooms.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 p-8 text-center text-base-content/45">

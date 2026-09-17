@@ -1,0 +1,37 @@
+{
+  "id": "crusader",
+  "slot": "back",
+  "set": "crusader",
+  "shop": true,
+  "ko": "성기사 망토",
+  "en": "Crusader Cape",
+  "glyphs": [
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "......OCKCCCCCCKCO......",
+    ".....OCKCCCCCCCCKCO.....",
+    ".....OCKCCCAACCCKCO.....",
+    "....OCKCKCCAACCKCKCO....",
+    "....OCCKCAAAAAACKCCO....",
+    "....OCKKCCCAACCCKKCO....",
+    "....OCKCKCCAACCKCKCO....",
+    "...OCKCKCCCAACCCKCKCO...",
+    "...OCCKCKKCCCCKKCKCCO...",
+    "...OCKCKKKKCCKKKKCKCO...",
+    "...OAAAAAAAAAAAAAAAAO...",
+    "....OAAAAAAOOAAAAAAO....",
+    "........................"
+  ],
+  "fits": [
+    "humanoid"
+  ]
+}

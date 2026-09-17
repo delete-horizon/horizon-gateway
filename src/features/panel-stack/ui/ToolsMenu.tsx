@@ -3,6 +3,7 @@ import {
   Activity,
   BookOpen,
   Camera,
+  Cat,
   Database,
   FileCode,
   GitBranch,
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { languageAtom } from "@/entities/app";
+import { openOverlayPlaygroundWindow } from "@/shared/lib/tauri/openChatWindow";
 import { Button } from "@/shared/ui/button/Button";
 import { en } from "../i18n/en";
 import { ko } from "../i18n/ko";
@@ -164,6 +166,19 @@ export function ToolsMenu({ onOpenTool }: ToolsMenuProps) {
                       </button>
                     );
                   })}
+                  {group.labelKey === "toolsCategorySandbox" && (
+                    <button
+                      type="button"
+                      className="w-full px-2.5 py-1.5 text-left text-xs font-semibold text-slate-200 hover:text-white hover:bg-slate-800/90 rounded-lg flex items-center gap-2.5 transition-colors"
+                      onClick={() => {
+                        void openOverlayPlaygroundWindow();
+                        setOpen(false);
+                      }}
+                    >
+                      <Cat className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span>{t.toolsOverlayLab}</span>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

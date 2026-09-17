@@ -24,6 +24,12 @@ const GUI_ONLY_COMMANDS: &[&str] = &[
     "play_comm_action",
     "set_comm_overlay_tool",
     "clear_comm_overlay",
+    "sync_comm_residents",
+    "show_comm_bubble",
+    "get_comm_avatar_catalog",
+    "reload_comm_avatar_catalog",
+    "compose_comm_avatar",
+    "write_comm_avatar_part",
     "plugin:updater|check",
     "plugin:updater|download_and_install",
 ];
@@ -58,5 +64,14 @@ mod tests {
     fn ensure_serve_running_stays_in_gui() {
         assert!(is_gui_only("ensure_serve_running"));
         assert!(!should_forward("ensure_serve_running"));
+    }
+
+    #[test]
+    fn overlay_catalog_stays_in_gui() {
+        assert!(is_gui_only("get_comm_avatar_catalog"));
+        assert!(is_gui_only("reload_comm_avatar_catalog"));
+        assert!(is_gui_only("compose_comm_avatar"));
+        assert!(is_gui_only("write_comm_avatar_part"));
+        assert!(!should_forward("reload_comm_avatar_catalog"));
     }
 }

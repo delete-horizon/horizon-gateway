@@ -264,6 +264,13 @@ hgc get_injection_domains '{}'
 
 ---
 
+## Avatar parts
+
+Pixel overlay SKUs are ASCII JSON in `avatar-parts/`. Agents should follow [avatar-parts](../avatar-parts/SKILL.md) and `avatar-parts/README.md`. Do not add parts in Rust.
+
+
+---
+
 ## Response format
 
 JSON to stdout. Errors on stderr: `{"success": false, "error": "..."}`.

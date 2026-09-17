@@ -1,8 +1,9 @@
 import { useAtomValue } from "jotai";
-import { ArrowLeft, Lock, Users } from "lucide-react";
+import { ArrowLeft, Cat, Lock, Users } from "lucide-react";
 import type { MutableRefObject } from "react";
 import { useEffect, useRef } from "react";
 import { languageAtom, supabaseSessionAtom } from "@/entities/app";
+import { openOverlayPlaygroundWindow } from "@/shared/lib/tauri/openChatWindow";
 import { Button } from "@/shared/ui/button/Button";
 import { useTeamWorkspace } from "../model/useTeamWorkspace";
 import { BillingPanel } from "./BillingPanel";
@@ -47,16 +48,22 @@ export function TeamWorkspaceShell({ onCloseToHub, escapeRef }: TeamWorkspaceShe
             </h2>
             <p className="text-sm text-base-content/60 mt-2 leading-relaxed">
               {lang === "ko"
-                ? "GitHub로 로그인한 뒤 팀 워크스페이스를 만들고 초대를 사용할 수 있습니다."
-                : "Sign in with GitHub to create a team workspace and invite members."}
+                ? "팀 채팅·워크스페이스는 GitHub 로그인이 필요합니다. 오버레이 실험실은 로그인 없이 열 수 있습니다."
+                : "Team chat and workspaces need GitHub sign-in. Overlay lab works without a session."}
             </p>
           </div>
-          {onCloseToHub && (
-            <Button variant="secondary" size="sm" className="gap-1.5" onClick={onCloseToHub}>
-              <ArrowLeft className="w-3.5 h-3.5" />
-              {lang === "ko" ? "도메인으로" : "Back to domains"}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Button variant="primary" size="sm" className="gap-1.5" onClick={() => void openOverlayPlaygroundWindow()}>
+              <Cat className="w-3.5 h-3.5" />
+              {lang === "ko" ? "오버레이 실험실" : "Overlay lab"}
             </Button>
-          )}
+            {onCloseToHub && (
+              <Button variant="secondary" size="sm" className="gap-1.5" onClick={onCloseToHub}>
+                <ArrowLeft className="w-3.5 h-3.5" />
+                {lang === "ko" ? "도메인으로" : "Back to domains"}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     );

@@ -1,0 +1,80 @@
+{
+  "id": "tentacles",
+  "slot": "back",
+  "shop": false,
+  "ko": "이계의 촉수",
+  "en": "Eldritch Tentacles",
+  "glyphs": [
+    "........................",
+    "......OO........OO......",
+    ".....OAWO......OWAO.....",
+    "..O..OAAO......OAAO..O..",
+    ".OAO..OKO......OKO..OAO.",
+    ".OWAO.OKO......OKO.OAWO.",
+    ".OCKO.OAO......OAO.OKCO.",
+    ".OKAO.OCO......OCO.OAKO.",
+    ".A.OCKOCO......OCOKCO.A.",
+    ".W..OCKKO.OAAO.OKCKO..W.",
+    "...OCKCKOOAKKAOOKCKCO...",
+    "...OCKCKOOAAAAOOKCKCO...",
+    "..OCKCKCOOAWWAOOCKCKCO..",
+    "..OCKCKCOOAKKAOOCKCKCO..",
+    "..OCKCKO.OAAAAO.OKCKCO..",
+    ".OCKAO....OKKO....OAKCO.",
+    ".OWCO..............OCWO.",
+    ".OKAO..OO......OO..OAKO.",
+    "..OCKOOAAO....OAAOOCKO..",
+    "...OAAWKO......OKWAAO...",
+    "....OOOO........OOOO....",
+    "...A..W..........W..A...",
+    "...W................W...",
+    "........................"
+  ],
+  "chroma": {
+    "outline": [
+      28,
+      18,
+      44
+    ],
+    "skin": [
+      232,
+      196,
+      168
+    ],
+    "skinD": [
+      180,
+      132,
+      112
+    ],
+    "cloth": [
+      88,
+      64,
+      148
+    ],
+    "clothD": [
+      48,
+      32,
+      92
+    ],
+    "accent": [
+      180,
+      140,
+      255
+    ],
+    "metal": [
+      188,
+      176,
+      220
+    ],
+    "eye": [
+      28,
+      22,
+      40
+    ],
+    "white": [
+      250,
+      246,
+      255
+    ]
+  }
+}

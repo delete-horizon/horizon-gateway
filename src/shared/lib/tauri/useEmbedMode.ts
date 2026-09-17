@@ -9,7 +9,12 @@ export function useIsPopupWindow(): boolean {
 
 export function useIsChatWindow(): boolean {
   const label = useWindowLabel();
-  return label === "chat-inbox" || label.startsWith("chat-room-");
+  return (
+    label === "chat-inbox" ||
+    label === "chat-playground" ||
+    label === "chat-avatar-studio" ||
+    label.startsWith("chat-room-")
+  );
 }
 
 export function useEmbedMode(): EmbedMode {
@@ -20,7 +25,12 @@ export function useEmbedMode(): EmbedMode {
   if (label.startsWith("detached-")) {
     return "detached";
   }
-  if (label === "chat-inbox" || label.startsWith("chat-room-")) {
+  if (
+    label === "chat-inbox" ||
+    label === "chat-playground" ||
+    label === "chat-avatar-studio" ||
+    label.startsWith("chat-room-")
+  ) {
     return "chat";
   }
   return "standalone";

@@ -1,0 +1,18 @@
+{
+  "groups": [
+    {
+      "id": "humanoid",
+      "grid": 24,
+      "referenceBody": "human",
+      "ko": "인간형",
+      "en": "Humanoid"
+    },
+    {
+      "id": "chibi",
+      "grid": 24,
+      "referenceBody": "",
+      "ko": "치비/동물형",
+      "en": "Chibi"
+    }
+  ]
+}

@@ -9,6 +9,7 @@ import { bugReportModalOpenAtom } from "@/features/bug-report";
 import { type HubSurfaceId, type PanelId, usePanelNavigation } from "@/features/panel-stack";
 import type { Domain } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
+import { openAvatarStudioWindow, openOverlayPlaygroundWindow } from "@/shared/lib/tauri/openChatWindow";
 import { toastError, toastInfo, toastSuccess } from "@/shared/ui/toast";
 import { createPaletteCommands } from "../lib/commands";
 import { filterCommands, filterOptions } from "../lib/useFuzzyFilter";
@@ -91,6 +92,12 @@ export function CommandPalette() {
       },
       onOpenTeamSync: () => {
         nav.openGlobalSurface("chrome/team");
+      },
+      onOpenOverlayLab: () => {
+        void openOverlayPlaygroundWindow();
+      },
+      onOpenAvatarStudio: () => {
+        void openAvatarStudioWindow();
       },
       onOpenThemeEditor: () => {
         nav.openGlobalSurface("chrome/theme");

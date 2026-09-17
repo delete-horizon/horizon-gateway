@@ -4,6 +4,7 @@ use std::{
 };
 
 fn main() {
+    pack_avatar_catalog();
     sync_skill_md_resource();
     // Dev (`tauri dev`) must not write sidecars into watched `resources/`.
     remove_debug_resource_sidecars();
@@ -14,6 +15,91 @@ fn main() {
     println!("cargo:rerun-if-changed=binaries");
     patch_bundle_resources();
     build_tauri();
+}
+
+/// Concatenate `avatar-parts/*.json` so the GUI binary still has a catalog when
+/// the source folder is not next to the installed exe.
+fn pack_avatar_catalog() {
+    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let dir = manifest_dir.join("..").join("..").join("avatar-parts");
+    println!("cargo:rerun-if-changed={}", dir.display());
+
+    let palettes_path = dir.join("palettes.json");
+    println!("cargo:rerun-if-changed={}", palettes_path.display());
+    let palettes_raw = fs::read_to_string(&palettes_path).unwrap_or_else(|e| {
+        panic!("avatar-parts/palettes.json: {e}");
+    });
+    let palettes_val: serde_json::Value =
+        serde_json::from_str(&palettes_raw).unwrap_or_else(|e| panic!("palettes.json: {e}"));
+    let palettes = palettes_val
+        .get("palettes")
+        .cloned()
+        .unwrap_or(serde_json::json!([]));
+
+    let sets_path = dir.join("sets.json");
+    println!("cargo:rerun-if-changed={}", sets_path.display());
+    let sets = if sets_path.is_file() {
+        let sets_val: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(&sets_path).unwrap_or_else(|e| panic!("sets.json: {e}")),
+        )
+        .unwrap_or_else(|e| panic!("sets.json: {e}"));
+        sets_val
+            .get("sets")
+            .cloned()
+            .unwrap_or(serde_json::json!([]))
+    } else {
+        serde_json::json!([])
+    };
+
+    let groups_path = dir.join("groups.json");
+    println!("cargo:rerun-if-changed={}", groups_path.display());
+    let groups = if groups_path.is_file() {
+        let groups_val: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(&groups_path).unwrap_or_else(|e| panic!("groups.json: {e}")),
+        )
+        .unwrap_or_else(|e| panic!("groups.json: {e}"));
+        groups_val
+            .get("groups")
+            .cloned()
+            .unwrap_or(serde_json::json!([]))
+    } else {
+        serde_json::json!([])
+    };
+
+    let mut parts = Vec::new();
+    let mut entries: Vec<_> = fs::read_dir(&dir)
+        .unwrap_or_else(|e| panic!("{}: {e}", dir.display()))
+        .filter_map(|e| e.ok())
+        .collect();
+    entries.sort_by_key(|e| e.file_name());
+    for ent in entries {
+        let path = ent.path();
+        println!("cargo:rerun-if-changed={}", path.display());
+        if path.extension().and_then(|s| s.to_str()) != Some("json") {
+            continue;
+        }
+        if path.file_name().and_then(|s| s.to_str()) == Some("palettes.json")
+            || path.file_name().and_then(|s| s.to_str()) == Some("sets.json")
+            || path.file_name().and_then(|s| s.to_str()) == Some("groups.json")
+        {
+            continue;
+        }
+        let raw = fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+        let value: serde_json::Value =
+            serde_json::from_str(&raw).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+        parts.push(value);
+    }
+
+    let packed = serde_json::json!({
+        "parts": parts,
+        "palettes": palettes,
+        "sets": sets,
+        "groups": groups,
+        "warnings": []
+    });
+    let out = PathBuf::from(env::var("OUT_DIR").unwrap()).join("avatar_catalog.json");
+    fs::write(&out, serde_json::to_string(&packed).unwrap())
+        .unwrap_or_else(|e| panic!("write {}: {e}", out.display()));
 }
 
 fn build_tauri() {

@@ -8,7 +8,8 @@ Desktop MITM proxy, mock, and domain inspector (Tauri v2 + React). This file is 
 | :--- | :--- | :--- |
 | `src/` | Desktop UI | `src/INDEX.md` |
 | `src-tauri/` | Rust crates | `src-tauri/INDEX.md` |
-| `.agents/skills/` | Agent CLI / UI conventions | `horizon-gateway`, `watchtower-ui` — do not rewrite |
+| `avatar-parts/` | Overlay pixel SKUs (ASCII JSON) | `avatar-parts/README.md`, skill `avatar-parts` |
+| `.agents/skills/` | Agent CLI / UI conventions | `horizon-gateway`, `watchtower-ui`, `avatar-parts` — do not rewrite |
 | `website/` | Marketing Astro site | `pnpm web:dev` / `pnpm web:build` |
 
 Git root is this directory. Do not import `workspaces/{mesh,foundry,heroes}`.

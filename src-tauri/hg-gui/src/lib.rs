@@ -25,7 +25,11 @@ use command::window_commands::{
     open_inspector_window, open_window, prepare_for_update, quit_app, trigger_os_snip,
 };
 use command::windows_update::install_windows_update;
-use comm_overlay::{clear_comm_overlay, play_comm_action, set_comm_overlay_tool};
+use comm_overlay::{
+    clear_comm_overlay, compose_comm_avatar, get_comm_avatar_catalog, play_comm_action,
+    reload_comm_avatar_catalog, set_comm_overlay_tool, show_comm_bubble, sync_comm_residents,
+    write_comm_avatar_part,
+};
 
 pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
     tauri_specta::Builder::<tauri::Wry>::new().commands(tauri_specta::collect_commands![
@@ -52,6 +56,12 @@ pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         play_comm_action,
         set_comm_overlay_tool,
         clear_comm_overlay,
+        sync_comm_residents,
+        show_comm_bubble,
+        get_comm_avatar_catalog,
+        reload_comm_avatar_catalog,
+        compose_comm_avatar,
+        write_comm_avatar_part,
     ])
 }
 

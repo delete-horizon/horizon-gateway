@@ -1,7 +1,7 @@
-import { CloudUpload, CreditCard, Globe, MessageCircle, Pencil, Trash2, Users } from "lucide-react";
+import { CloudUpload, CreditCard, Globe, MessageCircle, Pencil, Sparkles, Trash2, Users } from "lucide-react";
 import { useState } from "react";
+import { openChatInboxWindow, openOverlayPlaygroundWindow } from "@/shared/lib/tauri/openChatWindow";
 import type { TeamWorkspaceController } from "../model/useTeamWorkspace";
-import { openChatInboxWindow } from "@/shared/lib/tauri/openChatWindow";
 import { TeamPanelFrame } from "./TeamPanelFrame";
 import { WorkspaceSettingsModal, type WorkspaceSettingsModalMode } from "./WorkspaceSettingsModal";
 
@@ -84,6 +84,22 @@ export function WorkspaceHomePanel({ ctrl, onClose }: WorkspaceHomePanelProps) {
               <p className="text-sm font-bold">{lang === "ko" ? "팀 채팅" : "Team chat"}</p>
               <p className="text-[10px] text-base-content/45">
                 {lang === "ko" ? "DM · 그룹 · 의사소통 액션 (P2P)" : "DM · groups · comm actions (P2P)"}
+              </p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => void openOverlayPlaygroundWindow()}
+            className="flex items-center gap-3 p-3 rounded-xl border border-base-200 bg-base-200/30 hover:bg-base-200/60 text-left transition-colors"
+          >
+            <span className="p-2 rounded-lg bg-amber-500/10 text-amber-500">
+              <Sparkles className="w-4 h-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-bold">{lang === "ko" ? "오버레이 실험실" : "Overlay lab"}</p>
+              <p className="text-[10px] text-base-content/45">
+                {lang === "ko" ? "내 캐릭터 + 말풍선 (런타임 미연결)" : "Self character + bubbles (runtime not wired)"}
               </p>
             </div>
           </button>

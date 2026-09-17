@@ -1,5 +1,6 @@
 import { commands, unwrap } from "@/shared/api";
 import type { CommActionKind } from "../types";
+import type { AvatarKit } from "./avatarKit";
 
 export interface ChatPeerListenInfo {
   port: number;
@@ -43,6 +44,50 @@ export async function setCommOverlayTool(tool: "none" | "spray"): Promise<void> 
 
 export async function clearCommOverlay(): Promise<void> {
   unwrap(await commands.clearCommOverlay());
+}
+
+export async function syncCommResidents(
+  residents: { profileId: string; label: string; online: boolean; kit?: AvatarKit }[],
+): Promise<void> {
+  unwrap(await commands.syncCommResidents(residents));
+}
+
+export async function showCommBubble(profileId: string, text: string, ttlMs?: number | null): Promise<void> {
+  unwrap(await commands.showCommBubble(profileId, text, ttlMs ?? null));
+}
+
+export async function getCommAvatarCatalog() {
+  return unwrap(await commands.getCommAvatarCatalog());
+}
+
+export async function reloadCommAvatarCatalog() {
+  return unwrap(await commands.reloadCommAvatarCatalog());
+}
+
+export async function composeCommAvatar(kit: AvatarKit, step?: number | null) {
+  return unwrap(await commands.composeCommAvatar(kit, step ?? null));
+}
+
+export async function writeCommAvatarPart(part: {
+  id: string;
+  slot: string;
+  set?: string;
+  shop: boolean;
+  ko: string;
+  en: string;
+  glyphs: string[];
+}): Promise<string> {
+  return unwrap(
+    await commands.writeCommAvatarPart({
+      id: part.id,
+      slot: part.slot,
+      set: part.set ?? "",
+      shop: part.shop,
+      ko: part.ko,
+      en: part.en,
+      glyphs: part.glyphs,
+    }),
+  );
 }
 
 /** Optional: start cloudflare tunnel and return public URL for chat port forwarding hint. */

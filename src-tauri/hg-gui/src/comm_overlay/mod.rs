@@ -1,4 +1,6 @@
+pub mod avatar;
 pub mod engine;
+pub mod presence;
 pub mod raster;
 
 #[cfg(target_os = "windows")]
@@ -16,12 +18,17 @@ mod present_impl;
 #[cfg(not(any(target_os = "windows", target_os = "macos", all(unix, not(target_os = "macos")))))]
 mod present_impl {
     use super::engine::ActionKind;
+    use super::presence::CommResidentInput;
     pub fn play(_kind: ActionKind, _seed: Option<u64>, _count: u32, _from_label: Option<String>) {}
     pub fn set_tool(_tool: &str) {}
     pub fn clear() {}
+    pub fn sync_residents(_items: Vec<CommResidentInput>) {}
+    pub fn show_bubble(_profile_id: &str, _text: &str, _ttl_ms: u64) {}
 }
 
+use avatar::{AvatarKit, AvatarPreview, AvatarStudioCatalog, AvatarStudioPart};
 use engine::{ActionKind, OverlayTool};
+use presence::CommResidentInput;
 
 #[tauri::command]
 #[specta::specta]
@@ -59,4 +66,54 @@ pub fn set_comm_overlay_tool(tool: String) -> Result<(), String> {
 pub fn clear_comm_overlay() -> Result<(), String> {
     present_impl::clear();
     Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn sync_comm_residents(residents: Vec<CommResidentInput>) -> Result<(), String> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        present_impl::sync_residents(residents);
+    })) {
+        Ok(()) => Ok(()),
+        Err(_) => Err("comm overlay residents panicked".into()),
+    }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn show_comm_bubble(profile_id: String, text: String, ttl_ms: Option<u32>) -> Result<(), String> {
+    let ttl_ms = ttl_ms
+        .map(u64::from)
+        .unwrap_or(presence::BUBBLE_TTL_MS)
+        .clamp(400, 15_000);
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        present_impl::show_bubble(&profile_id, &text, ttl_ms);
+    })) {
+        Ok(()) => Ok(()),
+        Err(_) => Err("comm overlay bubble panicked".into()),
+    }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_comm_avatar_catalog() -> Result<AvatarStudioCatalog, String> {
+    avatar::reload_from_disk()
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn reload_comm_avatar_catalog() -> Result<AvatarStudioCatalog, String> {
+    avatar::reload_from_disk()
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn compose_comm_avatar(kit: AvatarKit, step: Option<u8>) -> Result<AvatarPreview, String> {
+    Ok(avatar::preview_pngish(&kit, step.unwrap_or(0)))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn write_comm_avatar_part(part: AvatarStudioPart) -> Result<String, String> {
+    avatar::write_part(part)
 }

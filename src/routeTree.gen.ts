@@ -10,57 +10,64 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as TeamIndexRouteImport } from './routes/team/index'
-import { Route as SettingsIndexRouteImport } from './routes/settings/index'
-import { Route as ServerLogsIndexRouteImport } from './routes/server-logs/index'
-import { Route as SandboxIndexRouteImport } from './routes/sandbox/index'
-import { Route as ProxyIndexRouteImport } from './routes/proxy/index'
-import { Route as ProfileIndexRouteImport } from './routes/profile/index'
-import { Route as MonitorIndexRouteImport } from './routes/monitor/index'
-import { Route as DomainsIndexRouteImport } from './routes/domains/index'
-import { Route as ApisIndexRouteImport } from './routes/apis/index'
 import { Route as AboutIndexRouteImport } from './routes/about/index'
-import { Route as UxPoliciesIndexRouteImport } from './routes/ux/policies/index'
-import { Route as UxLiveCaptureIndexRouteImport } from './routes/ux/live-capture/index'
-import { Route as SandboxPreviewIndexRouteImport } from './routes/sandbox/preview/index'
-import { Route as SandboxPipelineIndexRouteImport } from './routes/sandbox/pipeline/index'
-import { Route as SandboxCryptoIndexRouteImport } from './routes/sandbox/crypto/index'
-import { Route as ProxySetupIndexRouteImport } from './routes/proxy/setup/index'
-import { Route as ProxyMobileIndexRouteImport } from './routes/proxy/mobile/index'
-import { Route as ProxyInspectorIndexRouteImport } from './routes/proxy/inspector/index'
-import { Route as ProxyDashboardIndexRouteImport } from './routes/proxy/dashboard/index'
-import { Route as ProxyConnectionsIndexRouteImport } from './routes/proxy/connections/index'
-import { Route as PopupToolsIndexRouteImport } from './routes/popup/tools/index'
-import { Route as PopupSettingsIndexRouteImport } from './routes/popup/settings/index'
-import { Route as PopupSchemaExplorerIndexRouteImport } from './routes/popup/schema-explorer/index'
-import { Route as PopupMobileIndexRouteImport } from './routes/popup/mobile/index'
-import { Route as PopupInfrastructureIndexRouteImport } from './routes/popup/infrastructure/index'
-import { Route as PopupGroupsIndexRouteImport } from './routes/popup/groups/index'
-import { Route as PopupAddDomainIndexRouteImport } from './routes/popup/add-domain/index'
-import { Route as MonitorSettingsIndexRouteImport } from './routes/monitor/settings/index'
-import { Route as MonitorManageIndexRouteImport } from './routes/monitor/manage/index'
-import { Route as MonitorLogsIndexRouteImport } from './routes/monitor/logs/index'
-import { Route as DomainsRegistIndexRouteImport } from './routes/domains/regist/index'
-import { Route as DomainsGroupsIndexRouteImport } from './routes/domains/groups/index'
-import { Route as DomainsDashboardIndexRouteImport } from './routes/domains/dashboard/index'
-import { Route as ApisSettingsIndexRouteImport } from './routes/apis/settings/index'
-import { Route as ApisSchemaIndexRouteImport } from './routes/apis/schema/index'
-import { Route as ApisMockingIndexRouteImport } from './routes/apis/mocking/index'
-import { Route as ApisLogsIndexRouteImport } from './routes/apis/logs/index'
-import { Route as ApisJsonSchemaIndexRouteImport } from './routes/apis/json-schema/index'
-import { Route as ApisDashboardIndexRouteImport } from './routes/apis/dashboard/index'
-import { Route as ApisClientIndexRouteImport } from './routes/apis/client/index'
+import { Route as ApisIndexRouteImport } from './routes/apis/index'
 import { Route as ChatIndexRouteImport } from './routes/chat/index'
 import { Route as ChatRoomIdRouteImport } from './routes/chat/$roomId'
+import { Route as ChatAvatarStudioRouteImport } from './routes/chat/avatar-studio'
+import { Route as ChatPlaygroundRouteImport } from './routes/chat/playground'
+import { Route as DomainsIndexRouteImport } from './routes/domains/index'
+import { Route as MonitorIndexRouteImport } from './routes/monitor/index'
+import { Route as ProfileIndexRouteImport } from './routes/profile/index'
+import { Route as ProxyIndexRouteImport } from './routes/proxy/index'
+import { Route as SandboxIndexRouteImport } from './routes/sandbox/index'
+import { Route as ServerLogsIndexRouteImport } from './routes/server-logs/index'
+import { Route as SettingsIndexRouteImport } from './routes/settings/index'
+import { Route as TeamIndexRouteImport } from './routes/team/index'
+import { Route as ApisClientIndexRouteImport } from './routes/apis/client/index'
+import { Route as ApisDashboardIndexRouteImport } from './routes/apis/dashboard/index'
+import { Route as ApisJsonSchemaIndexRouteImport } from './routes/apis/json-schema/index'
+import { Route as ApisLogsIndexRouteImport } from './routes/apis/logs/index'
+import { Route as ApisMockingIndexRouteImport } from './routes/apis/mocking/index'
+import { Route as ApisSchemaIndexRouteImport } from './routes/apis/schema/index'
+import { Route as ApisSettingsIndexRouteImport } from './routes/apis/settings/index'
+import { Route as DomainsDashboardIndexRouteImport } from './routes/domains/dashboard/index'
+import { Route as DomainsGroupsIndexRouteImport } from './routes/domains/groups/index'
+import { Route as DomainsRegistIndexRouteImport } from './routes/domains/regist/index'
+import { Route as MonitorLogsIndexRouteImport } from './routes/monitor/logs/index'
+import { Route as MonitorManageIndexRouteImport } from './routes/monitor/manage/index'
+import { Route as MonitorSettingsIndexRouteImport } from './routes/monitor/settings/index'
+import { Route as PopupAddDomainIndexRouteImport } from './routes/popup/add-domain/index'
+import { Route as PopupGroupsIndexRouteImport } from './routes/popup/groups/index'
+import { Route as PopupInfrastructureIndexRouteImport } from './routes/popup/infrastructure/index'
+import { Route as PopupMobileIndexRouteImport } from './routes/popup/mobile/index'
+import { Route as PopupSchemaExplorerIndexRouteImport } from './routes/popup/schema-explorer/index'
+import { Route as PopupSettingsIndexRouteImport } from './routes/popup/settings/index'
+import { Route as PopupToolsIndexRouteImport } from './routes/popup/tools/index'
+import { Route as ProxyConnectionsIndexRouteImport } from './routes/proxy/connections/index'
+import { Route as ProxyDashboardIndexRouteImport } from './routes/proxy/dashboard/index'
+import { Route as ProxyInspectorIndexRouteImport } from './routes/proxy/inspector/index'
+import { Route as ProxyMobileIndexRouteImport } from './routes/proxy/mobile/index'
+import { Route as ProxySetupIndexRouteImport } from './routes/proxy/setup/index'
+import { Route as SandboxCryptoIndexRouteImport } from './routes/sandbox/crypto/index'
+import { Route as SandboxPipelineIndexRouteImport } from './routes/sandbox/pipeline/index'
+import { Route as SandboxPreviewIndexRouteImport } from './routes/sandbox/preview/index'
+import { Route as UxLiveCaptureIndexRouteImport } from './routes/ux/live-capture/index'
+import { Route as UxPoliciesIndexRouteImport } from './routes/ux/policies/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TeamIndexRoute = TeamIndexRouteImport.update({
-  id: '/team/',
-  path: '/team/',
+const AboutIndexRoute = AboutIndexRouteImport.update({
+  id: '/about/',
+  path: '/about/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApisIndexRoute = ApisIndexRouteImport.update({
+  id: '/apis/',
+  path: '/apis/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChatIndexRoute = ChatIndexRouteImport.update({
@@ -73,34 +80,14 @@ const ChatRoomIdRoute = ChatRoomIdRouteImport.update({
   path: '/chat/$roomId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SettingsIndexRoute = SettingsIndexRouteImport.update({
-  id: '/settings/',
-  path: '/settings/',
+const ChatAvatarStudioRoute = ChatAvatarStudioRouteImport.update({
+  id: '/chat/avatar-studio',
+  path: '/chat/avatar-studio',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ServerLogsIndexRoute = ServerLogsIndexRouteImport.update({
-  id: '/server-logs/',
-  path: '/server-logs/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SandboxIndexRoute = SandboxIndexRouteImport.update({
-  id: '/sandbox/',
-  path: '/sandbox/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProxyIndexRoute = ProxyIndexRouteImport.update({
-  id: '/proxy/',
-  path: '/proxy/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProfileIndexRoute = ProfileIndexRouteImport.update({
-  id: '/profile/',
-  path: '/profile/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MonitorIndexRoute = MonitorIndexRouteImport.update({
-  id: '/monitor/',
-  path: '/monitor/',
+const ChatPlaygroundRoute = ChatPlaygroundRouteImport.update({
+  id: '/chat/playground',
+  path: '/chat/playground',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DomainsIndexRoute = DomainsIndexRouteImport.update({
@@ -108,85 +95,114 @@ const DomainsIndexRoute = DomainsIndexRouteImport.update({
   path: '/domains/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApisIndexRoute = ApisIndexRouteImport.update({
-  id: '/apis/',
-  path: '/apis/',
+const MonitorIndexRoute = MonitorIndexRouteImport.update({
+  id: '/monitor/',
+  path: '/monitor/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AboutIndexRoute = AboutIndexRouteImport.update({
-  id: '/about/',
-  path: '/about/',
+const ProfileIndexRoute = ProfileIndexRouteImport.update({
+  id: '/profile/',
+  path: '/profile/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const UxPoliciesIndexRoute = UxPoliciesIndexRouteImport.update({
-  id: '/ux/policies/',
-  path: '/ux/policies/',
+const ProxyIndexRoute = ProxyIndexRouteImport.update({
+  id: '/proxy/',
+  path: '/proxy/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const UxLiveCaptureIndexRoute = UxLiveCaptureIndexRouteImport.update({
-  id: '/ux/live-capture/',
-  path: '/ux/live-capture/',
+const SandboxIndexRoute = SandboxIndexRouteImport.update({
+  id: '/sandbox/',
+  path: '/sandbox/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SandboxPreviewIndexRoute = SandboxPreviewIndexRouteImport.update({
-  id: '/sandbox/preview/',
-  path: '/sandbox/preview/',
+const ServerLogsIndexRoute = ServerLogsIndexRouteImport.update({
+  id: '/server-logs/',
+  path: '/server-logs/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SandboxPipelineIndexRoute = SandboxPipelineIndexRouteImport.update({
-  id: '/sandbox/pipeline/',
-  path: '/sandbox/pipeline/',
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SandboxCryptoIndexRoute = SandboxCryptoIndexRouteImport.update({
-  id: '/sandbox/crypto/',
-  path: '/sandbox/crypto/',
+const TeamIndexRoute = TeamIndexRouteImport.update({
+  id: '/team/',
+  path: '/team/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProxySetupIndexRoute = ProxySetupIndexRouteImport.update({
-  id: '/proxy/setup/',
-  path: '/proxy/setup/',
+const ApisClientIndexRoute = ApisClientIndexRouteImport.update({
+  id: '/apis/client/',
+  path: '/apis/client/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProxyMobileIndexRoute = ProxyMobileIndexRouteImport.update({
-  id: '/proxy/mobile/',
-  path: '/proxy/mobile/',
+const ApisDashboardIndexRoute = ApisDashboardIndexRouteImport.update({
+  id: '/apis/dashboard/',
+  path: '/apis/dashboard/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProxyInspectorIndexRoute = ProxyInspectorIndexRouteImport.update({
-  id: '/proxy/inspector/',
-  path: '/proxy/inspector/',
+const ApisJsonSchemaIndexRoute = ApisJsonSchemaIndexRouteImport.update({
+  id: '/apis/json-schema/',
+  path: '/apis/json-schema/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProxyDashboardIndexRoute = ProxyDashboardIndexRouteImport.update({
-  id: '/proxy/dashboard/',
-  path: '/proxy/dashboard/',
+const ApisLogsIndexRoute = ApisLogsIndexRouteImport.update({
+  id: '/apis/logs/',
+  path: '/apis/logs/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProxyConnectionsIndexRoute = ProxyConnectionsIndexRouteImport.update({
-  id: '/proxy/connections/',
-  path: '/proxy/connections/',
+const ApisMockingIndexRoute = ApisMockingIndexRouteImport.update({
+  id: '/apis/mocking/',
+  path: '/apis/mocking/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PopupToolsIndexRoute = PopupToolsIndexRouteImport.update({
-  id: '/popup/tools/',
-  path: '/popup/tools/',
+const ApisSchemaIndexRoute = ApisSchemaIndexRouteImport.update({
+  id: '/apis/schema/',
+  path: '/apis/schema/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PopupSettingsIndexRoute = PopupSettingsIndexRouteImport.update({
-  id: '/popup/settings/',
-  path: '/popup/settings/',
+const ApisSettingsIndexRoute = ApisSettingsIndexRouteImport.update({
+  id: '/apis/settings/',
+  path: '/apis/settings/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PopupSchemaExplorerIndexRoute =
-  PopupSchemaExplorerIndexRouteImport.update({
-    id: '/popup/schema-explorer/',
-    path: '/popup/schema-explorer/',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const PopupMobileIndexRoute = PopupMobileIndexRouteImport.update({
-  id: '/popup/mobile/',
-  path: '/popup/mobile/',
+const DomainsDashboardIndexRoute = DomainsDashboardIndexRouteImport.update({
+  id: '/domains/dashboard/',
+  path: '/domains/dashboard/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DomainsGroupsIndexRoute = DomainsGroupsIndexRouteImport.update({
+  id: '/domains/groups/',
+  path: '/domains/groups/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DomainsRegistIndexRoute = DomainsRegistIndexRouteImport.update({
+  id: '/domains/regist/',
+  path: '/domains/regist/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MonitorLogsIndexRoute = MonitorLogsIndexRouteImport.update({
+  id: '/monitor/logs/',
+  path: '/monitor/logs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MonitorManageIndexRoute = MonitorManageIndexRouteImport.update({
+  id: '/monitor/manage/',
+  path: '/monitor/manage/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MonitorSettingsIndexRoute = MonitorSettingsIndexRouteImport.update({
+  id: '/monitor/settings/',
+  path: '/monitor/settings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PopupAddDomainIndexRoute = PopupAddDomainIndexRouteImport.update({
+  id: '/popup/add-domain/',
+  path: '/popup/add-domain/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PopupGroupsIndexRoute = PopupGroupsIndexRouteImport.update({
+  id: '/popup/groups/',
+  path: '/popup/groups/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PopupInfrastructureIndexRoute =
@@ -195,86 +211,86 @@ const PopupInfrastructureIndexRoute =
     path: '/popup/infrastructure/',
     getParentRoute: () => rootRouteImport,
   } as any)
-const PopupGroupsIndexRoute = PopupGroupsIndexRouteImport.update({
-  id: '/popup/groups/',
-  path: '/popup/groups/',
+const PopupMobileIndexRoute = PopupMobileIndexRouteImport.update({
+  id: '/popup/mobile/',
+  path: '/popup/mobile/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PopupAddDomainIndexRoute = PopupAddDomainIndexRouteImport.update({
-  id: '/popup/add-domain/',
-  path: '/popup/add-domain/',
+const PopupSchemaExplorerIndexRoute =
+  PopupSchemaExplorerIndexRouteImport.update({
+    id: '/popup/schema-explorer/',
+    path: '/popup/schema-explorer/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const PopupSettingsIndexRoute = PopupSettingsIndexRouteImport.update({
+  id: '/popup/settings/',
+  path: '/popup/settings/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MonitorSettingsIndexRoute = MonitorSettingsIndexRouteImport.update({
-  id: '/monitor/settings/',
-  path: '/monitor/settings/',
+const PopupToolsIndexRoute = PopupToolsIndexRouteImport.update({
+  id: '/popup/tools/',
+  path: '/popup/tools/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MonitorManageIndexRoute = MonitorManageIndexRouteImport.update({
-  id: '/monitor/manage/',
-  path: '/monitor/manage/',
+const ProxyConnectionsIndexRoute = ProxyConnectionsIndexRouteImport.update({
+  id: '/proxy/connections/',
+  path: '/proxy/connections/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MonitorLogsIndexRoute = MonitorLogsIndexRouteImport.update({
-  id: '/monitor/logs/',
-  path: '/monitor/logs/',
+const ProxyDashboardIndexRoute = ProxyDashboardIndexRouteImport.update({
+  id: '/proxy/dashboard/',
+  path: '/proxy/dashboard/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DomainsRegistIndexRoute = DomainsRegistIndexRouteImport.update({
-  id: '/domains/regist/',
-  path: '/domains/regist/',
+const ProxyInspectorIndexRoute = ProxyInspectorIndexRouteImport.update({
+  id: '/proxy/inspector/',
+  path: '/proxy/inspector/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DomainsGroupsIndexRoute = DomainsGroupsIndexRouteImport.update({
-  id: '/domains/groups/',
-  path: '/domains/groups/',
+const ProxyMobileIndexRoute = ProxyMobileIndexRouteImport.update({
+  id: '/proxy/mobile/',
+  path: '/proxy/mobile/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DomainsDashboardIndexRoute = DomainsDashboardIndexRouteImport.update({
-  id: '/domains/dashboard/',
-  path: '/domains/dashboard/',
+const ProxySetupIndexRoute = ProxySetupIndexRouteImport.update({
+  id: '/proxy/setup/',
+  path: '/proxy/setup/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApisSettingsIndexRoute = ApisSettingsIndexRouteImport.update({
-  id: '/apis/settings/',
-  path: '/apis/settings/',
+const SandboxCryptoIndexRoute = SandboxCryptoIndexRouteImport.update({
+  id: '/sandbox/crypto/',
+  path: '/sandbox/crypto/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApisSchemaIndexRoute = ApisSchemaIndexRouteImport.update({
-  id: '/apis/schema/',
-  path: '/apis/schema/',
+const SandboxPipelineIndexRoute = SandboxPipelineIndexRouteImport.update({
+  id: '/sandbox/pipeline/',
+  path: '/sandbox/pipeline/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApisMockingIndexRoute = ApisMockingIndexRouteImport.update({
-  id: '/apis/mocking/',
-  path: '/apis/mocking/',
+const SandboxPreviewIndexRoute = SandboxPreviewIndexRouteImport.update({
+  id: '/sandbox/preview/',
+  path: '/sandbox/preview/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApisLogsIndexRoute = ApisLogsIndexRouteImport.update({
-  id: '/apis/logs/',
-  path: '/apis/logs/',
+const UxLiveCaptureIndexRoute = UxLiveCaptureIndexRouteImport.update({
+  id: '/ux/live-capture/',
+  path: '/ux/live-capture/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApisJsonSchemaIndexRoute = ApisJsonSchemaIndexRouteImport.update({
-  id: '/apis/json-schema/',
-  path: '/apis/json-schema/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApisDashboardIndexRoute = ApisDashboardIndexRouteImport.update({
-  id: '/apis/dashboard/',
-  path: '/apis/dashboard/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApisClientIndexRoute = ApisClientIndexRouteImport.update({
-  id: '/apis/client/',
-  path: '/apis/client/',
+const UxPoliciesIndexRoute = UxPoliciesIndexRouteImport.update({
+  id: '/ux/policies/',
+  path: '/ux/policies/',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/chat/$roomId': typeof ChatRoomIdRoute
+  '/chat/avatar-studio': typeof ChatAvatarStudioRoute
+  '/chat/playground': typeof ChatPlaygroundRoute
   '/about/': typeof AboutIndexRoute
   '/apis/': typeof ApisIndexRoute
+  '/chat/': typeof ChatIndexRoute
   '/domains/': typeof DomainsIndexRoute
   '/monitor/': typeof MonitorIndexRoute
   '/profile/': typeof ProfileIndexRoute
@@ -283,8 +299,6 @@ export interface FileRoutesByFullPath {
   '/server-logs/': typeof ServerLogsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/team/': typeof TeamIndexRoute
-  '/chat/': typeof ChatIndexRoute
-  '/chat/$roomId': typeof ChatRoomIdRoute
   '/apis/client/': typeof ApisClientIndexRoute
   '/apis/dashboard/': typeof ApisDashboardIndexRoute
   '/apis/json-schema/': typeof ApisJsonSchemaIndexRoute
@@ -318,8 +332,12 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/chat/$roomId': typeof ChatRoomIdRoute
+  '/chat/avatar-studio': typeof ChatAvatarStudioRoute
+  '/chat/playground': typeof ChatPlaygroundRoute
   '/about': typeof AboutIndexRoute
   '/apis': typeof ApisIndexRoute
+  '/chat': typeof ChatIndexRoute
   '/domains': typeof DomainsIndexRoute
   '/monitor': typeof MonitorIndexRoute
   '/profile': typeof ProfileIndexRoute
@@ -328,8 +346,6 @@ export interface FileRoutesByTo {
   '/server-logs': typeof ServerLogsIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/team': typeof TeamIndexRoute
-  '/chat': typeof ChatIndexRoute
-  '/chat/$roomId': typeof ChatRoomIdRoute
   '/apis/client': typeof ApisClientIndexRoute
   '/apis/dashboard': typeof ApisDashboardIndexRoute
   '/apis/json-schema': typeof ApisJsonSchemaIndexRoute
@@ -364,8 +380,12 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/chat/$roomId': typeof ChatRoomIdRoute
+  '/chat/avatar-studio': typeof ChatAvatarStudioRoute
+  '/chat/playground': typeof ChatPlaygroundRoute
   '/about/': typeof AboutIndexRoute
   '/apis/': typeof ApisIndexRoute
+  '/chat/': typeof ChatIndexRoute
   '/domains/': typeof DomainsIndexRoute
   '/monitor/': typeof MonitorIndexRoute
   '/profile/': typeof ProfileIndexRoute
@@ -374,8 +394,6 @@ export interface FileRoutesById {
   '/server-logs/': typeof ServerLogsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/team/': typeof TeamIndexRoute
-  '/chat/': typeof ChatIndexRoute
-  '/chat/$roomId': typeof ChatRoomIdRoute
   '/apis/client/': typeof ApisClientIndexRoute
   '/apis/dashboard/': typeof ApisDashboardIndexRoute
   '/apis/json-schema/': typeof ApisJsonSchemaIndexRoute
@@ -411,8 +429,12 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/chat/$roomId'
+    | '/chat/avatar-studio'
+    | '/chat/playground'
     | '/about/'
     | '/apis/'
+    | '/chat/'
     | '/domains/'
     | '/monitor/'
     | '/profile/'
@@ -421,8 +443,6 @@ export interface FileRouteTypes {
     | '/server-logs/'
     | '/settings/'
     | '/team/'
-    | '/chat/'
-    | '/chat/$roomId'
     | '/apis/client/'
     | '/apis/dashboard/'
     | '/apis/json-schema/'
@@ -456,8 +476,12 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/chat/$roomId'
+    | '/chat/avatar-studio'
+    | '/chat/playground'
     | '/about'
     | '/apis'
+    | '/chat'
     | '/domains'
     | '/monitor'
     | '/profile'
@@ -466,8 +490,6 @@ export interface FileRouteTypes {
     | '/server-logs'
     | '/settings'
     | '/team'
-    | '/chat'
-    | '/chat/$roomId'
     | '/apis/client'
     | '/apis/dashboard'
     | '/apis/json-schema'
@@ -501,8 +523,12 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/chat/$roomId'
+    | '/chat/avatar-studio'
+    | '/chat/playground'
     | '/about/'
     | '/apis/'
+    | '/chat/'
     | '/domains/'
     | '/monitor/'
     | '/profile/'
@@ -511,8 +537,6 @@ export interface FileRouteTypes {
     | '/server-logs/'
     | '/settings/'
     | '/team/'
-    | '/chat/'
-    | '/chat/$roomId'
     | '/apis/client/'
     | '/apis/dashboard/'
     | '/apis/json-schema/'
@@ -547,8 +571,12 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ChatRoomIdRoute: typeof ChatRoomIdRoute
+  ChatAvatarStudioRoute: typeof ChatAvatarStudioRoute
+  ChatPlaygroundRoute: typeof ChatPlaygroundRoute
   AboutIndexRoute: typeof AboutIndexRoute
   ApisIndexRoute: typeof ApisIndexRoute
+  ChatIndexRoute: typeof ChatIndexRoute
   DomainsIndexRoute: typeof DomainsIndexRoute
   MonitorIndexRoute: typeof MonitorIndexRoute
   ProfileIndexRoute: typeof ProfileIndexRoute
@@ -557,8 +585,6 @@ export interface RootRouteChildren {
   ServerLogsIndexRoute: typeof ServerLogsIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
   TeamIndexRoute: typeof TeamIndexRoute
-  ChatIndexRoute: typeof ChatIndexRoute
-  ChatRoomIdRoute: typeof ChatRoomIdRoute
   ApisClientIndexRoute: typeof ApisClientIndexRoute
   ApisDashboardIndexRoute: typeof ApisDashboardIndexRoute
   ApisJsonSchemaIndexRoute: typeof ApisJsonSchemaIndexRoute
@@ -600,11 +626,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/team/': {
-      id: '/team/'
-      path: '/team'
-      fullPath: '/team/'
-      preLoaderRoute: typeof TeamIndexRouteImport
+    '/about/': {
+      id: '/about/'
+      path: '/about'
+      fullPath: '/about/'
+      preLoaderRoute: typeof AboutIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/apis/': {
+      id: '/apis/'
+      path: '/apis'
+      fullPath: '/apis/'
+      preLoaderRoute: typeof ApisIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chat/': {
@@ -621,46 +654,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatRoomIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings/': {
-      id: '/settings/'
-      path: '/settings'
-      fullPath: '/settings/'
-      preLoaderRoute: typeof SettingsIndexRouteImport
+    '/chat/avatar-studio': {
+      id: '/chat/avatar-studio'
+      path: '/chat/avatar-studio'
+      fullPath: '/chat/avatar-studio'
+      preLoaderRoute: typeof ChatAvatarStudioRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/server-logs/': {
-      id: '/server-logs/'
-      path: '/server-logs'
-      fullPath: '/server-logs/'
-      preLoaderRoute: typeof ServerLogsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sandbox/': {
-      id: '/sandbox/'
-      path: '/sandbox'
-      fullPath: '/sandbox/'
-      preLoaderRoute: typeof SandboxIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/proxy/': {
-      id: '/proxy/'
-      path: '/proxy'
-      fullPath: '/proxy/'
-      preLoaderRoute: typeof ProxyIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/profile/': {
-      id: '/profile/'
-      path: '/profile'
-      fullPath: '/profile/'
-      preLoaderRoute: typeof ProfileIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/monitor/': {
-      id: '/monitor/'
-      path: '/monitor'
-      fullPath: '/monitor/'
-      preLoaderRoute: typeof MonitorIndexRouteImport
+    '/chat/playground': {
+      id: '/chat/playground'
+      path: '/chat/playground'
+      fullPath: '/chat/playground'
+      preLoaderRoute: typeof ChatPlaygroundRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/domains/': {
@@ -670,221 +675,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DomainsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/apis/': {
-      id: '/apis/'
-      path: '/apis'
-      fullPath: '/apis/'
-      preLoaderRoute: typeof ApisIndexRouteImport
+    '/monitor/': {
+      id: '/monitor/'
+      path: '/monitor'
+      fullPath: '/monitor/'
+      preLoaderRoute: typeof MonitorIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/about/': {
-      id: '/about/'
-      path: '/about'
-      fullPath: '/about/'
-      preLoaderRoute: typeof AboutIndexRouteImport
+    '/profile/': {
+      id: '/profile/'
+      path: '/profile'
+      fullPath: '/profile/'
+      preLoaderRoute: typeof ProfileIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/ux/policies/': {
-      id: '/ux/policies/'
-      path: '/ux/policies'
-      fullPath: '/ux/policies/'
-      preLoaderRoute: typeof UxPoliciesIndexRouteImport
+    '/proxy/': {
+      id: '/proxy/'
+      path: '/proxy'
+      fullPath: '/proxy/'
+      preLoaderRoute: typeof ProxyIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/ux/live-capture/': {
-      id: '/ux/live-capture/'
-      path: '/ux/live-capture'
-      fullPath: '/ux/live-capture/'
-      preLoaderRoute: typeof UxLiveCaptureIndexRouteImport
+    '/sandbox/': {
+      id: '/sandbox/'
+      path: '/sandbox'
+      fullPath: '/sandbox/'
+      preLoaderRoute: typeof SandboxIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sandbox/preview/': {
-      id: '/sandbox/preview/'
-      path: '/sandbox/preview'
-      fullPath: '/sandbox/preview/'
-      preLoaderRoute: typeof SandboxPreviewIndexRouteImport
+    '/server-logs/': {
+      id: '/server-logs/'
+      path: '/server-logs'
+      fullPath: '/server-logs/'
+      preLoaderRoute: typeof ServerLogsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sandbox/pipeline/': {
-      id: '/sandbox/pipeline/'
-      path: '/sandbox/pipeline'
-      fullPath: '/sandbox/pipeline/'
-      preLoaderRoute: typeof SandboxPipelineIndexRouteImport
+    '/settings/': {
+      id: '/settings/'
+      path: '/settings'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sandbox/crypto/': {
-      id: '/sandbox/crypto/'
-      path: '/sandbox/crypto'
-      fullPath: '/sandbox/crypto/'
-      preLoaderRoute: typeof SandboxCryptoIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/proxy/setup/': {
-      id: '/proxy/setup/'
-      path: '/proxy/setup'
-      fullPath: '/proxy/setup/'
-      preLoaderRoute: typeof ProxySetupIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/proxy/mobile/': {
-      id: '/proxy/mobile/'
-      path: '/proxy/mobile'
-      fullPath: '/proxy/mobile/'
-      preLoaderRoute: typeof ProxyMobileIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/proxy/inspector/': {
-      id: '/proxy/inspector/'
-      path: '/proxy/inspector'
-      fullPath: '/proxy/inspector/'
-      preLoaderRoute: typeof ProxyInspectorIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/proxy/dashboard/': {
-      id: '/proxy/dashboard/'
-      path: '/proxy/dashboard'
-      fullPath: '/proxy/dashboard/'
-      preLoaderRoute: typeof ProxyDashboardIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/proxy/connections/': {
-      id: '/proxy/connections/'
-      path: '/proxy/connections'
-      fullPath: '/proxy/connections/'
-      preLoaderRoute: typeof ProxyConnectionsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/popup/tools/': {
-      id: '/popup/tools/'
-      path: '/popup/tools'
-      fullPath: '/popup/tools/'
-      preLoaderRoute: typeof PopupToolsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/popup/settings/': {
-      id: '/popup/settings/'
-      path: '/popup/settings'
-      fullPath: '/popup/settings/'
-      preLoaderRoute: typeof PopupSettingsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/popup/schema-explorer/': {
-      id: '/popup/schema-explorer/'
-      path: '/popup/schema-explorer'
-      fullPath: '/popup/schema-explorer/'
-      preLoaderRoute: typeof PopupSchemaExplorerIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/popup/mobile/': {
-      id: '/popup/mobile/'
-      path: '/popup/mobile'
-      fullPath: '/popup/mobile/'
-      preLoaderRoute: typeof PopupMobileIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/popup/infrastructure/': {
-      id: '/popup/infrastructure/'
-      path: '/popup/infrastructure'
-      fullPath: '/popup/infrastructure/'
-      preLoaderRoute: typeof PopupInfrastructureIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/popup/groups/': {
-      id: '/popup/groups/'
-      path: '/popup/groups'
-      fullPath: '/popup/groups/'
-      preLoaderRoute: typeof PopupGroupsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/popup/add-domain/': {
-      id: '/popup/add-domain/'
-      path: '/popup/add-domain'
-      fullPath: '/popup/add-domain/'
-      preLoaderRoute: typeof PopupAddDomainIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/monitor/settings/': {
-      id: '/monitor/settings/'
-      path: '/monitor/settings'
-      fullPath: '/monitor/settings/'
-      preLoaderRoute: typeof MonitorSettingsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/monitor/manage/': {
-      id: '/monitor/manage/'
-      path: '/monitor/manage'
-      fullPath: '/monitor/manage/'
-      preLoaderRoute: typeof MonitorManageIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/monitor/logs/': {
-      id: '/monitor/logs/'
-      path: '/monitor/logs'
-      fullPath: '/monitor/logs/'
-      preLoaderRoute: typeof MonitorLogsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/domains/regist/': {
-      id: '/domains/regist/'
-      path: '/domains/regist'
-      fullPath: '/domains/regist/'
-      preLoaderRoute: typeof DomainsRegistIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/domains/groups/': {
-      id: '/domains/groups/'
-      path: '/domains/groups'
-      fullPath: '/domains/groups/'
-      preLoaderRoute: typeof DomainsGroupsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/domains/dashboard/': {
-      id: '/domains/dashboard/'
-      path: '/domains/dashboard'
-      fullPath: '/domains/dashboard/'
-      preLoaderRoute: typeof DomainsDashboardIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/apis/settings/': {
-      id: '/apis/settings/'
-      path: '/apis/settings'
-      fullPath: '/apis/settings/'
-      preLoaderRoute: typeof ApisSettingsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/apis/schema/': {
-      id: '/apis/schema/'
-      path: '/apis/schema'
-      fullPath: '/apis/schema/'
-      preLoaderRoute: typeof ApisSchemaIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/apis/mocking/': {
-      id: '/apis/mocking/'
-      path: '/apis/mocking'
-      fullPath: '/apis/mocking/'
-      preLoaderRoute: typeof ApisMockingIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/apis/logs/': {
-      id: '/apis/logs/'
-      path: '/apis/logs'
-      fullPath: '/apis/logs/'
-      preLoaderRoute: typeof ApisLogsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/apis/json-schema/': {
-      id: '/apis/json-schema/'
-      path: '/apis/json-schema'
-      fullPath: '/apis/json-schema/'
-      preLoaderRoute: typeof ApisJsonSchemaIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/apis/dashboard/': {
-      id: '/apis/dashboard/'
-      path: '/apis/dashboard'
-      fullPath: '/apis/dashboard/'
-      preLoaderRoute: typeof ApisDashboardIndexRouteImport
+    '/team/': {
+      id: '/team/'
+      path: '/team'
+      fullPath: '/team/'
+      preLoaderRoute: typeof TeamIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/apis/client/': {
@@ -894,13 +731,220 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApisClientIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/apis/dashboard/': {
+      id: '/apis/dashboard/'
+      path: '/apis/dashboard'
+      fullPath: '/apis/dashboard/'
+      preLoaderRoute: typeof ApisDashboardIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/apis/json-schema/': {
+      id: '/apis/json-schema/'
+      path: '/apis/json-schema'
+      fullPath: '/apis/json-schema/'
+      preLoaderRoute: typeof ApisJsonSchemaIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/apis/logs/': {
+      id: '/apis/logs/'
+      path: '/apis/logs'
+      fullPath: '/apis/logs/'
+      preLoaderRoute: typeof ApisLogsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/apis/mocking/': {
+      id: '/apis/mocking/'
+      path: '/apis/mocking'
+      fullPath: '/apis/mocking/'
+      preLoaderRoute: typeof ApisMockingIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/apis/schema/': {
+      id: '/apis/schema/'
+      path: '/apis/schema'
+      fullPath: '/apis/schema/'
+      preLoaderRoute: typeof ApisSchemaIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/apis/settings/': {
+      id: '/apis/settings/'
+      path: '/apis/settings'
+      fullPath: '/apis/settings/'
+      preLoaderRoute: typeof ApisSettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/domains/dashboard/': {
+      id: '/domains/dashboard/'
+      path: '/domains/dashboard'
+      fullPath: '/domains/dashboard/'
+      preLoaderRoute: typeof DomainsDashboardIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/domains/groups/': {
+      id: '/domains/groups/'
+      path: '/domains/groups'
+      fullPath: '/domains/groups/'
+      preLoaderRoute: typeof DomainsGroupsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/domains/regist/': {
+      id: '/domains/regist/'
+      path: '/domains/regist'
+      fullPath: '/domains/regist/'
+      preLoaderRoute: typeof DomainsRegistIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/monitor/logs/': {
+      id: '/monitor/logs/'
+      path: '/monitor/logs'
+      fullPath: '/monitor/logs/'
+      preLoaderRoute: typeof MonitorLogsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/monitor/manage/': {
+      id: '/monitor/manage/'
+      path: '/monitor/manage'
+      fullPath: '/monitor/manage/'
+      preLoaderRoute: typeof MonitorManageIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/monitor/settings/': {
+      id: '/monitor/settings/'
+      path: '/monitor/settings'
+      fullPath: '/monitor/settings/'
+      preLoaderRoute: typeof MonitorSettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/popup/add-domain/': {
+      id: '/popup/add-domain/'
+      path: '/popup/add-domain'
+      fullPath: '/popup/add-domain/'
+      preLoaderRoute: typeof PopupAddDomainIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/popup/groups/': {
+      id: '/popup/groups/'
+      path: '/popup/groups'
+      fullPath: '/popup/groups/'
+      preLoaderRoute: typeof PopupGroupsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/popup/infrastructure/': {
+      id: '/popup/infrastructure/'
+      path: '/popup/infrastructure'
+      fullPath: '/popup/infrastructure/'
+      preLoaderRoute: typeof PopupInfrastructureIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/popup/mobile/': {
+      id: '/popup/mobile/'
+      path: '/popup/mobile'
+      fullPath: '/popup/mobile/'
+      preLoaderRoute: typeof PopupMobileIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/popup/schema-explorer/': {
+      id: '/popup/schema-explorer/'
+      path: '/popup/schema-explorer'
+      fullPath: '/popup/schema-explorer/'
+      preLoaderRoute: typeof PopupSchemaExplorerIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/popup/settings/': {
+      id: '/popup/settings/'
+      path: '/popup/settings'
+      fullPath: '/popup/settings/'
+      preLoaderRoute: typeof PopupSettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/popup/tools/': {
+      id: '/popup/tools/'
+      path: '/popup/tools'
+      fullPath: '/popup/tools/'
+      preLoaderRoute: typeof PopupToolsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/proxy/connections/': {
+      id: '/proxy/connections/'
+      path: '/proxy/connections'
+      fullPath: '/proxy/connections/'
+      preLoaderRoute: typeof ProxyConnectionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/proxy/dashboard/': {
+      id: '/proxy/dashboard/'
+      path: '/proxy/dashboard'
+      fullPath: '/proxy/dashboard/'
+      preLoaderRoute: typeof ProxyDashboardIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/proxy/inspector/': {
+      id: '/proxy/inspector/'
+      path: '/proxy/inspector'
+      fullPath: '/proxy/inspector/'
+      preLoaderRoute: typeof ProxyInspectorIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/proxy/mobile/': {
+      id: '/proxy/mobile/'
+      path: '/proxy/mobile'
+      fullPath: '/proxy/mobile/'
+      preLoaderRoute: typeof ProxyMobileIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/proxy/setup/': {
+      id: '/proxy/setup/'
+      path: '/proxy/setup'
+      fullPath: '/proxy/setup/'
+      preLoaderRoute: typeof ProxySetupIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sandbox/crypto/': {
+      id: '/sandbox/crypto/'
+      path: '/sandbox/crypto'
+      fullPath: '/sandbox/crypto/'
+      preLoaderRoute: typeof SandboxCryptoIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sandbox/pipeline/': {
+      id: '/sandbox/pipeline/'
+      path: '/sandbox/pipeline'
+      fullPath: '/sandbox/pipeline/'
+      preLoaderRoute: typeof SandboxPipelineIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sandbox/preview/': {
+      id: '/sandbox/preview/'
+      path: '/sandbox/preview'
+      fullPath: '/sandbox/preview/'
+      preLoaderRoute: typeof SandboxPreviewIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ux/live-capture/': {
+      id: '/ux/live-capture/'
+      path: '/ux/live-capture'
+      fullPath: '/ux/live-capture/'
+      preLoaderRoute: typeof UxLiveCaptureIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ux/policies/': {
+      id: '/ux/policies/'
+      path: '/ux/policies'
+      fullPath: '/ux/policies/'
+      preLoaderRoute: typeof UxPoliciesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ChatRoomIdRoute: ChatRoomIdRoute,
+  ChatAvatarStudioRoute: ChatAvatarStudioRoute,
+  ChatPlaygroundRoute: ChatPlaygroundRoute,
   AboutIndexRoute: AboutIndexRoute,
   ApisIndexRoute: ApisIndexRoute,
+  ChatIndexRoute: ChatIndexRoute,
   DomainsIndexRoute: DomainsIndexRoute,
   MonitorIndexRoute: MonitorIndexRoute,
   ProfileIndexRoute: ProfileIndexRoute,
@@ -909,8 +953,6 @@ const rootRouteChildren: RootRouteChildren = {
   ServerLogsIndexRoute: ServerLogsIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
   TeamIndexRoute: TeamIndexRoute,
-  ChatIndexRoute: ChatIndexRoute,
-  ChatRoomIdRoute: ChatRoomIdRoute,
   ApisClientIndexRoute: ApisClientIndexRoute,
   ApisDashboardIndexRoute: ApisDashboardIndexRoute,
   ApisJsonSchemaIndexRoute: ApisJsonSchemaIndexRoute,

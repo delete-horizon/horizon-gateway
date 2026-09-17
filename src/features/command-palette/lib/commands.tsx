@@ -2,6 +2,7 @@ import {
   Activity,
   BookOpen,
   Bug,
+  Cat,
   Code2,
   Download,
   FileCode,
@@ -11,6 +12,7 @@ import {
   Layers,
   Network,
   Palette,
+  Pencil,
   PlusCircle,
   Radio,
   Send,
@@ -38,6 +40,8 @@ export function createPaletteCommands(handlers: {
   onClearApiLogs: () => Promise<void>;
   onExportRootCa: () => Promise<void>;
   onOpenTeamSync: () => void;
+  onOpenOverlayLab: () => void;
+  onOpenAvatarStudio: () => void;
   onOpenThemeEditor: () => void;
   onOpenGlobalSurface: (surfaceId: string) => void;
   onOpenSettings: () => void;
@@ -665,6 +669,44 @@ export function createPaletteCommands(handlers: {
       },
       action: () => {
         handlers.onOpenTeamSync();
+      },
+    },
+    {
+      id: "open-overlay-lab",
+      group: "team",
+      icon: <Cat className="w-4 h-4 text-amber-500" />,
+      meta: {
+        label: { ko: "[팀] 오버레이 실험실", en: "[Team] Overlay lab" },
+        description: {
+          ko: "로그인 없이 내 캐릭터와 말풍선을 시험합니다",
+          en: "Try the edge character and bubbles without signing in",
+        },
+        aliases: {
+          ko: ["오버레이", "실험실", "캐릭터", "말풍선", "playground"],
+          en: ["overlay", "lab", "character", "bubble", "playground"],
+        },
+      },
+      action: () => {
+        handlers.onOpenOverlayLab();
+      },
+    },
+    {
+      id: "open-avatar-studio",
+      group: "team",
+      icon: <Pencil className="w-4 h-4 text-amber-500" />,
+      meta: {
+        label: { ko: "[팀] 아바타 스튜디오", en: "[Team] Avatar studio" },
+        description: {
+          ko: "24×24 파츠를 그리고 JSON으로 저장합니다",
+          en: "Paint 24×24 parts and save them as JSON",
+        },
+        aliases: {
+          ko: ["아바타", "파츠", "스튜디오", "픽셀", "스킨"],
+          en: ["avatar", "parts", "studio", "pixel", "skin"],
+        },
+      },
+      action: () => {
+        handlers.onOpenAvatarStudio();
       },
     },
     {

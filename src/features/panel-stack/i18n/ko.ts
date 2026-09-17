@@ -268,6 +268,7 @@ export const ko: TranslationSchema = {
   toolsPipeline: "데이터 파이프라인",
   toolsCrypto: "암복호화 유틸",
   toolsPreview: "UI 프리뷰",
+  toolsOverlayLab: "오버레이 실험실",
   toolsApiClient: "API 클라이언트",
   toolsApiLogs: "API 로그",
   toolsApiMocking: "API 모킹",

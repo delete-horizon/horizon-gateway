@@ -1,0 +1,603 @@
+{
+  "sets": [
+    {
+      "id": "crusader",
+      "ko": "성기사",
+      "en": "Crusader",
+      "shop": true,
+      "kit": {
+        "head": "greathelm",
+        "outfit": "plate",
+        "back": "crusader",
+        "held": "shield"
+      },
+      "chroma": {
+        "outline": [
+          28,
+          18,
+          44
+        ],
+        "skin": [
+          232,
+          196,
+          168
+        ],
+        "skinD": [
+          180,
+          132,
+          112
+        ],
+        "cloth": [
+          88,
+          64,
+          148
+        ],
+        "clothD": [
+          48,
+          32,
+          92
+        ],
+        "accent": [
+          180,
+          140,
+          255
+        ],
+        "metal": [
+          188,
+          176,
+          220
+        ],
+        "eye": [
+          28,
+          22,
+          40
+        ],
+        "white": [
+          250,
+          246,
+          255
+        ]
+      }
+    },
+    {
+      "id": "rogue",
+      "ko": "암살자",
+      "en": "Rogue",
+      "shop": false,
+      "kit": {
+        "body": "elf",
+        "head": "mask",
+        "outfit": "leather",
+        "back": "sheath",
+        "held": "dagger"
+      },
+      "chroma": {
+        "outline": [
+          28,
+          18,
+          44
+        ],
+        "skin": [
+          232,
+          196,
+          168
+        ],
+        "skinD": [
+          180,
+          132,
+          112
+        ],
+        "cloth": [
+          88,
+          64,
+          148
+        ],
+        "clothD": [
+          48,
+          32,
+          92
+        ],
+        "accent": [
+          180,
+          140,
+          255
+        ],
+        "metal": [
+          188,
+          176,
+          220
+        ],
+        "eye": [
+          28,
+          22,
+          40
+        ],
+        "white": [
+          250,
+          246,
+          255
+        ]
+      }
+    },
+    {
+      "id": "ranger",
+      "ko": "사냥꾼",
+      "en": "Ranger",
+      "shop": false,
+      "kit": {
+        "body": "scout",
+        "head": "feather-hat",
+        "outfit": "tunic",
+        "back": "quiver",
+        "held": "bow"
+      },
+      "chroma": {
+        "outline": [
+          28,
+          18,
+          44
+        ],
+        "skin": [
+          232,
+          196,
+          168
+        ],
+        "skinD": [
+          180,
+          132,
+          112
+        ],
+        "cloth": [
+          88,
+          64,
+          148
+        ],
+        "clothD": [
+          48,
+          32,
+          92
+        ],
+        "accent": [
+          180,
+          140,
+          255
+        ],
+        "metal": [
+          188,
+          176,
+          220
+        ],
+        "eye": [
+          28,
+          22,
+          40
+        ],
+        "white": [
+          250,
+          246,
+          255
+        ]
+      }
+    },
+    {
+      "id": "barbarian",
+      "ko": "광전사",
+      "en": "Barbarian",
+      "shop": false,
+      "kit": {
+        "body": "orc",
+        "head": "horned-helm",
+        "outfit": "harness",
+        "back": "bear-pelt",
+        "held": "greataxe"
+      },
+      "chroma": {
+        "outline": [
+          28,
+          18,
+          44
+        ],
+        "skin": [
+          232,
+          196,
+          168
+        ],
+        "skinD": [
+          180,
+          132,
+          112
+        ],
+        "cloth": [
+          88,
+          64,
+          148
+        ],
+        "clothD": [
+          48,
+          32,
+          92
+        ],
+        "accent": [
+          180,
+          140,
+          255
+        ],
+        "metal": [
+          188,
+          176,
+          220
+        ],
+        "eye": [
+          28,
+          22,
+          40
+        ],
+        "white": [
+          250,
+          246,
+          255
+        ]
+      }
+    },
+    {
+      "id": "wizard",
+      "ko": "대마법사",
+      "en": "Wizard",
+      "shop": false,
+      "kit": {
+        "body": "human",
+        "head": "wizard-hat",
+        "outfit": "scholar-robe",
+        "back": "scrolls",
+        "held": "grimoire"
+      },
+      "chroma": {
+        "outline": [
+          28,
+          18,
+          44
+        ],
+        "skin": [
+          232,
+          196,
+          168
+        ],
+        "skinD": [
+          180,
+          132,
+          112
+        ],
+        "cloth": [
+          88,
+          64,
+          148
+        ],
+        "clothD": [
+          48,
+          32,
+          92
+        ],
+        "accent": [
+          180,
+          140,
+          255
+        ],
+        "metal": [
+          188,
+          176,
+          220
+        ],
+        "eye": [
+          28,
+          22,
+          40
+        ],
+        "white": [
+          250,
+          246,
+          255
+        ]
+      }
+    },
+    {
+      "id": "bard",
+      "ko": "음유시인",
+      "en": "Bard",
+      "shop": false,
+      "kit": {
+        "body": "halfling",
+        "head": "beret",
+        "outfit": "doublet",
+        "back": "lute",
+        "held": "rapier"
+      },
+      "chroma": {
+        "outline": [
+          28,
+          18,
+          44
+        ],
+        "skin": [
+          232,
+          196,
+          168
+        ],
+        "skinD": [
+          180,
+          132,
+          112
+        ],
+        "cloth": [
+          88,
+          64,
+          148
+        ],
+        "clothD": [
+          48,
+          32,
+          92
+        ],
+        "accent": [
+          180,
+          140,
+          255
+        ],
+        "metal": [
+          188,
+          176,
+          220
+        ],
+        "eye": [
+          28,
+          22,
+          40
+        ],
+        "white": [
+          250,
+          246,
+          255
+        ]
+      }
+    },
+    {
+      "id": "cleric",
+      "ko": "성직자",
+      "en": "Cleric",
+      "shop": false,
+      "kit": {
+        "body": "dwarf",
+        "head": "halo",
+        "outfit": "vestment",
+        "back": "relic",
+        "held": "mace"
+      },
+      "chroma": {
+        "outline": [
+          28,
+          18,
+          44
+        ],
+        "skin": [
+          232,
+          196,
+          168
+        ],
+        "skinD": [
+          180,
+          132,
+          112
+        ],
+        "cloth": [
+          88,
+          64,
+          148
+        ],
+        "clothD": [
+          48,
+          32,
+          92
+        ],
+        "accent": [
+          180,
+          140,
+          255
+        ],
+        "metal": [
+          188,
+          176,
+          220
+        ],
+        "eye": [
+          28,
+          22,
+          40
+        ],
+        "white": [
+          250,
+          246,
+          255
+        ]
+      }
+    },
+    {
+      "id": "druid",
+      "ko": "드루이드",
+      "en": "Druid",
+      "shop": false,
+      "kit": {
+        "body": "wood-elf",
+        "head": "antlers",
+        "outfit": "bark-robe",
+        "back": "vine-cloak",
+        "held": "oak-staff"
+      },
+      "chroma": {
+        "outline": [
+          28,
+          18,
+          44
+        ],
+        "skin": [
+          232,
+          196,
+          168
+        ],
+        "skinD": [
+          180,
+          132,
+          112
+        ],
+        "cloth": [
+          88,
+          64,
+          148
+        ],
+        "clothD": [
+          48,
+          32,
+          92
+        ],
+        "accent": [
+          180,
+          140,
+          255
+        ],
+        "metal": [
+          188,
+          176,
+          220
+        ],
+        "eye": [
+          28,
+          22,
+          40
+        ],
+        "white": [
+          250,
+          246,
+          255
+        ]
+      }
+    },
+    {
+      "id": "warlock",
+      "ko": "흑마법사",
+      "en": "Warlock",
+      "shop": false,
+      "kit": {
+        "body": "tiefling",
+        "head": "cowl",
+        "outfit": "cultist",
+        "back": "tentacles",
+        "held": "scythe"
+      },
+      "chroma": {
+        "outline": [
+          28,
+          18,
+          44
+        ],
+        "skin": [
+          232,
+          196,
+          168
+        ],
+        "skinD": [
+          180,
+          132,
+          112
+        ],
+        "cloth": [
+          88,
+          64,
+          148
+        ],
+        "clothD": [
+          48,
+          32,
+          92
+        ],
+        "accent": [
+          180,
+          140,
+          255
+        ],
+        "metal": [
+          188,
+          176,
+          220
+        ],
+        "eye": [
+          28,
+          22,
+          40
+        ],
+        "white": [
+          250,
+          246,
+          255
+        ]
+      }
+    },
+    {
+      "id": "monk",
+      "ko": "수도사",
+      "en": "Monk",
+      "shop": false,
+      "kit": {
+        "body": "monk",
+        "head": "straw-hat",
+        "outfit": "monk-gi",
+        "back": "gourd",
+        "held": "bo-staff"
+      },
+      "chroma": {
+        "outline": [
+          28,
+          18,
+          44
+        ],
+        "skin": [
+          232,
+          196,
+          168
+        ],
+        "skinD": [
+          180,
+          132,
+          112
+        ],
+        "cloth": [
+          88,
+          64,
+          148
+        ],
+        "clothD": [
+          48,
+          32,
+          92
+        ],
+        "accent": [
+          180,
+          140,
+          255
+        ],
+        "metal": [
+          188,
+          176,
+          220
+        ],
+        "eye": [
+          28,
+          22,
+          40
+        ],
+        "white": [
+          250,
+          246,
+          255
+        ]
+      }
+    }
+  ]
+}

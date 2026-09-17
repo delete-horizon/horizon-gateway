@@ -8,86 +8,126 @@ pub fn rasterize(frame: &Frame, width: u32, height: u32) -> Option<Pixmap> {
     Some(pixmap)
 }
 
+/// CPU bitmap for one overlay sprite (non-premultiplied RGBA).
+#[derive(Clone, Debug)]
+pub struct SpriteBlit {
+    pub dest_x: i32,
+    pub dest_y: i32,
+    pub width: u32,
+    pub height: u32,
+    pub rgba: Vec<u8>,
+}
+
+const SPRITE_PAD: f32 = 6.0;
+const SPRITE_MAX_SIDE: u32 = 768;
+
 /// Reuse an existing pixmap buffer (avoids full-screen realloc every frame).
 pub fn rasterize_into(frame: &Frame, pixmap: &mut Pixmap) {
     pixmap.fill(Color::from_rgba8(0, 0, 0, 0));
-
     for cmd in &frame.cmds {
-        match *cmd {
-            DrawCmd::Circle { x, y, r, rgba } => fill_circle(pixmap, x, y, r, rgba),
-            DrawCmd::Ring {
-                x,
-                y,
-                r,
-                stroke,
-                rgba,
-            } => stroke_circle(pixmap, x, y, r, stroke, rgba),
-            DrawCmd::Star {
-                x,
-                y,
-                outer,
-                inner,
-                rot,
-                rgba,
-            } => fill_star(pixmap, x, y, outer, inner, rot, rgba),
-            DrawCmd::Heart { x, y, size, rgba } => fill_heart(pixmap, x, y, size, rgba),
-            DrawCmd::Cat {
-                x,
-                y,
-                scale,
-                rot,
-                tint,
-                alpha,
-                mood,
-            } => draw_cat(pixmap, x, y, scale, rot, tint, alpha, mood),
-            DrawCmd::Glow {
-                x,
-                y,
-                r,
-                rgba,
-                layers,
-            } => draw_glow(pixmap, x, y, r, rgba, layers),
-            DrawCmd::Ray {
-                x,
-                y,
-                len,
-                width,
-                rot,
-                rgba,
-            } => draw_ray(pixmap, x, y, len, width, rot, rgba),
-            DrawCmd::Coffee {
-                x,
-                y,
-                scale,
-                rot,
-                alpha,
-                offer,
-            } => draw_coffee(pixmap, x, y, scale, rot, alpha, offer),
-            DrawCmd::Fly {
-                x,
-                y,
-                scale,
-                rot,
-                wing,
-                alpha,
-            } => draw_fly(pixmap, x, y, scale, rot, wing, alpha),
-            DrawCmd::Swatter {
-                x,
-                y,
-                scale,
-                rot,
-                alpha,
-            } => draw_swatter(pixmap, x, y, scale, rot, alpha),
-            DrawCmd::SprayCloud { x, y, r, alpha } => draw_spray_cloud(pixmap, x, y, r, alpha),
-            DrawCmd::ArmChip { x, y, w, h } => draw_arm_chip(pixmap, x, y, w, h),
-            DrawCmd::Mark {
-                x,
-                y,
-                scale,
-                kind,
-                rgba,
-            } => draw_mark(pixmap, x, y, scale, kind, rgba),
-        }
+        draw_cmd(pixmap, cmd);
+    }
+}
+
+/// Rasterize each command into its own small bitmap. Present places these at `dest_x/y`.
+pub fn rasterize_sprites(frame: &Frame) -> Vec<SpriteBlit> {
+    frame.cmds.iter().filter_map(rasterize_sprite).collect()
+}
+
+fn draw_cmd(pixmap: &mut Pixmap, cmd: &DrawCmd) {
+    match *cmd {
+        DrawCmd::Circle { x, y, r, rgba } => fill_circle(pixmap, x, y, r, rgba),
+        DrawCmd::Ring {
+            x,
+            y,
+            r,
+            stroke,
+            rgba,
+        } => stroke_circle(pixmap, x, y, r, stroke, rgba),
+        DrawCmd::Star {
+            x,
+            y,
+            outer,
+            inner,
+            rot,
+            rgba,
+        } => fill_star(pixmap, x, y, outer, inner, rot, rgba),
+        DrawCmd::Heart { x, y, size, rgba } => fill_heart(pixmap, x, y, size, rgba),
+        DrawCmd::Cat {
+            x,
+            y,
+            scale,
+            rot,
+            tint,
+            alpha,
+            mood,
+        } => draw_cat(pixmap, x, y, scale, rot, tint, alpha, mood),
+        DrawCmd::Avatar {
+            x,
+            y,
+            pixel_size,
+            facing,
+            alpha,
+            step,
+            ids,
+        } => crate::comm_overlay::avatar::paint(
+            pixmap,
+            x,
+            y,
+            pixel_size,
+            facing,
+            alpha,
+            step,
+            &ids.kit(),
+        ),
+        DrawCmd::Glow {
+            x,
+            y,
+            r,
+            rgba,
+            layers,
+        } => draw_glow(pixmap, x, y, r, rgba, layers),
+        DrawCmd::Ray {
+            x,
+            y,
+            len,
+            width,
+            rot,
+            rgba,
+        } => draw_ray(pixmap, x, y, len, width, rot, rgba),
+        DrawCmd::Coffee {
+            x,
+            y,
+            scale,
+            rot,
+            alpha,
+            offer,
+        } => draw_coffee(pixmap, x, y, scale, rot, alpha, offer),
+        DrawCmd::Fly {
+            x,
+            y,
+            scale,
+            rot,
+            wing,
+            alpha,
+        } => draw_fly(pixmap, x, y, scale, rot, wing, alpha),
+        DrawCmd::Swatter {
+            x,
+            y,
+            scale,
+            rot,
+            alpha,
+        } => draw_swatter(pixmap, x, y, scale, rot, alpha),
+        DrawCmd::SprayCloud { x, y, r, alpha } => draw_spray_cloud(pixmap, x, y, r, alpha),
+        DrawCmd::ArmChip { x, y, w, h } => draw_arm_chip(pixmap, x, y, w, h),
+        DrawCmd::SpeechBubble { x, y, w, h, alpha } => draw_speech_bubble(pixmap, x, y, w, h, alpha),
+        DrawCmd::Mark {
+            x,
+            y,
+            scale,
+            kind,
+            rgba,
+        } => draw_mark(pixmap, x, y, scale, kind, rgba),
     }
 }
 
@@ -598,23 +638,133 @@ fn draw_spray_cloud(pixmap: &mut Pixmap, x: f32, y: f32, r: f32, alpha: u8) {
 }
 
 fn draw_arm_chip(pixmap: &mut Pixmap, x: f32, y: f32, w: f32, h: f32) {
-    let left = x - w * 0.5;
-    let top = y - h * 0.5;
-    // Rounded pill background
-    fill_circle(pixmap, left + h * 0.5, y, h * 0.5, [20, 120, 90, 220]);
-    fill_circle(pixmap, left + w - h * 0.5, y, h * 0.5, [20, 120, 90, 220]);
-    let mut pb = PathBuilder::new();
-    pb.move_to(left + h * 0.5, top);
-    pb.line_to(left + w - h * 0.5, top);
-    pb.line_to(left + w - h * 0.5, top + h);
-    pb.line_to(left + h * 0.5, top + h);
-    pb.close();
-    if let Some(path) = pb.finish() {
-        fill_path(pixmap, path, [20, 120, 90, 220]);
-    }
-    // Spray bottle glyph
+    stamp_round_rect(pixmap, x, y, w, h, (h * 0.5).min(14.0), [20, 120, 90], 220);
     fill_circle(pixmap, x - 28.0, y - 2.0, 9.0, [220, 250, 255, 240]);
     fill_circle(pixmap, x - 28.0, y + 8.0, 6.0, [100, 190, 230, 230]);
+}
+
+const BUBBLE_TAIL: i32 = 8;
+const BUBBLE_CORNER: i32 = 4;
+
+fn draw_speech_bubble(pixmap: &mut Pixmap, x: f32, y: f32, w: f32, h: f32, alpha: u8) {
+    if w < 8.0 || h < 8.0 || alpha == 0 {
+        return;
+    }
+    let bw = w.round().max(24.0) as i32;
+    let bh = h.round().max(18.0) as i32;
+    let cx = x.round() as i32;
+    let cy = y.round() as i32;
+    let left = cx - bw / 2;
+    let top = cy - bh / 2;
+    let fill = [252, 246, 236];
+    let hi = [255, 252, 248];
+    let ink = [28, 18, 44];
+
+    for py in (top - 1)..(top + bh + BUBBLE_TAIL + 2) {
+        for px in (left - 1)..(left + bw + 2) {
+            let shape = bubble_shape(px, py, left, top, bw, bh, cx);
+            if !shape {
+                continue;
+            }
+            let outline = !bubble_shape(px - 1, py, left, top, bw, bh, cx)
+                || !bubble_shape(px + 1, py, left, top, bw, bh, cx)
+                || !bubble_shape(px, py - 1, left, top, bw, bh, cx)
+                || !bubble_shape(px, py + 1, left, top, bw, bh, cx);
+            let rgb = if outline {
+                ink
+            } else if py == top + 1 {
+                hi
+            } else {
+                fill
+            };
+            put_premul(pixmap, px, py, rgb, alpha);
+        }
+    }
+}
+
+fn bubble_shape(px: i32, py: i32, left: i32, top: i32, w: i32, h: i32, cx: i32) -> bool {
+    in_round_rect(px - left, py - top, w, h, BUBBLE_CORNER) || in_bubble_tail(px, py, cx, top + h)
+}
+
+fn in_round_rect(lx: i32, ly: i32, w: i32, h: i32, r: i32) -> bool {
+    if lx < 0 || ly < 0 || lx >= w || ly >= h {
+        return false;
+    }
+    let r = r.min(w / 2).min(h / 2).max(1);
+    let dx;
+    let dy;
+    if lx < r && ly < r {
+        dx = r - 1 - lx;
+        dy = r - 1 - ly;
+    } else if lx >= w - r && ly < r {
+        dx = lx - (w - r);
+        dy = r - 1 - ly;
+    } else if lx < r && ly >= h - r {
+        dx = r - 1 - lx;
+        dy = ly - (h - r);
+    } else if lx >= w - r && ly >= h - r {
+        dx = lx - (w - r);
+        dy = ly - (h - r);
+    } else {
+        return true;
+    }
+    dx * dx + dy * dy <= r * r
+}
+
+fn in_bubble_tail(px: i32, py: i32, cx: i32, bottom: i32) -> bool {
+    if py < bottom || py > bottom + BUBBLE_TAIL {
+        return false;
+    }
+    let t = py - bottom;
+    let half = (BUBBLE_TAIL - t).max(0) + 1;
+    (px - cx).abs() <= half
+}
+
+fn stamp_round_rect(
+    pixmap: &mut Pixmap,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    r: f32,
+    rgb: [u8; 3],
+    alpha: u8,
+) {
+    if w < 4.0 || h < 4.0 || alpha == 0 {
+        return;
+    }
+    let bw = w.round().max(4.0) as i32;
+    let bh = h.round().max(4.0) as i32;
+    let cx = x.round() as i32;
+    let cy = y.round() as i32;
+    let left = cx - bw / 2;
+    let top = cy - bh / 2;
+    let cr = r.round().max(1.0) as i32;
+    for py in top..(top + bh) {
+        for px in left..(left + bw) {
+            if in_round_rect(px - left, py - top, bw, bh, cr) {
+                put_premul(pixmap, px, py, rgb, alpha);
+            }
+        }
+    }
+}
+
+fn put_premul(pixmap: &mut Pixmap, x: i32, y: i32, rgb: [u8; 3], a: u8) {
+    if a == 0 || x < 0 || y < 0 {
+        return;
+    }
+    let w = pixmap.width();
+    let h = pixmap.height();
+    if x as u32 >= w || y as u32 >= h {
+        return;
+    }
+    // Straight RGBA: the Windows blit premuls once for ULW.
+    let i = ((y as u32 * w + x as u32) * 4) as usize;
+    let d = pixmap.data_mut();
+    d[i] = rgb[0];
+    d[i + 1] = rgb[1];
+    d[i + 2] = rgb[2];
+    d[i + 3] = a;
 }
 
 fn draw_mark(pixmap: &mut Pixmap, x: f32, y: f32, scale: f32, kind: u8, rgba: [u8; 4]) {
@@ -670,5 +820,395 @@ fn draw_mark(pixmap: &mut Pixmap, x: f32, y: f32, scale: f32, kind: u8, rgba: [u
                 pixmap.stroke_path(&path, &paint_rgba(rgba), &stroke, Transform::identity(), None);
             }
         }
+    }
+}
+
+fn rasterize_sprite(cmd: &DrawCmd) -> Option<SpriteBlit> {
+    let (left, top, right, bottom) = cmd_bounds(cmd)?;
+    let width = ((right - left).ceil()).clamp(1.0, SPRITE_MAX_SIDE as f32) as u32;
+    let height = ((bottom - top).ceil()).clamp(1.0, SPRITE_MAX_SIDE as f32) as u32;
+    if width == 0 || height == 0 {
+        return None;
+    }
+    let mut pixmap = Pixmap::new(width, height)?;
+    pixmap.fill(Color::from_rgba8(0, 0, 0, 0));
+    let local = translate_cmd(cmd, -left, -top);
+    draw_cmd(&mut pixmap, &local);
+    Some(SpriteBlit {
+        dest_x: left.floor() as i32,
+        dest_y: top.floor() as i32,
+        width,
+        height,
+        rgba: pixmap.data().to_vec(),
+    })
+}
+
+fn cmd_bounds(cmd: &DrawCmd) -> Option<(f32, f32, f32, f32)> {
+    let (cx, cy, hx, hy) = match *cmd {
+        DrawCmd::Circle { x, y, r, rgba } if rgba[3] > 0 && r.is_finite() => (x, y, r, r),
+        DrawCmd::Ring {
+            x,
+            y,
+            r,
+            stroke,
+            rgba,
+        } if rgba[3] > 0 && r.is_finite() => {
+            let e = r + stroke.max(0.0);
+            (x, y, e, e)
+        }
+        DrawCmd::Star { x, y, outer, rgba, .. } if rgba[3] > 0 => (x, y, outer, outer),
+        DrawCmd::Heart { x, y, size, rgba } if rgba[3] > 0 => (x, y, size * 1.2, size * 1.2),
+        DrawCmd::Cat { x, y, scale, alpha, .. } if alpha > 0 && scale >= 4.0 => {
+            (x, y, scale * 1.7, scale * 1.7)
+        }
+        DrawCmd::Avatar {
+            x,
+            y,
+            pixel_size,
+            alpha,
+            ..
+        } if alpha > 0 && pixel_size >= crate::comm_overlay::avatar::MIN_PIXEL_SIZE => {
+            let (hx, hy) = crate::comm_overlay::avatar::bounds(pixel_size);
+            (x, y, hx, hy)
+        }
+        DrawCmd::Glow { x, y, r, rgba, .. } if rgba[3] > 0 => (x, y, r, r),
+        DrawCmd::Ray {
+            x,
+            y,
+            len,
+            width,
+            rgba,
+            ..
+        } if rgba[3] > 0 => {
+            let e = len.abs() + width.abs();
+            (x, y, e, e)
+        }
+        DrawCmd::Coffee { x, y, scale, alpha, .. } if alpha > 0 && scale >= 4.0 => {
+            (x, y, scale * 1.3, scale * 1.3)
+        }
+        DrawCmd::Fly { x, y, scale, alpha, .. } if alpha > 0 && scale >= 2.0 => {
+            (x, y, scale * 2.0, scale * 2.0)
+        }
+        DrawCmd::Swatter { x, y, scale, alpha, .. } if alpha > 0 => {
+            let e = 42.0 * scale * 1.3;
+            (x, y, e, e)
+        }
+        DrawCmd::SprayCloud { x, y, r, alpha } if alpha > 0 => (x, y, r * 1.15, r * 1.15),
+        DrawCmd::ArmChip { x, y, w, h } => (x, y, w * 0.5, h * 0.5),
+        DrawCmd::SpeechBubble { x, y, w, h, alpha } if alpha > 0 => {
+            (x, y, w * 0.5 + 4.0, h * 0.5 + 14.0)
+        }
+        DrawCmd::Mark { x, y, scale, rgba, .. } if rgba[3] > 0 => (x, y, scale * 1.3, scale * 1.3),
+        _ => return None,
+    };
+    if !cx.is_finite() || !cy.is_finite() || !hx.is_finite() || !hy.is_finite() {
+        return None;
+    }
+    Some((
+        cx - hx - SPRITE_PAD,
+        cy - hy - SPRITE_PAD,
+        cx + hx + SPRITE_PAD,
+        cy + hy + SPRITE_PAD,
+    ))
+}
+
+fn translate_cmd(cmd: &DrawCmd, dx: f32, dy: f32) -> DrawCmd {
+    match *cmd {
+        DrawCmd::Circle { x, y, r, rgba } => DrawCmd::Circle {
+            x: x + dx,
+            y: y + dy,
+            r,
+            rgba,
+        },
+        DrawCmd::Ring {
+            x,
+            y,
+            r,
+            stroke,
+            rgba,
+        } => DrawCmd::Ring {
+            x: x + dx,
+            y: y + dy,
+            r,
+            stroke,
+            rgba,
+        },
+        DrawCmd::Star {
+            x,
+            y,
+            outer,
+            inner,
+            rot,
+            rgba,
+        } => DrawCmd::Star {
+            x: x + dx,
+            y: y + dy,
+            outer,
+            inner,
+            rot,
+            rgba,
+        },
+        DrawCmd::Heart { x, y, size, rgba } => DrawCmd::Heart {
+            x: x + dx,
+            y: y + dy,
+            size,
+            rgba,
+        },
+        DrawCmd::Cat {
+            x,
+            y,
+            scale,
+            rot,
+            tint,
+            alpha,
+            mood,
+        } => DrawCmd::Cat {
+            x: x + dx,
+            y: y + dy,
+            scale,
+            rot,
+            tint,
+            alpha,
+            mood,
+        },
+        DrawCmd::Avatar {
+            x,
+            y,
+            pixel_size,
+            facing,
+            alpha,
+            step,
+            ids,
+        } => DrawCmd::Avatar {
+            x: x + dx,
+            y: y + dy,
+            pixel_size,
+            facing,
+            alpha,
+            step,
+            ids,
+        },
+        DrawCmd::Glow {
+            x,
+            y,
+            r,
+            rgba,
+            layers,
+        } => DrawCmd::Glow {
+            x: x + dx,
+            y: y + dy,
+            r,
+            rgba,
+            layers,
+        },
+        DrawCmd::Ray {
+            x,
+            y,
+            len,
+            width,
+            rot,
+            rgba,
+        } => DrawCmd::Ray {
+            x: x + dx,
+            y: y + dy,
+            len,
+            width,
+            rot,
+            rgba,
+        },
+        DrawCmd::Coffee {
+            x,
+            y,
+            scale,
+            rot,
+            alpha,
+            offer,
+        } => DrawCmd::Coffee {
+            x: x + dx,
+            y: y + dy,
+            scale,
+            rot,
+            alpha,
+            offer,
+        },
+        DrawCmd::Fly {
+            x,
+            y,
+            scale,
+            rot,
+            wing,
+            alpha,
+        } => DrawCmd::Fly {
+            x: x + dx,
+            y: y + dy,
+            scale,
+            rot,
+            wing,
+            alpha,
+        },
+        DrawCmd::Swatter {
+            x,
+            y,
+            scale,
+            rot,
+            alpha,
+        } => DrawCmd::Swatter {
+            x: x + dx,
+            y: y + dy,
+            scale,
+            rot,
+            alpha,
+        },
+        DrawCmd::SprayCloud { x, y, r, alpha } => DrawCmd::SprayCloud {
+            x: x + dx,
+            y: y + dy,
+            r,
+            alpha,
+        },
+        DrawCmd::ArmChip { x, y, w, h } => DrawCmd::ArmChip {
+            x: x + dx,
+            y: y + dy,
+            w,
+            h,
+        },
+        DrawCmd::SpeechBubble { x, y, w, h, alpha } => DrawCmd::SpeechBubble {
+            x: x + dx,
+            y: y + dy,
+            w,
+            h,
+            alpha,
+        },
+        DrawCmd::Mark {
+            x,
+            y,
+            scale,
+            kind,
+            rgba,
+        } => DrawCmd::Mark {
+            x: x + dx,
+            y: y + dy,
+            scale,
+            kind,
+            rgba,
+        },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::comm_overlay::engine::DrawCmd;
+
+    #[test]
+    fn sprite_blit_is_local_not_fullscreen() {
+        let frame = Frame {
+            cmds: vec![DrawCmd::Cat {
+                x: 900.0,
+                y: 500.0,
+                scale: 22.0,
+                rot: 0.08,
+                tint: [255, 214, 170],
+                alpha: 250,
+                mood: 0,
+            }],
+            banners: Vec::new(),
+        };
+        let sprites = rasterize_sprites(&frame);
+        assert_eq!(sprites.len(), 1);
+        let s = &sprites[0];
+        assert!(s.width < 120, "width={}", s.width);
+        assert!(s.height < 120, "height={}", s.height);
+        assert!(s.dest_x < 900 && s.dest_x + s.width as i32 > 900);
+        assert!(s.dest_y < 500 && s.dest_y + s.height as i32 > 500);
+        assert_eq!(s.rgba.len(), (s.width * s.height * 4) as usize);
+        assert!(s.rgba.iter().any(|b| *b != 0));
+    }
+
+    #[test]
+    fn avatar_blit_is_pixel_art_local() {
+        let frame = Frame {
+            cmds: vec![DrawCmd::Avatar {
+                x: 400.0,
+                y: 300.0,
+                pixel_size: 3.0,
+                facing: 1,
+                alpha: 255,
+                step: 0,
+                ids: crate::comm_overlay::avatar::AvatarKit::default().ids(),
+            }],
+            banners: Vec::new(),
+        };
+        let sprites = rasterize_sprites(&frame);
+        assert_eq!(sprites.len(), 1);
+        let s = &sprites[0];
+        assert!(s.width < 120, "width={}", s.width);
+        assert!(s.height < 120, "height={}", s.height);
+        assert!(s.rgba.iter().any(|b| *b != 0));
+    }
+
+    #[test]
+    fn fly_blit_is_local_and_small() {
+        let frame = Frame {
+            cmds: vec![DrawCmd::Fly {
+                x: 400.0,
+                y: 300.0,
+                scale: 10.0,
+                rot: 0.2,
+                wing: 1.5,
+                alpha: 230,
+            }],
+            banners: Vec::new(),
+        };
+        let sprites = rasterize_sprites(&frame);
+        assert_eq!(sprites.len(), 1);
+        let s = &sprites[0];
+        assert!(s.width < 64, "width={}", s.width);
+        assert!(s.height < 64, "height={}", s.height);
+        assert!(s.dest_x < 400 && s.dest_x + s.width as i32 > 400);
+        assert!(s.dest_y < 300 && s.dest_y + s.height as i32 > 300);
+        assert!(s.rgba.iter().any(|b| *b != 0));
+    }
+
+    #[test]
+    fn transparent_cmds_are_skipped() {
+        let frame = Frame {
+            cmds: vec![DrawCmd::Circle {
+                x: 10.0,
+                y: 10.0,
+                r: 8.0,
+                rgba: [255, 0, 0, 0],
+            }],
+            banners: Vec::new(),
+        };
+        assert!(rasterize_sprites(&frame).is_empty());
+    }
+
+    #[test]
+    fn speech_bubble_fill_alpha_is_even() {
+        let frame = Frame {
+            cmds: vec![DrawCmd::SpeechBubble {
+                x: 80.0,
+                y: 60.0,
+                w: 96.0,
+                h: 28.0,
+                alpha: 120,
+            }],
+            banners: Vec::new(),
+        };
+        let sprites = rasterize_sprites(&frame);
+        assert_eq!(sprites.len(), 1);
+        let s = &sprites[0];
+        let alphas: Vec<u8> = s
+            .rgba
+            .chunks_exact(4)
+            .map(|p| p[3])
+            .filter(|a| *a > 0)
+            .collect();
+        assert!(!alphas.is_empty());
+        let min = *alphas.iter().min().unwrap();
+        let max = *alphas.iter().max().unwrap();
+        assert_eq!(min, 120, "min={min} max={max}");
+        assert_eq!(max, 120, "min={min} max={max}");
+        assert!(s.height < 70, "height={}", s.height);
     }
 }

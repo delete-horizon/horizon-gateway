@@ -109,6 +109,12 @@ export const commands = {
 	playCommAction: (kind: string, seed: number | null, count: number | null, fromLabel: string | null) => typedError<null, string>(__TAURI_INVOKE("play_comm_action", { kind, seed, count, fromLabel })),
 	setCommOverlayTool: (tool: string) => typedError<null, string>(__TAURI_INVOKE("set_comm_overlay_tool", { tool })),
 	clearCommOverlay: () => typedError<null, string>(__TAURI_INVOKE("clear_comm_overlay")),
+	syncCommResidents: (residents: CommResidentInput[]) => typedError<null, string>(__TAURI_INVOKE("sync_comm_residents", { residents })),
+	showCommBubble: (profileId: string, text: string, ttlMs: number | null) => typedError<null, string>(__TAURI_INVOKE("show_comm_bubble", { profileId, text, ttlMs })),
+	getCommAvatarCatalog: () => typedError<AvatarStudioCatalog, string>(__TAURI_INVOKE("get_comm_avatar_catalog")),
+	reloadCommAvatarCatalog: () => typedError<AvatarStudioCatalog, string>(__TAURI_INVOKE("reload_comm_avatar_catalog")),
+	composeCommAvatar: (kit: AvatarKit, step: number | null) => typedError<AvatarPreview, string>(__TAURI_INVOKE("compose_comm_avatar", { kit, step })),
+	writeCommAvatarPart: (part: AvatarStudioPart) => typedError<string, string>(__TAURI_INVOKE("write_comm_avatar_part", { part })),
 	getAnnotations: () => typedError<ApiResponse<Annotation_Serialize[]>, string>(__TAURI_INVOKE("get_annotations")),
 	getAnnotation: (payload: GetAnnotationPayload) => typedError<ApiResponse<Annotation_Serialize | null>, string>(__TAURI_INVOKE("get_annotation", { payload })),
 	addAnnotation: (payload: Annotation_Deserialize) => typedError<ApiResponse<Annotation_Serialize[]>, string>(__TAURI_INVOKE("add_annotation", { payload })),
@@ -1102,6 +1108,35 @@ export type UpdateSavedPipelinePayload_Serialize = {
 	description: string | null,
 	flow: SavedPipelineFlow_Serialize | null,
 };
+
+export type CommResidentInput = { profileId: string, label: string, online: boolean, kit?: AvatarKit }
+
+export type AvatarKit = { body: string, head: string, outfit: string, back: string, held: string, palette: string }
+
+export type AvatarRig = { crown: [number, number], face: [number, number], torso: [number, number], hand: [number, number] }
+export type AvatarGroup = { id: string, grid: number, referenceBody: string, ko: string, en: string }
+export type AvatarStudioPart = { id: string, slot: string, set: string, shop: boolean, ko: string, en: string, glyphs: string[], group?: string, scale?: number, rig?: AvatarRig | null, attach?: string, seat?: [number, number] | null, fits?: string[], chroma?: PartChroma | null }
+export type PartChroma = { outline?: number[], skin?: number[], skinD?: number[], cloth?: number[], clothD?: number[], accent?: number[], metal?: number[], eye?: number[], white?: number[] }
+export type AvatarStudioSet = { id: string, ko: string, en: string, shop: boolean, kit: AvatarKit, chroma?: PartChroma | null }
+export type AvatarStudioCatalog = { parts: AvatarStudioPart[], palettes: AvatarStudioPalette[], sets: AvatarStudioSet[], groups?: AvatarGroup[], warnings: string[] }
+
+export type AvatarStudioPalette = {
+	id: string,
+	ko: string,
+	en: string,
+	shop: boolean,
+	outline: number[],
+	skin: number[],
+	skinD: number[],
+	cloth: number[],
+	clothD: number[],
+	accent: number[],
+	metal: number[],
+	eye: number[],
+	white: number[],
+}
+
+export type AvatarPreview = { width: number, height: number, rgbaBase64: string }
 
 export type ValidateSchemaPayload = {
 	payload: string,

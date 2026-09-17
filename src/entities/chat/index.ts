@@ -1,4 +1,23 @@
 export * from "./api/signaling";
+export type { GlyphCh, StudioCatalog, StudioPalette, StudioPart, StudioSet } from "./lib/avatarGlyphs";
+export {
+  AVATAR_COMPOSE_H,
+  AVATAR_GRID,
+  blitRgba,
+  composeStudioRgba,
+  drawGlyphGrid,
+  emptyGlyphs,
+  GLYPH_CHANNELS,
+  setGlyphCell,
+} from "./lib/avatarGlyphs";
+export type { AvatarKit, AvatarPartOption, AvatarSlot } from "./lib/avatarKit";
+export {
+  AVATAR_CATALOG,
+  applyAvatarSet,
+  DEFAULT_AVATAR_KIT,
+  FRIEND_AVATAR_KIT,
+  slotsFromStudioCatalog,
+} from "./lib/avatarKit";
 export * from "./lib/crypto";
 export {
   CHAT_TYPING_EVENT,

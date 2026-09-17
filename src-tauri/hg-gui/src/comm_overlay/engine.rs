@@ -125,6 +125,16 @@ pub enum DrawCmd {
         alpha: u8,
         mood: u8,
     },
+    /// Pixel-art resident. Packed part ids are shop SKUs.
+    Avatar {
+        x: f32,
+        y: f32,
+        pixel_size: f32,
+        facing: i8,
+        alpha: u8,
+        step: u8,
+        ids: crate::comm_overlay::avatar::AvatarIds,
+    },
     Glow {
         x: f32,
         y: f32,
@@ -187,13 +197,59 @@ pub enum DrawCmd {
         kind: u8,
         rgba: [u8; 4],
     },
+    /// Rounded speech panel behind a banner (center = x,y). Drawn as one occupancy
+    /// mask so faded alpha does not show circle/rect seams.
+    SpeechBubble {
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        alpha: u8,
+    },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BannerKind {
+    Label,
+    Speech,
+}
+
+#[derive(Clone, Debug)]
+pub struct Banner {
+    pub text: String,
+    pub x: f32,
+    pub y: f32,
+    pub kind: BannerKind,
+    pub alpha: u8,
+}
+
+impl Banner {
+    pub fn label(text: impl Into<String>, x: f32, y: f32) -> Self {
+        Self {
+            text: text.into(),
+            x,
+            y,
+            kind: BannerKind::Label,
+            alpha: 235,
+        }
+    }
+
+    pub fn speech(text: impl Into<String>, x: f32, y: f32, alpha: u8) -> Self {
+        Self {
+            text: text.into(),
+            x,
+            y,
+            kind: BannerKind::Speech,
+            alpha,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct Frame {
     pub cmds: Vec<DrawCmd>,
     /// Sender banners drawn via platform text (GDI on Windows).
-    pub banners: Vec<(String, f32, f32)>,
+    pub banners: Vec<Banner>,
 }
 
 #[derive(Default)]
@@ -202,9 +258,12 @@ pub struct Engine {
     next_id: u64,
     last_x: f32,
     last_y: f32,
-    bounds_w: f32,
-    bounds_h: f32,
+    pub(crate) bounds_w: f32,
+    pub(crate) bounds_h: f32,
     tool: OverlayTool,
+    pub(crate) residents: Vec<super::presence::Resident>,
+    pub(crate) bubbles: Vec<super::presence::Bubble>,
+    last_tick: Option<Instant>,
 }
 
 fn ease_out(t: f32) -> f32 {
@@ -223,7 +282,7 @@ fn a(fade: f32, peak: f32) -> u8 {
     (fade.clamp(0.0, 1.0) * peak).round().clamp(0.0, 255.0) as u8
 }
 
-fn hash_u64(s: u64) -> u64 {
+pub(crate) fn hash_u64(s: u64) -> u64 {
     let mut x = s.wrapping_add(0x9E37_79B9_7F4A_7C15);
     x = (x ^ (x >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
     x = (x ^ (x >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
@@ -371,11 +430,34 @@ impl Engine {
 
     pub fn clear(&mut self) {
         self.sprites.clear();
+        self.residents.clear();
+        self.bubbles.clear();
         self.tool = OverlayTool::None;
+        self.last_tick = None;
     }
 
     pub fn is_empty(&self) -> bool {
-        self.sprites.is_empty()
+        self.sprites.is_empty() && self.residents.is_empty() && self.bubbles.is_empty()
+    }
+
+    /// Sleep between blits. FX stays ~30fps; edge walk can be slower.
+    pub fn frame_sleep_ms(&self) -> u64 {
+        if !self.sprites.is_empty() {
+            33
+        } else if !self.bubbles.is_empty() || !self.residents.is_empty() {
+            80
+        } else {
+            200
+        }
+    }
+
+    pub(crate) fn take_dt(&mut self, now: Instant) -> f32 {
+        let dt = self
+            .last_tick
+            .map(|prev| now.saturating_duration_since(prev).as_secs_f32())
+            .unwrap_or(1.0 / 30.0);
+        self.last_tick = Some(now);
+        dt.clamp(1.0 / 120.0, 0.05)
     }
 
     pub fn has_catchables(&self) -> bool {
@@ -453,7 +535,8 @@ impl Engine {
     ) -> Frame {
         self.bounds_w = width.max(1.0);
         self.bounds_h = height.max(1.0);
-        let dt = 1.0 / 30.0;
+        let dt = self.take_dt(now);
+        let fx_dt = 1.0 / 30.0;
 
         for s in &mut self.sprites {
             if s.kind.is_fly() {
@@ -469,8 +552,8 @@ impl Engine {
                     + (s.seed % 50) as f32)
                     .sin()
                     * 35.0;
-                s.x += (s.vx + wobble) * dt;
-                s.y += (s.vy - wobble * 0.4) * dt;
+                s.x += (s.vx + wobble) * fx_dt;
+                s.y += (s.vy - wobble * 0.4) * fx_dt;
                 let m = 20.0;
                 if s.x < m {
                     s.x = m;
@@ -812,7 +895,7 @@ impl Engine {
                 } else {
                     format!("{name} · 똥파리")
                 };
-                banners.push((text, width * 0.5, y));
+                banners.push(Banner::label(text, width * 0.5, y));
                 y += 28.0;
             }
         }
@@ -843,7 +926,7 @@ impl Engine {
                     w: 120.0,
                     h: 44.0,
                 });
-                banners.push(("스프레이".into(), cx, cy));
+                banners.push(Banner::label("스프레이", cx, cy));
             }
             _ => {}
         }
@@ -852,6 +935,71 @@ impl Engine {
             self.tool = OverlayTool::None;
         }
 
+        self.tick_presence(now, width, height, dt, &mut cmds, &mut banners);
+
         Frame { cmds, banners }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn fly_count(engine: &Engine) -> usize {
+        engine.sprites.iter().filter(|s| s.kind.is_fly()).count()
+    }
+
+    #[test]
+    fn fly_burst_clamps_and_draws() {
+        let mut e = Engine::default();
+        e.spawn_n(
+            ActionKind::Fly,
+            Some(7),
+            800.0,
+            600.0,
+            99,
+            Some("실험실".into()),
+        );
+        assert_eq!(fly_count(&e), MAX_FLY_BURST as usize);
+        assert!(e.has_catchables());
+        assert_eq!(e.frame_sleep_ms(), 33);
+        let frame = e.tick(Instant::now(), 800.0, 600.0, None);
+        let flies = frame
+            .cmds
+            .iter()
+            .filter(|c| matches!(c, DrawCmd::Fly { .. }))
+            .count();
+        assert_eq!(flies, MAX_FLY_BURST as usize);
+        assert!(frame.cmds.iter().any(|c| matches!(c, DrawCmd::ArmChip { .. })));
+        assert!(frame.banners.iter().any(|b| b.text.contains("똥파리")));
+    }
+
+    #[test]
+    fn fly_cap_drops_oldest() {
+        let mut e = Engine::default();
+        for _ in 0..4 {
+            e.spawn_n(ActionKind::Fly, Some(1), 800.0, 600.0, MAX_FLY_BURST, None);
+        }
+        assert_eq!(fly_count(&e), MAX_FLIES);
+    }
+
+    #[test]
+    fn spray_removes_flies_in_radius() {
+        let mut e = Engine::default();
+        e.spawn_n(ActionKind::Fly, Some(3), 400.0, 400.0, 8, None);
+        assert_eq!(fly_count(&e), 8);
+        assert!(e.try_spray(200.0, 200.0, 1000.0));
+        assert_eq!(fly_count(&e), 0);
+        assert!(!e.has_catchables());
+    }
+
+    #[test]
+    fn spray_chip_click_arms_tool() {
+        let mut e = Engine::default();
+        e.spawn_n(ActionKind::Fly, Some(3), 800.0, 600.0, 2, None);
+        let (cx, cy) = Engine::arm_chip_center(800.0, 600.0);
+        assert!(e.on_click(cx, cy, 800.0, 600.0));
+        assert_eq!(e.tool(), OverlayTool::Spray);
+    }
+}
+
