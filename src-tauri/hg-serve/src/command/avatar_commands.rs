@@ -27,7 +27,7 @@ pub const RELOAD_COMM_AVATAR_CATALOG_CLI_INFO: crate::cli::CliCommandInfo =
 pub const COMPOSE_COMM_AVATAR_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "compose_comm_avatar",
     description: "아바타 킷을 합성해 RGBA 미리보기를 돌려줍니다.",
-    payload_example: "{\"kit\":{\"body\":\"sprite\",\"head\":\"none\",\"outfit\":\"cloak\",\"back\":\"none\",\"held\":\"staff\",\"palette\":\"dusk\"},\"step\":0}",
+    payload_example: "{\"kit\":{\"body\":\"sprite\",\"head\":\"none\",\"outfit\":\"cloak\",\"back\":\"none\",\"held\":\"staff\"},\"step\":0}",
     category: "avatar",
     gui_only: false,
 };

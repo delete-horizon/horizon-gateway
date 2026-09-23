@@ -6,7 +6,6 @@ import {
   AVATAR_COMPOSE_H,
   AVATAR_GRID,
   type AvatarKit,
-  applyAvatarSet,
   blitRgba,
   composeStudioRgba,
   copyOfficialKit,
@@ -162,24 +161,6 @@ export function AvatarDress() {
             {error ? <p className="text-[11px] text-error whitespace-pre-wrap">{error}</p> : null}
             {catalog?.warnings?.length ? (
               <p className="text-[11px] text-warning whitespace-pre-wrap">{catalog.warnings.join("\n")}</p>
-            ) : null}
-            {(catalog?.sets ?? []).length > 0 ? (
-              <div className="space-y-1.5">
-                <p className="text-[11px] font-medium text-base-content/70">{ko ? "세트" : "Sets"}</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {(catalog?.sets ?? []).map((item) => (
-                    <Button
-                      key={item.id}
-                      size="xs"
-                      variant="secondary"
-                      onClick={() => setKit((prev) => applyAvatarSet(prev, item.kit))}
-                    >
-                      {ko ? item.ko : item.en}
-                      {item.shop ? <span className="opacity-60">Shop</span> : null}
-                    </Button>
-                  ))}
-                </div>
-              </div>
             ) : null}
           </Card>
         </section>

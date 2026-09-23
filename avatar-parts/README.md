@@ -9,7 +9,7 @@
 | Part | `{slot}:{id}` | `head:greathelm` |
 | Set | `set:{id}` | `set:crusader` |
 
-Do not persist palette/index numbers. Equipped kits store **string ids**. Adding a file must not remap someone else's wings.
+Do not persist slot index numbers. Equipped kits store **string ids**. Adding a file must not remap someone else's wings.
 
 ## Loop
 
@@ -57,7 +57,7 @@ No other characters. No tabs. UTF-8. `none` is a reserved empty slot — do not 
 
 `glyphs` must contain 24 strings. `slot` is one of `body` | `head` | `outfit` | `back` | `held`. `id` is kebab-case `[a-z][a-z0-9-]{0,31}`.
 
-Palettes live in `palettes.json` (`dusk`, `ember`, `moss`, `ice`) for legacy kit fields / previews. **Compose colors come from each part's `chroma`**, not the kit palette.
+Colors come from each part's `chroma`, with set `chroma` filling any channel the part omits.
 
 ### Chroma (per part)
 
@@ -159,4 +159,4 @@ Do **not** fake this with `scale` on a humanoid body. Add a `body` with `group: 
 }
 ```
 
-Tag each member part with `"set": "crusader"` so lists can group them. Palettes stay in `palettes.json`.
+Tag each member part with `"set": "crusader"` so lists can group them. Set `chroma` is the shared color for those parts.

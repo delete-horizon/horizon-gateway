@@ -5,17 +5,6 @@ fn main() {
     let dir = manifest_dir.join("..").join("..").join("avatar-parts");
     println!("cargo:rerun-if-changed={}", dir.display());
 
-    let palettes_path = dir.join("palettes.json");
-    println!("cargo:rerun-if-changed={}", palettes_path.display());
-    let palettes_raw = fs::read_to_string(&palettes_path)
-        .unwrap_or_else(|e| panic!("avatar-parts/palettes.json: {e}"));
-    let palettes_val: serde_json::Value =
-        serde_json::from_str(&palettes_raw).unwrap_or_else(|e| panic!("palettes.json: {e}"));
-    let palettes = palettes_val
-        .get("palettes")
-        .cloned()
-        .unwrap_or(serde_json::json!([]));
-
     let sets_path = dir.join("sets.json");
     println!("cargo:rerun-if-changed={}", sets_path.display());
     let sets = if sets_path.is_file() {
@@ -59,7 +48,7 @@ fn main() {
             continue;
         }
         let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
-        if name == "palettes.json" || name == "sets.json" || name == "groups.json" {
+        if name == "sets.json" || name == "groups.json" {
             continue;
         }
         let raw = fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
@@ -70,7 +59,6 @@ fn main() {
 
     let packed = serde_json::json!({
         "parts": parts,
-        "palettes": palettes,
         "sets": sets,
         "groups": groups,
         "warnings": []

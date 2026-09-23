@@ -18,7 +18,7 @@ export {
   userPartIds,
 } from "./api/avatarOwnership";
 export * from "./api/signaling";
-export type { GlyphCh, StudioCatalog, StudioPalette, StudioPart, StudioSet } from "./lib/avatarGlyphs";
+export type { GlyphCh, PartChroma, StudioCatalog, StudioPalette, StudioPart, StudioSet } from "./lib/avatarGlyphs";
 export {
   AVATAR_COMPOSE_H,
   AVATAR_GRID,

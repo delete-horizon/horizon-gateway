@@ -96,8 +96,6 @@ pub struct AvatarKit {
     pub back: String,
     #[serde(default)]
     pub held: String,
-    #[serde(default)]
-    pub palette: String,
 }
 
 impl AvatarKit {
@@ -109,7 +107,6 @@ impl AvatarKit {
             outfit: cat.canon("outfit", &self.outfit, "cloak"),
             back: cat.canon("back", &self.back, "none"),
             held: cat.canon("held", &self.held, "staff"),
-            palette: cat.canon("palette", &self.palette, "dusk"),
         }
     }
 
@@ -122,7 +119,6 @@ impl AvatarKit {
             outfit: cat.idx("outfit", &n.outfit),
             back: cat.idx("back", &n.back),
             held: cat.idx("held", &n.held),
-            palette: cat.idx("palette", &n.palette),
         }
     }
 }
@@ -134,7 +130,6 @@ pub struct AvatarIds {
     pub outfit: u8,
     pub back: u8,
     pub held: u8,
-    pub palette: u8,
 }
 
 impl AvatarIds {
@@ -146,7 +141,6 @@ impl AvatarIds {
             outfit: cat.pick("outfit", self.outfit, "cloak"),
             back: cat.pick("back", self.back, "none"),
             held: cat.pick("held", self.held, "staff"),
-            palette: cat.pick("palette", self.palette, "dusk"),
         }
     }
 }
@@ -271,28 +265,8 @@ fn layer_palette(cat: &Catalog, part: &AvatarStudioPart) -> Palette {
 
 #[derive(Clone, Debug, Deserialize, Serialize, Type)]
 #[serde(rename_all = "camelCase")]
-pub struct AvatarStudioPalette {
-    pub id: String,
-    pub ko: String,
-    pub en: String,
-    #[serde(default)]
-    pub shop: bool,
-    pub outline: [u8; 3],
-    pub skin: [u8; 3],
-    pub skin_d: [u8; 3],
-    pub cloth: [u8; 3],
-    pub cloth_d: [u8; 3],
-    pub accent: [u8; 3],
-    pub metal: [u8; 3],
-    pub eye: [u8; 3],
-    pub white: [u8; 3],
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, Type)]
-#[serde(rename_all = "camelCase")]
 pub struct AvatarStudioCatalog {
     pub parts: Vec<AvatarStudioPart>,
-    pub palettes: Vec<AvatarStudioPalette>,
     #[serde(default)]
     pub sets: Vec<AvatarStudioSet>,
     #[serde(default)]
@@ -325,11 +299,6 @@ pub struct AvatarPreview {
 }
 
 #[derive(Deserialize)]
-struct PalettesFile {
-    palettes: Vec<AvatarStudioPalette>,
-}
-
-#[derive(Deserialize)]
 struct SetsFile {
     #[serde(default)]
     sets: Vec<AvatarStudioSet>,
@@ -352,22 +321,6 @@ struct Palette {
     metal: [u8; 3],
     eye: [u8; 3],
     white: [u8; 3],
-}
-
-impl From<&AvatarStudioPalette> for Palette {
-    fn from(p: &AvatarStudioPalette) -> Self {
-        Self {
-            outline: p.outline,
-            skin: p.skin,
-            skin_d: p.skin_d,
-            cloth: p.cloth,
-            cloth_d: p.cloth_d,
-            accent: p.accent,
-            metal: p.metal,
-            eye: p.eye,
-            white: p.white,
-        }
-    }
 }
 
 #[derive(Clone, Copy)]
@@ -415,7 +368,6 @@ fn channel(c: char) -> Option<Ch> {
 #[derive(Clone)]
 struct Catalog {
     parts: Vec<AvatarStudioPart>,
-    palettes: Vec<AvatarStudioPalette>,
     sets: Vec<AvatarStudioSet>,
     groups: Vec<AvatarGroup>,
     warnings: Vec<String>,
@@ -424,7 +376,6 @@ struct Catalog {
     outfit_ids: Vec<String>,
     back_ids: Vec<String>,
     held_ids: Vec<String>,
-    palette_ids: Vec<String>,
 }
 
 impl Catalog {
@@ -436,12 +387,6 @@ impl Catalog {
             if !seen.insert(key) {
                 return Err(format!("duplicate part {}:{}", part.slot, part.id));
             }
-        }
-        if dto.palettes.is_empty() {
-            return Err("palettes.json has no palettes".into());
-        }
-        for pal in &dto.palettes {
-            validate_id(&pal.id)?;
         }
         dto.parts.sort_by(|a, b| {
             a.set
@@ -462,16 +407,11 @@ impl Catalog {
                 ("outfit", set.kit.outfit.as_str()),
                 ("back", set.kit.back.as_str()),
                 ("held", set.kit.held.as_str()),
-                ("palette", set.kit.palette.as_str()),
             ] {
                 if id.is_empty() || id == "none" {
                     continue;
                 }
-                let exists = if slot == "palette" {
-                    dto.palettes.iter().any(|p| p.id == id)
-                } else {
-                    dto.parts.iter().any(|p| p.slot == slot && p.id == id)
-                };
+                let exists = dto.parts.iter().any(|p| p.slot == slot && p.id == id);
                 if !exists {
                     warnings.push(format!("set {}: unknown {slot} id '{id}'", set.id));
                 }
@@ -483,9 +423,7 @@ impl Catalog {
             outfit_ids: with_none(ids_in(&dto.parts, "outfit")),
             back_ids: with_none(ids_in(&dto.parts, "back")),
             held_ids: with_none(ids_in(&dto.parts, "held")),
-            palette_ids: dto.palettes.iter().map(|p| p.id.clone()).collect(),
             parts: dto.parts,
-            palettes: dto.palettes,
             sets: dto.sets,
             groups: if dto.groups.is_empty() {
                 vec![AvatarGroup {
@@ -509,7 +447,6 @@ impl Catalog {
             "outfit" => &self.outfit_ids,
             "back" => &self.back_ids,
             "held" => &self.held_ids,
-            "palette" => &self.palette_ids,
             _ => &[],
         }
     }
@@ -546,29 +483,9 @@ impl Catalog {
         self.parts.iter().find(|p| p.slot == slot && p.id == id)
     }
 
-    fn palette(&self, id: &str) -> Palette {
-        self.palettes
-            .iter()
-            .find(|p| p.id == id)
-            .map(Palette::from)
-            .or_else(|| self.palettes.first().map(Palette::from))
-            .unwrap_or(Palette {
-                outline: [28, 18, 44],
-                skin: [232, 196, 168],
-                skin_d: [180, 132, 112],
-                cloth: [88, 64, 148],
-                cloth_d: [48, 32, 92],
-                accent: [180, 140, 255],
-                metal: [188, 176, 220],
-                eye: [28, 22, 40],
-                white: [250, 246, 255],
-            })
-    }
-
     fn dto(&self) -> AvatarStudioCatalog {
         AvatarStudioCatalog {
             parts: self.parts.clone(),
-            palettes: self.palettes.clone(),
             sets: self.sets.clone(),
             groups: self.groups.clone(),
             warnings: self.warnings.clone(),
@@ -722,12 +639,6 @@ fn parse_packed(raw: &str) -> Result<Catalog, String> {
 }
 
 fn load_from_dir(dir: &Path) -> Result<Catalog, String> {
-    let palettes_path = dir.join("palettes.json");
-    let palettes: PalettesFile = serde_json::from_str(
-        &std::fs::read_to_string(&palettes_path)
-            .map_err(|e| format!("{}: {e}", palettes_path.display()))?,
-    )
-    .map_err(|e| format!("palettes.json: {e}"))?;
     let sets_path = dir.join("sets.json");
     let sets = if sets_path.is_file() {
         let file: SetsFile = serde_json::from_str(
@@ -761,7 +672,7 @@ fn load_from_dir(dir: &Path) -> Result<Catalog, String> {
     files.sort();
     for path in files {
         let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
-        if name == "palettes.json" || name == "sets.json" || name == "groups.json" {
+        if name == "sets.json" || name == "groups.json" {
             continue;
         }
         match load_part_file(&path) {
@@ -777,7 +688,6 @@ fn load_from_dir(dir: &Path) -> Result<Catalog, String> {
     }
     Catalog::from_dto(AvatarStudioCatalog {
         parts,
-        palettes: palettes.palettes,
         sets,
         groups,
         warnings,
@@ -812,7 +722,7 @@ fn find_parts_dir() -> Option<PathBuf> {
     }
     cands
         .into_iter()
-        .find(|p| p.join("palettes.json").is_file())
+        .find(|p| p.join("sets.json").is_file())
 }
 
 pub fn apply_set(base: &AvatarKit, set_id: &str) -> AvatarKit {
@@ -833,7 +743,6 @@ pub fn apply_set(base: &AvatarKit, set_id: &str) -> AvatarKit {
         outfit: keep(&base.outfit, &set.kit.outfit),
         back: keep(&base.back, &set.kit.back),
         held: keep(&base.held, &set.kit.held),
-        palette: keep(&base.palette, &set.kit.palette),
     }
     .normalized()
 }
@@ -941,7 +850,7 @@ pub fn display_pixel_size(kit: &AvatarKit, resident_scale: f32) -> f32 {
 }
 
 /// Colors: default chroma → set chroma (if part.`set`) → part chroma.
-/// Kit palette is legacy and does not recolor layers.
+/// Layer colors come from part chroma, then set chroma.
 pub fn compose(kit: &AvatarKit, alpha: u8, step: u8) -> Vec<u8> {
     let kit = kit.normalized();
     let cat = current_catalog();
@@ -1069,7 +978,6 @@ mod tests {
         assert_eq!(k.body, "sprite");
         assert_eq!(k.outfit, "cloak");
         assert_eq!(k.held, "staff");
-        assert_eq!(k.palette, "dusk");
     }
 
     #[test]
@@ -1094,7 +1002,6 @@ mod tests {
                 outfit: "mail".into(),
                 back: "wings".into(),
                 held: "blade".into(),
-                palette: "ice".into(),
             },
             255,
             0,
@@ -1157,7 +1064,6 @@ mod tests {
                 outfit: "none".into(),
                 back: "none".into(),
                 held: "none".into(),
-                palette: "dusk".into(),
             };
             let rgba = compose(&kit, 255, 0);
             assert!(rgba.iter().any(|b| *b != 0), "{body} empty");
@@ -1166,22 +1072,16 @@ mod tests {
 
     #[test]
     fn part_chroma_overrides_layer_color() {
-        let mut kit = AvatarKit {
+        let kit = AvatarKit {
             body: "human".into(),
             head: "none".into(),
             outfit: "none".into(),
             back: "none".into(),
             held: "none".into(),
-            palette: "moss".into(),
         };
         let before = compose(&kit, 255, 0);
-        // Moss palette must not recolor body when chroma is on the part.
-        kit.palette = "ember".into();
         let after = compose(&kit, 255, 0);
-        assert_eq!(
-            before, after,
-            "kit palette should not recolor per-part chroma"
-        );
+        assert_eq!(before, after);
 
         let cat = current_catalog();
         let body = cat.part("body", "human").expect("human");
@@ -1237,7 +1137,6 @@ mod tests {
             outfit: "none".into(),
             back: "none".into(),
             held: "none".into(),
-            palette: "dusk".into(),
         };
         let buf = compose(&kit, 255, 0);
         let w = GRID as usize;
@@ -1272,7 +1171,6 @@ mod tests {
             validate_part(part).unwrap();
         }
         assert!(cat.part("body", "sprite").is_some());
-        assert!(cat.palettes.iter().any(|p| p.id == "dusk"));
     }
 
     #[test]

@@ -13,7 +13,6 @@ export type OwnedAvatar = {
   outfitRef: string;
   backRef: string;
   heldRef: string;
-  palette: string;
   copiedFrom: string | null;
   visibility: "private" | "shared";
   listedForSale: boolean;
@@ -37,7 +36,7 @@ export type AvatarSnapshot = {
   revision: number;
   nameKo: string;
   nameEn: string;
-  refs: Record<PartSlot, string> & { palette: string };
+  refs: Record<PartSlot, string>;
   parts: UserPart[];
 };
 
@@ -55,7 +54,6 @@ type OwnedRow = {
   outfit_ref: string;
   back_ref: string;
   held_ref: string;
-  palette: string;
   copied_from: string | null;
   visibility: string;
   listed_for_sale: boolean;
@@ -121,7 +119,6 @@ function mapOwned(row: OwnedRow): OwnedAvatar {
     outfitRef: row.outfit_ref,
     backRef: row.back_ref,
     heldRef: row.held_ref,
-    palette: row.palette,
     copiedFrom: row.copied_from,
     visibility: row.visibility === "shared" ? "shared" : "private",
     listedForSale: row.listed_for_sale,
@@ -171,7 +168,7 @@ export function ownedToKit(avatar: OwnedAvatar, parts: UserPart[]): AvatarKit {
     back: avatar.backRef,
     held: avatar.heldRef,
   };
-  const kit: AvatarKit = { ...DEFAULT_AVATAR_KIT, palette: avatar.palette };
+  const kit: AvatarKit = { ...DEFAULT_AVATAR_KIT };
   for (const slot of SLOTS) {
     const parsed = parsePartRef(refs[slot]);
     if (!parsed) {
@@ -299,7 +296,6 @@ export async function copyOfficialKit(kit: AvatarKit, nameKo: string, nameEn: st
       outfit_ref: refs.outfit,
       back_ref: refs.back,
       held_ref: refs.held,
-      palette: kit.palette,
       copied_from: "official",
       updated_at: new Date().toISOString(),
     })
@@ -350,7 +346,6 @@ export async function copyOwnedAvatar(avatarId: string): Promise<OwnedAvatar> {
       outfit_ref: remap(source.outfit_ref),
       back_ref: remap(source.back_ref),
       held_ref: remap(source.held_ref),
-      palette: source.palette,
       copied_from: source.id,
       updated_at: new Date().toISOString(),
     })
@@ -446,7 +441,7 @@ async function snapshotOf(row: OwnedRow): Promise<AvatarSnapshot> {
     revision: row.revision,
     nameKo: row.name_ko,
     nameEn: row.name_en,
-    refs: { ...refsOf(row), palette: row.palette },
+    refs: refsOf(row),
     parts,
   };
 }

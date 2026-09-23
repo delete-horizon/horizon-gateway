@@ -400,7 +400,6 @@ export type Database = {
           outfit_ref: string;
           back_ref: string;
           held_ref: string;
-          palette: string;
           copied_from: string | null;
           visibility: string;
           listed_for_sale: boolean;
@@ -419,7 +418,6 @@ export type Database = {
           outfit_ref: string;
           back_ref: string;
           held_ref: string;
-          palette?: string;
           copied_from?: string | null;
           visibility?: string;
           listed_for_sale?: boolean;
@@ -438,7 +436,6 @@ export type Database = {
           outfit_ref?: string;
           back_ref?: string;
           held_ref?: string;
-          palette?: string;
           copied_from?: string | null;
           visibility?: string;
           listed_for_sale?: boolean;

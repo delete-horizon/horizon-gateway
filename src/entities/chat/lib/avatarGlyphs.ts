@@ -109,7 +109,6 @@ export type StudioSet = {
     outfit: string;
     back: string;
     held: string;
-    palette: string;
   };
   chroma?: PartChroma | null;
 };
@@ -124,7 +123,6 @@ export type StudioGroup = {
 
 export type StudioCatalog = {
   parts: StudioPart[];
-  palettes: StudioPalette[];
   sets?: StudioSet[];
   groups?: StudioGroup[];
   warnings?: string[];
@@ -266,7 +264,7 @@ function fitsGroup(part: StudioPart, group: string): boolean {
 }
 
 export function composeStudioRgba(
-  kit: { body: string; head: string; outfit: string; back: string; held: string; palette: string },
+  kit: { body: string; head: string; outfit: string; back: string; held: string },
   catalog: StudioCatalog,
   step: number,
   draft?: { slot: string; glyphs: string[] },
@@ -295,6 +293,7 @@ export function composeStudioRgba(
         ko: "",
         en: "",
         glyphs: draft.glyphs,
+        set: basePart?.set,
         attach: basePart?.attach,
         seat: basePart?.seat,
         fits: basePart?.fits,

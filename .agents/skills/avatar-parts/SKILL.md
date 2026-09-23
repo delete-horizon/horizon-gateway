@@ -1,6 +1,6 @@
 ---
 name: avatar-parts
-description: Author 24×24 pixel-art overlay parts as ASCII JSON for Horizon Gateway. Use when adding avatar skins, body/head/outfit/back/held parts, palettes, or when Gemini/an agent is asked to draw a new part for the comm overlay.
+description: Author 24×24 pixel-art overlay parts as ASCII JSON for Horizon Gateway. Use when adding avatar skins, body/head/outfit/back/held parts, set colors, or when Gemini/an agent is asked to draw a new part for the comm overlay.
 ---
 
 # Avatar parts (agent)
@@ -41,7 +41,6 @@ Rules:
 - Head parts may set `attach`: `perch` (wizard hat) or `cover` (hood), plus optional `seat`
 - Skins set `fits: ["humanoid"]` so they follow the silhouette group
 - `"shop": true` = planned paid SKU (still previewable)
-- Kit `palette` is legacy; compose uses per-part `chroma`, not the global palette
 - Bundles go in `avatar-parts/sets.json` (`set:{id}`), not as a fake body part
 - Groups live in `avatar-parts/groups.json` (grid + reference body)
 

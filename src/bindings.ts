@@ -1117,14 +1117,14 @@ export type UpdateSavedPipelinePayload_Serialize = {
 
 export type CommResidentInput = { profileId: string, label: string, online: boolean, kit?: AvatarKit }
 
-export type AvatarKit = { body: string, head: string, outfit: string, back: string, held: string, palette: string }
+export type AvatarKit = { body: string, head: string, outfit: string, back: string, held: string }
 
 export type AvatarRig = { crown: [number, number], face: [number, number], torso: [number, number], hand: [number, number] }
 export type AvatarGroup = { id: string, grid: number, referenceBody: string, ko: string, en: string }
 export type AvatarStudioPart = { id: string, slot: string, set: string, shop: boolean, ko: string, en: string, glyphs: string[], group?: string, scale?: number, rig?: AvatarRig | null, attach?: string, seat?: [number, number] | null, fits?: string[], chroma?: PartChroma | null }
 export type PartChroma = { outline?: number[], skin?: number[], skinD?: number[], cloth?: number[], clothD?: number[], accent?: number[], metal?: number[], eye?: number[], white?: number[] }
 export type AvatarStudioSet = { id: string, ko: string, en: string, shop: boolean, kit: AvatarKit, chroma?: PartChroma | null }
-export type AvatarStudioCatalog = { parts: AvatarStudioPart[], palettes: AvatarStudioPalette[], sets: AvatarStudioSet[], groups?: AvatarGroup[], warnings: string[] }
+export type AvatarStudioCatalog = { parts: AvatarStudioPart[], sets: AvatarStudioSet[], groups?: AvatarGroup[], warnings: string[] }
 
 export type AvatarStudioPalette = {
 	id: string,
