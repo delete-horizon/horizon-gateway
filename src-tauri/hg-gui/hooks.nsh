@@ -1,6 +1,7 @@
 !macro NSIS_HOOK_PREINSTALL
   ; Force terminate all related processes and drivers before unpacking/updating files.
   nsExec::Exec `taskkill /IM horizon-gateway.exe /F /T`
+  nsExec::Exec `taskkill /IM horizon-gateway-workspace.exe /F /T`
   nsExec::Exec `taskkill /IM horizon-gateway-serve.exe /F /T`
   nsExec::Exec `taskkill /IM hgc.exe /F /T`
   nsExec::Exec `net stop WinDivert`
@@ -25,6 +26,11 @@
     CopyFiles /SILENT "$INSTDIR\resources\horizon-gateway-serve.exe" "$INSTDIR\horizon-gateway-serve.exe"
   skip_serve:
 
+  IfFileExists "$INSTDIR\horizon-gateway-workspace.exe" skip_workspace
+  IfFileExists "$INSTDIR\resources\horizon-gateway-workspace.exe" 0 skip_workspace
+    CopyFiles /SILENT "$INSTDIR\resources\horizon-gateway-workspace.exe" "$INSTDIR\horizon-gateway-workspace.exe"
+  skip_workspace:
+
   IfFileExists "$INSTDIR\hgc.exe" skip_hgc
   IfFileExists "$INSTDIR\resources\hgc.exe" 0 skip_hgc
     CopyFiles /SILENT "$INSTDIR\resources\hgc.exe" "$INSTDIR\hgc.exe"
@@ -47,6 +53,7 @@
 !macro NSIS_HOOK_PREUNINSTALL
   ; Stop headless backend, CLI and drivers before removing files.
   nsExec::Exec `taskkill /IM horizon-gateway.exe /F /T`
+  nsExec::Exec `taskkill /IM horizon-gateway-workspace.exe /F /T`
   nsExec::Exec `taskkill /IM horizon-gateway-serve.exe /F /T`
   nsExec::Exec `taskkill /IM hgc.exe /F /T`
   nsExec::Exec `net stop WinDivert`

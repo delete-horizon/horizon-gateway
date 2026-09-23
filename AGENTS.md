@@ -22,4 +22,6 @@ From this repo:
 - `pnpm typecheck`
 - `pnpm clippy`
 
+Local Supabase (Team / auth / RLS): see `supabase/README.md`. From the workspace root, `pnpm dev:gateway:tauri` starts local Supabase when `VITE_SUPABASE_URL` is localhost.
+
 UI changes: follow `watchtower-ui` (section title outside the card). Network/proxy/mock/logs: `horizon-gateway` skill (`hgc`, `scripts/logs.mjs`).

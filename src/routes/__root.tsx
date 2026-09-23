@@ -63,6 +63,7 @@ const RootLayout = () => {
   const isDetachedWindow = useIsDetachedWindow();
   const isDetached = useIsDetached();
   const isHubPage = pathname === "/";
+  const isCommPage = pathname === "/comm" || pathname.startsWith("/comm/");
   const isCompactWindow = isPopupWindow || isChatWindow;
 
   useEffect(() => {
@@ -115,6 +116,7 @@ const RootLayout = () => {
         isDetached && !isPopupWindow && !isDetachedWindow && !isChatWindow && "p-0",
         !isDetached &&
           !isHubPage &&
+          !isCommPage &&
           !isPopupWindow &&
           !isDetachedWindow &&
           !isChatWindow &&
@@ -126,11 +128,12 @@ const RootLayout = () => {
           "h-full",
           !isDetached &&
             !isHubPage &&
+            !isCommPage &&
             !isPopupWindow &&
             !isDetachedWindow &&
             !isChatWindow &&
             "mx-auto max-w-(--breakpoint-2xl) p-5 tablet:p-8 lg:p-10 overflow-y-auto",
-          (isHubPage || isPopupWindow || isDetachedWindow || isChatWindow) && "h-full min-h-0",
+          (isHubPage || isCommPage || isPopupWindow || isDetachedWindow || isChatWindow) && "h-full min-h-0",
         )}
       >
         {backendUnavailable && !isDetached && !isPopupWindow && !isDetachedWindow && !isChatWindow && (

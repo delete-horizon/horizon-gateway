@@ -39,7 +39,7 @@ function cellAt(canvas: HTMLCanvasElement, clientX: number, clientY: number): { 
   return { x, y };
 }
 
-export function AvatarStudio() {
+export function AvatarStudio({ embedded }: { embedded?: boolean } = {}) {
   const lang = useAtomValue(languageAtom);
   const ko = lang === "ko";
   const [catalog, setCatalog] = useState<StudioCatalog | null>(null);
@@ -168,7 +168,7 @@ export function AvatarStudio() {
   const ascii = glyphs.join("\n");
 
   return (
-    <ChatShell title={ko ? "아바타 스튜디오" : "Avatar studio"}>
+    <ChatShell embedded={embedded} title={ko ? "아바타 스튜디오" : "Avatar studio"}>
       <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
         <section className="space-y-2 min-w-0">
           <h2 className="text-sm font-semibold text-base-content">{ko ? "파츠 그리기" : "Paint a part"}</h2>

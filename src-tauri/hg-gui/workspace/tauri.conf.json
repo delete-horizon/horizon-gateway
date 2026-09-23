@@ -1,0 +1,51 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "horizon-gateway-workspace",
+  "version": "2.8.8",
+  "identifier": "com.lurain.horizon-gateway-workspace",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../../../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Horizon Gateway Workspace",
+        "url": "/comm",
+        "width": 1200,
+        "height": 800,
+        "maximized": true,
+        "decorations": false,
+        "transparent": true,
+        "center": true,
+        "windowEffects": {
+          "effects": ["acrylic"]
+        },
+        "scrollBarStyle": "fluentOverlay"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["horizon-gateway-workspace"]
+      }
+    }
+  }
+}

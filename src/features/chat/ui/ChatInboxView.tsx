@@ -12,9 +12,10 @@ interface ChatInboxViewProps {
   workspaceId: string;
   myId: string;
   memberOptions: { id: string; label: string }[];
+  embedded?: boolean;
 }
 
-export function ChatInboxView({ workspaceId, myId, memberOptions }: ChatInboxViewProps) {
+export function ChatInboxView({ workspaceId, myId, memberOptions, embedded }: ChatInboxViewProps) {
   const lang = useAtomValue(languageAtom);
   const session = useAtomValue(supabaseSessionAtom);
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
@@ -50,7 +51,7 @@ export function ChatInboxView({ workspaceId, myId, memberOptions }: ChatInboxVie
 
   if (!session) {
     return (
-      <ChatShell title={lang === "ko" ? "팀 채팅" : "Team Chat"}>
+      <ChatShell embedded={embedded} title={lang === "ko" ? "팀 채팅" : "Team Chat"}>
         <div className="flex-1 flex items-center justify-center p-6 text-center text-sm text-base-content/50">
           {lang === "ko" ? "GitHub 로그인이 필요합니다." : "Sign in with GitHub required."}
         </div>
@@ -59,7 +60,7 @@ export function ChatInboxView({ workspaceId, myId, memberOptions }: ChatInboxVie
   }
 
   return (
-    <ChatShell title={lang === "ko" ? "팀 채팅" : "Team Chat"}>
+    <ChatShell embedded={embedded} title={lang === "ko" ? "팀 채팅" : "Team Chat"}>
       <div className="px-3 pt-3">
         <button
           type="button"

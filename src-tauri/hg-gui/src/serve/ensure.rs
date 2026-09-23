@@ -30,7 +30,15 @@ pub fn mark_inactive() {
     SERVE_ENSURED.store(false, Ordering::Relaxed);
 }
 
-pub(crate) fn serve_ensure_mode(debug_assertions: bool, tauri_env_debug: bool) -> ServeEnsureMode {
+/// Companion / second GUI: never kill an existing serve (see `HG_SERVE_ATTACH_ONLY`).
+pub(crate) fn serve_ensure_mode(
+    debug_assertions: bool,
+    tauri_env_debug: bool,
+    attach_only: bool,
+) -> ServeEnsureMode {
+    if attach_only {
+        return ServeEnsureMode::ReuseIfReachable;
+    }
     if debug_assertions || tauri_env_debug {
         ServeEnsureMode::KillAndSpawnFresh
     } else {
@@ -49,15 +57,32 @@ fn tauri_env_debug() -> bool {
         .is_some_and(is_env_truthy_value)
 }
 
+/// When set, this process only attaches to (or spawns) serve — never kills leftovers.
+/// Used by companion GUIs (workspace) that share Hub's serve.
+pub(crate) fn serve_attach_only() -> bool {
+    std::env::var("HG_SERVE_ATTACH_ONLY")
+        .ok()
+        .as_deref()
+        .is_some_and(is_env_truthy_value)
+}
+
 /// Ensure the serve backend is reachable, spawning and waiting if needed.
 /// Called once at GUI startup. On success, `events_client` will keep connectivity.
 ///
 /// Debug / `tauri dev`: always reset leftover `horizon-gateway-serve` so ports like
-/// 8888 are not held by a previous session. Release: reuse a reachable same-version serve.
+/// 8888 are not held by a previous session — unless `HG_SERVE_ATTACH_ONLY` is set.
+/// Release: reuse a reachable same-version serve.
 pub fn ensure_running() -> Result<(), String> {
-    match serve_ensure_mode(cfg!(debug_assertions), tauri_env_debug()) {
+    let attach_only = serve_attach_only();
+    match serve_ensure_mode(cfg!(debug_assertions), tauri_env_debug(), attach_only) {
         ServeEnsureMode::KillAndSpawnFresh => reset_and_spawn(),
-        ServeEnsureMode::ReuseIfReachable => reuse_or_spawn(),
+        ServeEnsureMode::ReuseIfReachable => {
+            if attach_only {
+                attach_or_spawn_no_kill()
+            } else {
+                reuse_or_spawn()
+            }
+        }
     }
 }
 
@@ -75,6 +100,30 @@ fn reuse_or_spawn() -> Result<(), String> {
     }
 
     spawn_and_wait()
+}
+
+/// Companion path: never call kill. Attach if reachable (even on version mismatch);
+/// otherwise spawn only.
+fn attach_or_spawn_no_kill() -> Result<(), String> {
+    if client::ping().is_ok() {
+        if !client::serve_matches_gui_version() {
+            tracing::warn!(
+                "[gui] attach-only: serve version != {}; attaching without restart",
+                env!("CARGO_PKG_VERSION")
+            );
+        } else {
+            tracing::info!("[gui] attach-only: reusing reachable serve");
+        }
+        SERVE_ENSURED.store(true, Ordering::Relaxed);
+        return Ok(());
+    }
+
+    tracing::info!("[gui] attach-only: no serve reachable; spawning without kill");
+    if cfg!(debug_assertions) || tauri_env_debug() {
+        spawn_and_wait_debug()
+    } else {
+        spawn_and_wait()
+    }
 }
 
 fn reset_and_spawn() -> Result<(), String> {
@@ -153,7 +202,7 @@ mod tests {
     #[test]
     fn debug_profile_resets_serve() {
         assert_eq!(
-            serve_ensure_mode(true, false),
+            serve_ensure_mode(true, false, false),
             ServeEnsureMode::KillAndSpawnFresh
         );
     }
@@ -161,7 +210,7 @@ mod tests {
     #[test]
     fn tauri_dev_env_resets_serve_even_in_release_profile() {
         assert_eq!(
-            serve_ensure_mode(false, true),
+            serve_ensure_mode(false, true, false),
             ServeEnsureMode::KillAndSpawnFresh
         );
     }
@@ -169,7 +218,23 @@ mod tests {
     #[test]
     fn installed_release_reuses_serve() {
         assert_eq!(
-            serve_ensure_mode(false, false),
+            serve_ensure_mode(false, false, false),
+            ServeEnsureMode::ReuseIfReachable
+        );
+    }
+
+    #[test]
+    fn attach_only_forces_reuse_even_in_debug() {
+        assert_eq!(
+            serve_ensure_mode(true, true, true),
+            ServeEnsureMode::ReuseIfReachable
+        );
+        assert_eq!(
+            serve_ensure_mode(true, false, true),
+            ServeEnsureMode::ReuseIfReachable
+        );
+        assert_eq!(
+            serve_ensure_mode(false, false, true),
             ServeEnsureMode::ReuseIfReachable
         );
     }
@@ -178,9 +243,27 @@ mod tests {
     fn tauri_env_debug_values() {
         assert!(is_env_truthy_value("true"));
         assert!(is_env_truthy_value("1"));
+        assert!(is_env_truthy_value("YES"));
         assert!(!is_env_truthy_value("0"));
         assert!(!is_env_truthy_value("false"));
         assert!(!is_env_truthy_value(""));
+    }
+
+    #[test]
+    fn serve_attach_only_reads_env() {
+        let prev = std::env::var("HG_SERVE_ATTACH_ONLY").ok();
+        std::env::remove_var("HG_SERVE_ATTACH_ONLY");
+        assert!(!serve_attach_only());
+        std::env::set_var("HG_SERVE_ATTACH_ONLY", "1");
+        assert!(serve_attach_only());
+        std::env::set_var("HG_SERVE_ATTACH_ONLY", "true");
+        assert!(serve_attach_only());
+        std::env::set_var("HG_SERVE_ATTACH_ONLY", "0");
+        assert!(!serve_attach_only());
+        match prev {
+            Some(v) => std::env::set_var("HG_SERVE_ATTACH_ONLY", v),
+            None => std::env::remove_var("HG_SERVE_ATTACH_ONLY"),
+        }
     }
 
     #[test]

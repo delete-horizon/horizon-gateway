@@ -2,6 +2,10 @@
 /// All other commands are always forwarded to hg-serve via TCP IPC.
 const GUI_ONLY_COMMANDS: &[&str] = &[
     "open_window",
+    "open_workspace_app",
+    "open_hub_app",
+    "app_shell_role",
+    "take_companion_open",
     "open_inspector_window",
     "open_annotation_dialog",
     "open_external_url",
@@ -11,16 +15,7 @@ const GUI_ONLY_COMMANDS: &[&str] = &[
     "install_windows_update",
     "capture_app_screenshot",
     "trigger_os_snip",
-    "chat_ensure_identity",
-    "chat_derive_dm_key",
-    "chat_generate_room_key",
-    "chat_wrap_room_key",
-    "chat_unwrap_room_key",
-    "chat_seal",
-    "chat_open",
-    "chat_start_listener",
-    "chat_stop_listener",
-    "chat_send_frame",
+    // chat_* → hg-serve (shared P2P listener + crypto)
     "play_comm_action",
     "set_comm_overlay_tool",
     "clear_comm_overlay",
@@ -73,5 +68,26 @@ mod tests {
         assert!(is_gui_only("compose_comm_avatar"));
         assert!(is_gui_only("write_comm_avatar_part"));
         assert!(!should_forward("reload_comm_avatar_catalog"));
+    }
+
+    #[test]
+    fn chat_commands_forward_to_serve() {
+        for cmd in [
+            "chat_ensure_identity",
+            "chat_derive_dm_key",
+            "chat_generate_room_key",
+            "chat_wrap_room_key",
+            "chat_unwrap_room_key",
+            "chat_seal",
+            "chat_open",
+            "chat_start_listener",
+            "chat_stop_listener",
+            "chat_send_frame",
+        ] {
+            assert!(!is_gui_only(cmd), "{cmd} must forward");
+            assert!(should_forward(cmd), "{cmd} must forward");
+        }
+        assert!(should_forward("session_handoff_put"));
+        assert!(should_forward("session_handoff_take"));
     }
 }

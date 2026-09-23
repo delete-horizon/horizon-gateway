@@ -6,6 +6,7 @@ import { useState } from "react";
 import {
   getInitials,
   languageAtom,
+  openWorkspaceCompanion,
   proxyRunningAtom,
   supabaseProfileAtom,
   supabaseSessionAtom,
@@ -15,6 +16,8 @@ import { bugReportModalOpenAtom } from "@/features/bug-report";
 import { commandPaletteOpenAtom } from "@/features/command-palette";
 import { UpdateToolbarBadge, updateChangelogModalOpenAtom } from "@/features/update";
 import { commands } from "@/shared/api";
+import { isDevMockAuthEnabled } from "@/shared/api/devMockAuth";
+import { isDevLocalPasswordAuthEnabled } from "@/shared/api/localAuth";
 import { supabase } from "@/shared/api/supabase";
 import { Button } from "@/shared/ui/button/Button";
 import { toastError, toastInfo } from "@/shared/ui/toast";
@@ -48,6 +51,14 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
   const setBugReportOpen = useSetAtom(bugReportModalOpenAtom);
 
   const handleLogin = async () => {
+    if (isDevLocalPasswordAuthEnabled()) {
+      toastInfo("로컬 Supabase — env 계정으로 자동 로그인됩니다.");
+      return;
+    }
+    if (isDevMockAuthEnabled()) {
+      toastInfo("VITE_DEV_MOCK_AUTH=1 — deprecated; prefer local Supabase + VITE_DEV_LOCAL_*.");
+      return;
+    }
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "github",
@@ -72,6 +83,15 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
   };
 
   const handleLogout = async () => {
+    if (isDevLocalPasswordAuthEnabled()) {
+      await supabase.auth.signOut();
+      toastInfo("로컬 세션을 종료했습니다. 재시작 시 env 계정으로 다시 로그인됩니다.");
+      return;
+    }
+    if (isDevMockAuthEnabled()) {
+      toastInfo("모킹 인증은 .env에서 VITE_DEV_MOCK_AUTH를 끄고 재시작해야 해제됩니다.");
+      return;
+    }
     await supabase.auth.signOut();
   };
 
@@ -123,6 +143,23 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
       <div className="flex items-center gap-0.5 px-2 shrink-0">
         <UpdateToolbarBadge />
         <ToolsMenu onOpenTool={onOpenGlobalTool} />
+
+        {import.meta.env.DEV ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 h-8 text-xs text-slate-300 hover:text-white hover:bg-slate-800"
+            onClick={() => {
+              void openWorkspaceCompanion("lab").then((error) => {
+                if (error) {
+                  toastError(error);
+                }
+              });
+            }}
+          >
+            <span className="hidden sm:inline">{lang === "ko" ? "실험실" : "Lab"}</span>
+          </Button>
+        ) : null}
 
         <Button
           variant="ghost"

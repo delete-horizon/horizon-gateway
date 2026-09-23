@@ -35,7 +35,7 @@ function selfLabel(
 }
 
 /** Local-only overlay lab: spawn yourself and send bubbles. Not wired to chat runtime. */
-export function OverlayPlayground() {
+export function OverlayPlayground({ embedded = false }: { embedded?: boolean }) {
   const lang = useAtomValue(languageAtom);
   const dbProfile = useAtomValue(supabaseProfileAtom);
   const localProfile = useAtomValue(userProfileAtom);
@@ -200,7 +200,7 @@ export function OverlayPlayground() {
   };
 
   return (
-    <ChatShell title={lang === "ko" ? "오버레이 실험실" : "Overlay lab"}>
+    <ChatShell title={lang === "ko" ? "오버레이 실험실" : "Overlay lab"} embedded={embedded}>
       <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
         <section className="space-y-2 min-w-0">
           <h2 className="text-sm font-semibold text-base-content">

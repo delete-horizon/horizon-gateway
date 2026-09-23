@@ -1,13 +1,79 @@
-import { useLocation } from "@tanstack/react-router";
+import { useLocation, useNavigate } from "@tanstack/react-router";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import clsx from "clsx";
-import { ExternalLink, Monitor } from "lucide-react";
+import { useAtomValue } from "jotai";
+import { AppWindow, Monitor } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
-import { commands, unwrap } from "@/shared/api";
+import { commands } from "@/shared/api";
 import { useIsDetached } from "@/shared/lib/tauri/useIsDetached";
+import { toastError } from "@/shared/ui/toast";
+import { languageAtom } from "../i18n/store";
+import { openHubApp, openWorkspaceCompanion } from "../openCompanionApp";
 import { WindowControls } from "./WindowControls";
 
 const appWindow = getCurrentWindow();
+
+type CommMenu = "avatar" | "lab";
+
+function commMenuFromSearch(search: unknown): CommMenu | null {
+  if (!search || typeof search !== "object" || !("menu" in search)) {
+    return null;
+  }
+  const menu = (search as { menu?: unknown }).menu;
+  if (menu === "avatar") {
+    return "avatar";
+  }
+  if (menu === "lab" && import.meta.env.DEV) {
+    return "lab";
+  }
+  return null;
+}
+
+function CommTitleMenus({
+  menu,
+  showLab,
+  ko,
+  onMenu,
+  onOpenHub,
+}: {
+  menu: CommMenu | null;
+  showLab: boolean;
+  ko: boolean;
+  onMenu: (next: CommMenu | null) => void;
+  onOpenHub: () => void;
+}) {
+  return (
+    <div className="flex items-center h-full mr-1">
+      <TitleMenuButton active={menu === "avatar"} onClick={() => onMenu(menu === "avatar" ? null : "avatar")}>
+        {ko ? "아바타" : "Avatar"}
+      </TitleMenuButton>
+      {showLab ? (
+        <TitleMenuButton active={menu === "lab"} onClick={() => onMenu(menu === "lab" ? null : "lab")}>
+          {ko ? "실험실" : "Lab"}
+        </TitleMenuButton>
+      ) : null}
+      <TitleMenuButton active={false} onClick={onOpenHub}>
+        {ko ? "Hub 열기" : "Open Hub"}
+      </TitleMenuButton>
+    </div>
+  );
+}
+
+function TitleMenuButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: string }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      className={clsx(
+        "h-full px-2.5 text-xs font-semibold",
+        active ? "text-slate-100 bg-slate-800" : "text-slate-400 hover:text-slate-100 hover:bg-slate-800",
+      )}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
 
 interface TitlebarProps {
   /** Extra actions rendered before window controls (e.g. update badge). */
@@ -16,8 +82,13 @@ interface TitlebarProps {
 
 export function Titlebar({ trailing }: TitlebarProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const isDetached = useIsDetached();
+  const lang = useAtomValue(languageAtom);
+  const [shellRole, setShellRole] = useState<"hub" | "workspace">("hub");
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const isComm = location.pathname === "/comm" || location.pathname.startsWith("/comm/");
+  const commMenu = commMenuFromSearch(location.search);
 
   const updateState = useCallback(async () => {
     setIsFullscreen(await appWindow.isFullscreen());
@@ -48,15 +119,41 @@ export function Titlebar({ trailing }: TitlebarProps) {
     };
   }, [updateState, toggleFullscreen]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void commands.appShellRole().then((result) => {
+      if (cancelled || result.status === "error") {
+        return;
+      }
+      if (result.data === "workspace" || result.data === "hub") {
+        setShellRole(result.data);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   if (isFullscreen) {
     return null;
   }
 
-  const openInNewWindow = async () => {
-    const pathLabel = location.pathname.replace(/\//g, "-").slice(1) || "dashboard";
-    const label = `window-${pathLabel}-${Date.now()}`;
-    unwrap(await commands.openWindow(label, `Horizon Gateway - ${pathLabel}`, location.pathname, 1000, 700));
+  const openOtherApp = () => {
+    const open = shellRole === "workspace" ? openHubApp : openWorkspaceCompanion;
+    void open().then((error) => {
+      if (error) {
+        toastError(error);
+      }
+    });
   };
+  const otherAppLabel =
+    shellRole === "workspace"
+      ? lang === "ko"
+        ? "Hub 열기"
+        : "Open Hub"
+      : lang === "ko"
+        ? "워크스페이스 열기"
+        : "Open workspace";
 
   return (
     <div
@@ -75,14 +172,14 @@ export function Titlebar({ trailing }: TitlebarProps) {
 
       <div className="flex items-center h-full">
         {trailing ? <div className="flex items-center px-1 pointer-events-auto">{trailing}</div> : null}
-        {!isDetached && (
+        {!isDetached && !isComm && (
           <button
             type="button"
-            onClick={openInNewWindow}
-            title="Open page in new window"
+            onClick={openOtherApp}
+            title={otherAppLabel}
             className="w-12 h-full flex items-center justify-center hover:bg-slate-800 text-slate-500 transition-colors"
           >
-            <ExternalLink className="w-3.5 h-3.5" />
+            <AppWindow className="w-3.5 h-3.5" />
           </button>
         )}
         <button
@@ -93,6 +190,23 @@ export function Titlebar({ trailing }: TitlebarProps) {
         >
           <Monitor className={clsx("w-3.5 h-3.5", isFullscreen && "text-blue-400")} />
         </button>
+        {isComm ? (
+          <CommTitleMenus
+            menu={commMenu}
+            showLab={import.meta.env.DEV}
+            ko={lang === "ko"}
+            onMenu={(next) => {
+              void navigate({ to: "/comm", search: next ? { menu: next } : {} });
+            }}
+            onOpenHub={() => {
+              void openHubApp().then((error) => {
+                if (error) {
+                  toastError(error);
+                }
+              });
+            }}
+          />
+        ) : null}
         <WindowControls />
       </div>
     </div>

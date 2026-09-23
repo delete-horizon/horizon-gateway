@@ -77,6 +77,14 @@ fn forward_events(app: &AppHandle) -> Result<(), String> {
                 });
                 break;
             }
+            // Preserve string payload for FE `listen<string>("chat-frame-received")`.
+            "chat-frame-received" => {
+                if let Some(frame) = evt.payload.as_str() {
+                    let _ = app.emit("chat-frame-received", frame.to_string());
+                } else {
+                    let _ = app.emit("chat-frame-received", evt.payload);
+                }
+            }
             _ => {
                 let _ = app.emit(&evt.event, evt.payload);
             }

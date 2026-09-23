@@ -1,57 +1,46 @@
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::thread;
 use std::time::Duration;
 
-use once_cell::sync::OnceCell;
-use parking_lot::Mutex;
 use serde::Serialize;
-use specta::Type;
-use tauri::{AppHandle, Emitter};
+
+use crate::serve::events::publish_event;
 
 static LISTEN_PORT: AtomicU16 = AtomicU16::new(0);
 static RUNNING: AtomicBool = AtomicBool::new(false);
-static STOP: OnceCell<Arc<AtomicBool>> = OnceCell::new();
-static APP: OnceCell<Mutex<Option<AppHandle>>> = OnceCell::new();
+static STOP: OnceLock<Arc<AtomicBool>> = OnceLock::new();
 
-fn app_slot() -> &'static Mutex<Option<AppHandle>> {
-    APP.get_or_init(|| Mutex::new(None))
-}
+/// Event name re-emitted to webviews via `events_client` (keep FE listen string stable).
+pub const CHAT_FRAME_EVENT: &str = "chat-frame-received";
 
-#[derive(Serialize, Type)]
+#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ListenInfo {
     pub port: u16,
     pub lan_hosts: Vec<String>,
 }
 
-#[derive(Serialize, Type)]
+#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SendResult {
     pub state: String,
     pub via: String,
 }
 
-pub fn set_app_handle(app: AppHandle) {
-    *app_slot().lock() = Some(app);
-}
-
 fn lan_hosts() -> Vec<String> {
     let mut hosts = Vec::new();
-    if let Ok(ip) = local_ip_address::local_ip() {
-        hosts.push(ip.to_string());
-    }
-    // Best-effort: enumerate non-loopback IPv4
-    if let Ok(ifaces) = local_ip_address::list_afinet_netifas() {
-        for (_name, ip) in ifaces {
-            if let std::net::IpAddr::V4(v4) = ip {
-                if !v4.is_loopback() {
-                    let s = v4.to_string();
-                    if !hosts.contains(&s) {
-                        hosts.push(s);
-                    }
+    if let Ok(ifaces) = get_if_addrs::get_if_addrs() {
+        for iface in ifaces {
+            if iface.is_loopback() {
+                continue;
+            }
+            if let std::net::IpAddr::V4(v4) = iface.ip() {
+                let s = v4.to_string();
+                if !hosts.contains(&s) {
+                    hosts.push(s);
                 }
             }
         }
@@ -108,9 +97,8 @@ pub fn start_listener() -> Result<ListenInfo, String> {
                     let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
                     match read_frame(&mut stream) {
                         Ok(frame) => {
-                            if let Some(app) = app_slot().lock().as_ref() {
-                                let _ = app.emit("chat-frame-received", frame);
-                            }
+                            // Fan-out to all GUI event subscribers (Hub + companion).
+                            publish_event(CHAT_FRAME_EVENT, frame);
                         }
                         Err(e) => tracing::debug!("chat frame read error: {e}"),
                     }
@@ -206,7 +194,6 @@ fn parse_tunnel_endpoint(url: &str) -> Option<(String, u16)> {
         return None;
     }
     // Cloudflare quick tunnels are HTTPS — TCP chat won't work through them without a side channel.
-    // Accept host:port form primarily; for https URLs try default 443 (likely fail → outbox).
     let port = if url.contains("https://") { 443 } else { 80 };
     Some((host, port))
 }

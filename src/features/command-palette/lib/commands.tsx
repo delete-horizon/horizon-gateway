@@ -51,7 +51,7 @@ export function createPaletteCommands(handlers: {
   onSwitchLanguage: (lang: "ko" | "en") => void;
   onOpenBugReport?: () => void;
 }): PaletteCommandDef[] {
-  return [
+  const commands: PaletteCommandDef[] = [
     // --- [도메인] 영역 ---
     {
       id: "jump-domain",
@@ -748,4 +748,5 @@ export function createPaletteCommands(handlers: {
       },
     },
   ];
+  return commands.filter((command) => import.meta.env.DEV || command.id !== "open-overlay-lab");
 }

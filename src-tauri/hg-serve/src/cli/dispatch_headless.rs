@@ -980,6 +980,67 @@ pub fn dispatch_headless(
             )?;
             Ok(serde_json::to_value(result).unwrap())
         }
+        "chat_ensure_identity" => {
+            let result = crate::chat::chat_ensure_identity()?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "chat_derive_dm_key" => {
+            let parsed: crate::chat::DeriveDmKeyPayload = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = crate::chat::chat_derive_dm_key(parsed)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "chat_generate_room_key" => {
+            Ok(serde_json::to_value(crate::chat::chat_generate_room_key()).unwrap())
+        }
+        "chat_wrap_room_key" => {
+            let parsed: crate::chat::WrapRoomKeyPayload = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = crate::chat::chat_wrap_room_key(parsed)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "chat_unwrap_room_key" => {
+            let parsed: crate::chat::UnwrapRoomKeyPayload = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = crate::chat::chat_unwrap_room_key(parsed)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "chat_seal" => {
+            let parsed: crate::chat::SealPayload = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = crate::chat::chat_seal(parsed)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "chat_open" => {
+            let parsed: crate::chat::OpenPayload = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = crate::chat::chat_open(parsed)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "chat_start_listener" => {
+            let result = crate::chat::chat_start_listener()?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "chat_stop_listener" => {
+            crate::chat::chat_stop_listener();
+            Ok(Value::Null)
+        }
+        "chat_send_frame" => {
+            let parsed: crate::chat::SendFramePayload = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = crate::chat::chat_send_frame(parsed)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "session_handoff_put" => {
+            let parsed: crate::session_handoff::PutPayload = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            crate::session_handoff::put(parsed)?;
+            Ok(serde_json::json!({ "ready": true }))
+        }
+        "session_handoff_take" => match crate::session_handoff::take()? {
+            Some(tokens) => Ok(serde_json::to_value(tokens).unwrap()),
+            None => Ok(Value::Null),
+        },
         _ => Err(format!("Unknown command: {cmd_name}. Run `hgc list`.")),
     }
 }

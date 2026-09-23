@@ -2,14 +2,13 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { type AppTheme, languageAtom, proxyRunningAtom, themeAtom } from "@/entities/app";
+import { type AppTheme, languageAtom, openWorkspaceCompanion, proxyRunningAtom, themeAtom } from "@/entities/app";
 import { fetchDomains } from "@/entities/domain";
 import { getMockRules, getScenarios, setScenarioEnabled } from "@/entities/mocking";
 import { bugReportModalOpenAtom } from "@/features/bug-report";
 import { type HubSurfaceId, type PanelId, usePanelNavigation } from "@/features/panel-stack";
 import type { Domain } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
-import { openAvatarStudioWindow, openOverlayPlaygroundWindow } from "@/shared/lib/tauri/openChatWindow";
 import { toastError, toastInfo, toastSuccess } from "@/shared/ui/toast";
 import { createPaletteCommands } from "../lib/commands";
 import { filterCommands, filterOptions } from "../lib/useFuzzyFilter";
@@ -91,13 +90,25 @@ export function CommandPalette() {
         toastSuccess("Root CA Saved");
       },
       onOpenTeamSync: () => {
-        nav.openGlobalSurface("chrome/team");
+        void openWorkspaceCompanion().then((error) => {
+          if (error) {
+            toastError(error);
+          }
+        });
       },
       onOpenOverlayLab: () => {
-        void openOverlayPlaygroundWindow();
+        void openWorkspaceCompanion("lab").then((error) => {
+          if (error) {
+            toastError(error);
+          }
+        });
       },
       onOpenAvatarStudio: () => {
-        void openAvatarStudioWindow();
+        void openWorkspaceCompanion("avatar").then((error) => {
+          if (error) {
+            toastError(error);
+          }
+        });
       },
       onOpenThemeEditor: () => {
         nav.openGlobalSurface("chrome/theme");

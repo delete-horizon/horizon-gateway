@@ -1,3 +1,4 @@
+import type { Json } from "@/shared/api/database.types";
 import { supabase } from "@/shared/api/supabase";
 import type {
   ResourceKind,
@@ -226,19 +227,13 @@ export async function listMembers(workspaceId: string): Promise<WorkspaceMember[
 
 /** If owner is still missing from members (RLS blocked repair), append a display-only row. */
 async function withSyntheticOwner(workspaceId: string, members: WorkspaceMember[]): Promise<WorkspaceMember[]> {
-  const { data: workspace } = await supabase
-    .from("workspaces")
-    .select("owner_id")
-    .eq("id", workspaceId)
-    .maybeSingle();
+  const { data: workspace } = await supabase.from("workspaces").select("owner_id").eq("id", workspaceId).maybeSingle();
   const ownerId = workspace?.owner_id as string | undefined;
   if (!ownerId) {
     return members;
   }
   if (members.some((m) => m.profile_id === ownerId)) {
-    return members.map((m) =>
-      m.profile_id === ownerId && m.role !== "owner" ? { ...m, role: "owner" as const } : m,
-    );
+    return members.map((m) => (m.profile_id === ownerId && m.role !== "owner" ? { ...m, role: "owner" as const } : m));
   }
 
   const { data: profile } = await supabase
@@ -292,10 +287,9 @@ export async function ensureOwnerMembership(workspaceId: string): Promise<void> 
     return;
   }
 
-  const { error } = await supabase.from("workspace_members").upsert(
-    { workspace_id: workspaceId, profile_id: uid, role: "owner" },
-    { onConflict: "workspace_id,profile_id" },
-  );
+  const { error } = await supabase
+    .from("workspace_members")
+    .upsert({ workspace_id: workspaceId, profile_id: uid, role: "owner" }, { onConflict: "workspace_id,profile_id" });
   if (error) {
     console.warn("ensureOwnerMembership failed:", error.message);
   }
@@ -457,7 +451,7 @@ export async function pushResources(
       {
         workspace_id: workspaceId,
         kind,
-        payload,
+        payload: payload as Json,
         updated_by: effectiveUpdatedBy,
         updated_at: new Date().toISOString(),
       },

@@ -7,7 +7,6 @@ pub use hg_core::model;
 
 mod logging;
 pub mod serve;
-mod chat;
 mod comm_overlay;
 
 mod command {
@@ -15,14 +14,11 @@ mod command {
     pub mod windows_update;
 }
 
-use chat::{
-    chat_derive_dm_key, chat_ensure_identity, chat_generate_room_key, chat_open, chat_seal,
-    chat_send_frame, chat_start_listener, chat_stop_listener, chat_unwrap_room_key,
-    chat_wrap_room_key,
-};
 use command::window_commands::{
-    capture_app_screenshot, ensure_serve_running, open_annotation_dialog, open_external_url,
-    open_inspector_window, open_window, prepare_for_update, quit_app, trigger_os_snip,
+    app_shell_role, capture_app_screenshot, ensure_serve_running, note_companion_open_from_args,
+    open_annotation_dialog, open_external_url, open_hub_app, open_inspector_window, open_window,
+    open_workspace_app, prepare_for_update, quit_app, set_pending_companion_open, set_shell_role,
+    take_companion_open, trigger_os_snip,
 };
 use command::windows_update::install_windows_update;
 use comm_overlay::{
@@ -34,6 +30,10 @@ use comm_overlay::{
 pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
     tauri_specta::Builder::<tauri::Wry>::new().commands(tauri_specta::collect_commands![
         open_window,
+        open_workspace_app,
+        open_hub_app,
+        app_shell_role,
+        take_companion_open,
         open_external_url,
         open_inspector_window,
         open_annotation_dialog,
@@ -43,16 +43,6 @@ pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         install_windows_update,
         capture_app_screenshot,
         trigger_os_snip,
-        chat_ensure_identity,
-        chat_derive_dm_key,
-        chat_generate_room_key,
-        chat_wrap_room_key,
-        chat_unwrap_room_key,
-        chat_seal,
-        chat_open,
-        chat_start_listener,
-        chat_stop_listener,
-        chat_send_frame,
         play_comm_action,
         set_comm_overlay_tool,
         clear_comm_overlay,
@@ -93,6 +83,19 @@ fn load_dotenv_manually() {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    run_inner(false, tauri::generate_context!());
+}
+
+/// Companion Comm shell. Attaches to Hub's serve and opens `/comm`.
+pub fn run_workspace() {
+    std::env::set_var("HG_SERVE_ATTACH_ONLY", "1");
+    std::env::set_var("HG_GUI_ROLE", "workspace");
+    run_inner(true, tauri::generate_context!("workspace/tauri.conf.json"));
+}
+
+fn run_inner(is_workspace: bool, context: tauri::Context<tauri::Wry>) {
+    set_shell_role(if is_workspace { "workspace" } else { "hub" });
+    note_companion_open_from_args();
     load_dotenv_manually();
 
     let specta_builder = get_specta_builder();
@@ -102,7 +105,7 @@ pub fn run() {
         .install_default()
         .expect("rustls default crypto provider");
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             tracing::info!("Single Instance triggered with args: {:?}", argv);
             if let Some(window) = app.get_webview_window("main") {
@@ -111,13 +114,17 @@ pub fn run() {
                 let _ = window.set_focus();
             }
             for arg in argv {
+                if let Some(path) = arg.strip_prefix("hg-open:") {
+                    set_pending_companion_open(path.to_string());
+                    let _ = app.emit("companion-navigate", path.to_string());
+                }
                 if arg.starts_with("horizon-gateway://") {
                     let _ = app.emit("deep-link-received", arg);
                 }
             }
         }))
         .plugin(tauri_plugin_deep_link::init())
-        .setup(|app| {
+        .setup(move |app| {
             use tracing_subscriber::{
                 filter::LevelFilter, layer::SubscriberExt, util::SubscriberInitExt, Layer,
             };
@@ -138,7 +145,12 @@ pub fn run() {
                 .with(tauri_layer.with_filter(log_level))
                 .try_init();
 
-            // Ensure hg-serve backend process is running
+            tracing::info!(
+                "[gui] role={} identifier={}",
+                if is_workspace { "workspace" } else { "hub" },
+                app.config().identifier
+            );
+
             match crate::serve::ensure_running() {
                 Ok(()) => {
                     let _ = app.emit("serve-ready", ());
@@ -148,10 +160,11 @@ pub fn run() {
                 }
             }
 
-            // Deep Link Listener
             let handle = app.handle().clone();
-            #[cfg(target_os = "windows")]
-            let _ = handle.deep_link().register("horizon-gateway");
+            if !is_workspace {
+                #[cfg(target_os = "windows")]
+                let _ = handle.deep_link().register("horizon-gateway");
+            }
 
             let handle_clone = handle.clone();
             let _ = handle.deep_link().on_open_url(move |event| {
@@ -164,25 +177,30 @@ pub fn run() {
                 crate::serve::start_event_forwarder(app.handle().clone());
             }
 
-            crate::chat::peer::set_app_handle(app.handle().clone());
-
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_notification::init());
+
+    let builder = if is_workspace {
+        builder
+    } else {
+        builder.plugin(tauri_plugin_updater::Builder::new().build())
+    };
+
+    builder
         .invoke_handler(serve::wrap_invoke_handler(specta_builder.invoke_handler()))
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("error while building tauri application")
-        .run(|app_handle, event| match event {
+        .run(move |app_handle, event| match event {
             tauri::RunEvent::WindowEvent {
                 label,
                 event: tauri::WindowEvent::CloseRequested { api, .. },
                 ..
-            } if label == "main" => {
+            } if label == "main" && !is_workspace => {
                 api.prevent_close();
                 let _ = app_handle.emit("main-window-close-requested", ());
             }

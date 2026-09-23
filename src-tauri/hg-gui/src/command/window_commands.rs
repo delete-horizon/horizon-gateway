@@ -32,6 +32,72 @@ pub async fn open_window(
     Ok(())
 }
 
+static SHELL_ROLE: std::sync::OnceLock<&'static str> = std::sync::OnceLock::new();
+
+pub fn set_shell_role(role: &'static str) {
+    let _ = SHELL_ROLE.set(role);
+}
+
+/// `hub` or `workspace`. Set when the process starts.
+#[tauri::command]
+#[specta::specta]
+pub fn app_shell_role() -> String {
+    SHELL_ROLE.get().copied().unwrap_or("hub").to_string()
+}
+
+static PENDING_OPEN: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
+pub fn note_companion_open_from_args() {
+    for arg in std::env::args() {
+        if let Some(path) = arg.strip_prefix("hg-open:") {
+            set_pending_companion_open(path.to_string());
+        }
+    }
+}
+
+pub fn set_pending_companion_open(path: String) {
+    if let Ok(mut slot) = PENDING_OPEN.lock() {
+        *slot = Some(path);
+    }
+}
+
+/// Path from `hg-open:` on this process. One-shot so the shell can navigate after mount.
+#[tauri::command]
+#[specta::specta]
+pub fn take_companion_open() -> Option<String> {
+    PENDING_OPEN.lock().ok().and_then(|mut slot| slot.take())
+}
+
+fn workspace_open_arg(tab: Option<String>) -> Vec<String> {
+    let Some(tab) = tab else {
+        return Vec::new();
+    };
+    if !matches!(
+        tab.as_str(),
+        "workspaces" | "resources" | "chat" | "character" | "avatar" | "lab"
+    ) {
+        return Vec::new();
+    }
+    vec![format!("hg-open:/comm?tab={tab}")]
+}
+
+/// Spawn the Comm companion exe. A second launch focuses the existing process.
+#[tauri::command]
+#[specta::specta]
+pub fn open_workspace_app(tab: Option<String>) -> Result<(), String> {
+    let exe = crate::serve::workspace_exe_path()?;
+    let args = workspace_open_arg(tab);
+    crate::serve::spawn_gui_companion(exe, "workspace", &args)
+}
+
+/// Spawn or focus the Hub window. Attaches to the serve this process is already using.
+#[tauri::command]
+#[specta::specta]
+pub fn open_hub_app() -> Result<(), String> {
+    let exe = crate::serve::hub_exe_path()?;
+    crate::serve::spawn_gui_companion(exe, "hub", &[])
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn open_inspector_window(

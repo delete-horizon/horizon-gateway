@@ -1,10 +1,18 @@
-import { TeamWorkspaceShell } from "@/entities/team";
+import { useAtomValue } from "jotai";
+import { useEffect } from "react";
+import { languageAtom, openWorkspaceCompanion } from "@/entities/app";
 
-/** Detached / registry surface — same L→R shell as Hub full-view. */
+/** Hub no longer hosts the team shell. This surface only forwards to the companion. */
 export function ChromeTeamSurface() {
+  const lang = useAtomValue(languageAtom);
+
+  useEffect(() => {
+    void openWorkspaceCompanion();
+  }, []);
+
   return (
-    <div className="flex flex-col h-full min-h-0 w-full overflow-hidden">
-      <TeamWorkspaceShell />
-    </div>
+    <p className="p-6 text-sm text-base-content/70">
+      {lang === "ko" ? "팀 워크스페이스 앱에서 엽니다." : "Opening the workspace app."}
+    </p>
   );
 }

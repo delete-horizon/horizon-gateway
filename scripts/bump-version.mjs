@@ -50,6 +50,11 @@ function main() {
 	tauri.version = next;
 	writeFileSync(tauriPath, JSON.stringify(tauri, null, 2) + "\n");
 
+	const workspaceTauriPath = join(ROOT, "src-tauri", "hg-gui", "workspace", "tauri.conf.json");
+	const workspaceTauri = JSON.parse(readFileSync(workspaceTauriPath, "utf8"));
+	workspaceTauri.version = next;
+	writeFileSync(workspaceTauriPath, JSON.stringify(workspaceTauri, null, 2) + "\n");
+
 	// Update workspace crate versions
 	for (const crateRel of [
 		"src-tauri/hg-gui/Cargo.toml",

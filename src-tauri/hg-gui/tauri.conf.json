@@ -56,7 +56,8 @@
     },
     "externalBin": [
       "binaries/horizon-gateway-serve",
-      "binaries/hgc"
+      "binaries/hgc",
+      "binaries/horizon-gateway-workspace"
     ],
     "windows": {
       "nsis": {

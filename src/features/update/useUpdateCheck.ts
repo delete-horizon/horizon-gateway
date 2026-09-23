@@ -2,6 +2,7 @@ import type { Update } from "@tauri-apps/plugin-updater";
 import { check } from "@tauri-apps/plugin-updater";
 import { useSetAtom } from "jotai";
 import { useCallback, useEffect, useState } from "react";
+import { commands } from "@/shared/api";
 import { pendingUpdateAtom } from "./store";
 
 export interface UpdateState {
@@ -22,6 +23,12 @@ export function useUpdateCheck(options?: { onMount?: boolean; delayMs?: number }
   const checkForUpdates = useCallback(async () => {
     setState((s) => ({ ...s, isChecking: true, error: null }));
     try {
+      const role = await commands.appShellRole();
+      if (role.status === "ok" && role.data === "workspace") {
+        setPendingUpdate(null);
+        setState({ update: null, isChecking: false, error: null });
+        return null;
+      }
       const update = await check();
       const next = update ?? null;
       setPendingUpdate(next);

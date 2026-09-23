@@ -66,7 +66,11 @@ fn decode_pk(b64: &str) -> Result<PublicKey, String> {
     Ok(PublicKey::from(arr))
 }
 
-pub fn derive_dm_key(my_user_id: &str, peer_user_id: &str, peer_public_b64: &str) -> Result<String, String> {
+pub fn derive_dm_key(
+    my_user_id: &str,
+    peer_user_id: &str,
+    peer_public_b64: &str,
+) -> Result<String, String> {
     let secret = load_or_create_secret()?;
     let peer_pk = decode_pk(peer_public_b64)?;
     let shared = secret.diffie_hellman(&peer_pk);
@@ -176,8 +180,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn dm_keys_match_both_sides() {
-        // Uses filesystem secrets — smoke only if dirs writable.
-        let _ = ensure_identity();
+    fn room_seal_roundtrip() {
+        let key = generate_room_key();
+        let ct = seal_message(&key, "hello").unwrap();
+        assert_eq!(open_message(&key, &ct).unwrap(), "hello");
     }
 }

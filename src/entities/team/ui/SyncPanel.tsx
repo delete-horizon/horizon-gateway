@@ -12,7 +12,7 @@ import { SyncDiffListPane } from "./SyncDiffListPane";
 
 interface SyncPanelProps {
   ctrl: TeamWorkspaceController;
-  onClose: () => void;
+  onClose?: () => void;
 }
 
 export function SyncPanel({ ctrl, onClose }: SyncPanelProps) {
@@ -120,13 +120,15 @@ export function SyncPanel({ ctrl, onClose }: SyncPanelProps) {
             {lang === "ko" ? "카테고리 → Push/Pull → 항목 선택" : "Category → Push/Pull → select items"}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-[10px] font-bold px-2 py-1 rounded-md text-base-content/50 hover:text-base-content hover:bg-base-200"
-        >
-          {lang === "ko" ? "닫기" : "Close"}
-        </button>
+        {onClose ? (
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[10px] font-bold px-2 py-1 rounded-md text-base-content/50 hover:text-base-content hover:bg-base-200"
+          >
+            {lang === "ko" ? "닫기" : "Close"}
+          </button>
+        ) : null}
       </div>
 
       <div className="flex flex-1 min-h-0 overflow-hidden">

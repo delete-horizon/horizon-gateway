@@ -7,5 +7,6 @@ export * from "./store";
 export * from "./sync";
 export * from "./syncDiff";
 export * from "./types";
+export * from "./ui/SyncPanel";
 export * from "./ui/TeamSection";
 export * from "./ui/TeamWorkspaceShell";

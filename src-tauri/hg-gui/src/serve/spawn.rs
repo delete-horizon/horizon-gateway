@@ -13,22 +13,65 @@ pub fn hgc_exe_path() -> Result<PathBuf, String> {
     sidecar_exe_path("hgc", "hgc not found (build with `cargo build -p hgc`)")
 }
 
+pub fn workspace_exe_path() -> Result<PathBuf, String> {
+    sidecar_exe_path(
+        "horizon-gateway-workspace",
+        "horizon-gateway-workspace not found (cargo build -p horizon-gateway --bin horizon-gateway-workspace)",
+    )
+}
+
+/// Hub GUI (`horizon-gateway`), not the workspace or serve binaries that share the prefix.
+pub fn hub_exe_path() -> Result<PathBuf, String> {
+    find_sidecar(
+        "horizon-gateway not found (cargo build -p horizon-gateway --bin horizon-gateway)",
+        |dir, out| {
+            out.push(dir.join("horizon-gateway.exe"));
+            out.push(dir.join("horizon-gateway"));
+        },
+        is_hub_sidecar_name,
+    )
+}
+
+fn is_hub_sidecar_name(file_name: &str) -> bool {
+    let stem = file_name.strip_suffix(".exe").unwrap_or(file_name);
+    if stem == "horizon-gateway" {
+        return true;
+    }
+    let Some(rest) = stem.strip_prefix("horizon-gateway-") else {
+        return false;
+    };
+    !rest.starts_with("workspace") && !rest.starts_with("serve")
+}
+
 fn sidecar_exe_path(bin_name: &str, missing: &str) -> Result<PathBuf, String> {
+    let prefix = bin_name.to_string();
+    find_sidecar(
+        missing,
+        move |dir, out| push_sidecar_candidates(out, dir, &prefix),
+        move |name| name.starts_with(bin_name),
+    )
+}
+
+fn find_sidecar(
+    missing: &str,
+    mut push_exact: impl FnMut(&Path, &mut Vec<PathBuf>),
+    staging_name: impl Fn(&str) -> bool,
+) -> Result<PathBuf, String> {
     let mut candidates = Vec::new();
 
     if let Ok(current) = std::env::current_exe() {
         if let Some(dir) = current.parent() {
-            push_sidecar_candidates(&mut candidates, dir, bin_name);
+            push_exact(dir, &mut candidates);
             // `cargo run` / test binaries live under target/debug/deps/
             if dir.ends_with("deps") {
                 if let Some(debug) = dir.parent() {
-                    push_sidecar_candidates(&mut candidates, debug, bin_name);
+                    push_exact(debug, &mut candidates);
                 }
             }
             // macOS app bundle: Contents/MacOS/../Resources
             if dir.ends_with("MacOS") {
                 if let Some(contents) = dir.parent() {
-                    push_sidecar_candidates(&mut candidates, &contents.join("Resources"), bin_name);
+                    push_exact(&contents.join("Resources"), &mut candidates);
                 }
             }
         }
@@ -38,8 +81,8 @@ fn sidecar_exe_path(bin_name: &str, missing: &str) -> Result<PathBuf, String> {
     let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
         .join("target");
-    push_sidecar_candidates(&mut candidates, &workspace_root.join("debug"), bin_name);
-    push_sidecar_candidates(&mut candidates, &workspace_root.join("release"), bin_name);
+    push_exact(&workspace_root.join("debug"), &mut candidates);
+    push_exact(&workspace_root.join("release"), &mut candidates);
 
     // Tauri externalBin staging (local `tauri build` / CI).
     let sidecar_staging = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("binaries");
@@ -51,7 +94,7 @@ fn sidecar_exe_path(bin_name: &str, missing: &str) -> Result<PathBuf, String> {
                     && path
                         .file_name()
                         .and_then(|n| n.to_str())
-                        .is_some_and(|n| n.starts_with(bin_name))
+                        .is_some_and(&staging_name)
                 {
                     candidates.push(path);
                 }
@@ -66,6 +109,43 @@ fn sidecar_exe_path(bin_name: &str, missing: &str) -> Result<PathBuf, String> {
     }
 
     Err(missing.to_string())
+}
+
+/// Spawn the other GUI exe. A second launch hits single-instance and focuses that window.
+pub fn spawn_gui_companion(exe: PathBuf, role: &str, args: &[String]) -> Result<(), String> {
+    let mut cmd = std::process::Command::new(&exe);
+    cmd.args(args);
+    cmd.env("HG_SERVE_ATTACH_ONLY", "1");
+    cmd.env("HG_GUI_ROLE", role);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const DETACHED_PROCESS: u32 = 0x0000_0008;
+        const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+        cmd.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+    }
+    cmd.spawn()
+        .map_err(|e| format!("failed to spawn {}: {e}", exe.display()))?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_hub_sidecar_name;
+
+    #[test]
+    fn hub_name_skips_workspace_and_serve() {
+        assert!(is_hub_sidecar_name("horizon-gateway.exe"));
+        assert!(is_hub_sidecar_name("horizon-gateway"));
+        assert!(is_hub_sidecar_name(
+            "horizon-gateway-x86_64-pc-windows-msvc.exe"
+        ));
+        assert!(!is_hub_sidecar_name("horizon-gateway-workspace.exe"));
+        assert!(!is_hub_sidecar_name("horizon-gateway-serve.exe"));
+        assert!(!is_hub_sidecar_name(
+            "horizon-gateway-workspace-x86_64-pc-windows-msvc.exe"
+        ));
+    }
 }
 
 fn push_sidecar_candidates(out: &mut Vec<PathBuf>, dir: &Path, bin_name: &str) {

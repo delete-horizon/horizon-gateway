@@ -4,6 +4,7 @@
  * Output:
  *   src-tauri/hg-gui/binaries/horizon-gateway-serve-{target-triple}[.exe]
  *   src-tauri/hg-gui/binaries/hgc-{target-triple}[.exe]
+ *   src-tauri/hg-gui/binaries/horizon-gateway-workspace-{target-triple}[.exe]
  * build.rs copies these into resources/ for bundling.
  *
  * Usage: node scripts/build-serve-sidecar.mjs [--debug] [--target <triple>]
@@ -82,8 +83,29 @@ function run() {
 		process.exit(build.status ?? 1);
 	}
 
+	const workspaceArgs = [
+		"build",
+		"-p",
+		"horizon-gateway",
+		"--bin",
+		"horizon-gateway-workspace",
+		"--profile",
+		profile,
+		"--target",
+		triple,
+	];
+	console.log(`[build-serve-sidecar] cargo ${workspaceArgs.join(" ")}…`);
+	const workspaceBuild = spawnSync("cargo", workspaceArgs, {
+		cwd: tauriDir,
+		stdio: "inherit",
+		shell: process.platform === "win32",
+	});
+	if (workspaceBuild.status !== 0) {
+		process.exit(workspaceBuild.status ?? 1);
+	}
+
 	fs.mkdirSync(binariesDir, { recursive: true });
-	for (const bin of SIDECARS) {
+	for (const bin of [...SIDECARS, "horizon-gateway-workspace"]) {
 		const src = findBuiltBinary(bin, ext, triple);
 		const dest = path.join(binariesDir, `${bin}-${triple}${ext}`);
 		if (!fs.existsSync(src)) {

@@ -77,6 +77,7 @@ function main() {
   const sources = [
     readJsonVersion("package.json"),
     readJsonVersion("src-tauri/hg-gui/tauri.conf.json"),
+    readJsonVersion("src-tauri/hg-gui/workspace/tauri.conf.json"),
     ...readCargoVersions(),
   ];
 
