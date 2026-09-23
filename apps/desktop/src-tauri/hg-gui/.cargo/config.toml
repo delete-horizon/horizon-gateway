@@ -1,4 +1,0 @@
-# Prefer official WinDivert redistributables under resources/windivert
-# (WinDivert.dll / WinDivert.lib / WinDivert64.sys) over compiling vendored sources.
-[env]
-WINDIVERT_PATH = { value = "resources/windivert", relative = true }

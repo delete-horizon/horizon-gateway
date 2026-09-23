@@ -1,42 +1,42 @@
 {
   "name": "horizon-gateway",
-  "$schema": "../../../../../node_modules/nx/schemas/project-schema.json",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
-  "sourceRoot": "workspaces/gateway/apps/horizon-gateway/src",
+  "sourceRoot": "workspaces/gateway/src",
   "targets": {
     "dev": {
       "executor": "nx:run-commands",
       "options": {
         "command": "pnpm run dev",
-        "cwd": "workspaces/gateway/apps/horizon-gateway"
+        "cwd": "workspaces/gateway"
       }
     },
     "serve": {
       "executor": "nx:run-commands",
       "options": {
         "command": "pnpm run dev",
-        "cwd": "workspaces/gateway/apps/horizon-gateway"
+        "cwd": "workspaces/gateway"
       }
     },
     "build": {
       "executor": "nx:run-commands",
       "options": {
         "command": "pnpm run build",
-        "cwd": "workspaces/gateway/apps/horizon-gateway"
+        "cwd": "workspaces/gateway"
       }
     },
     "typecheck": {
       "executor": "nx:run-commands",
       "options": {
         "command": "pnpm run typecheck",
-        "cwd": "workspaces/gateway/apps/horizon-gateway"
+        "cwd": "workspaces/gateway"
       }
     },
     "tauri": {
       "executor": "nx:run-commands",
       "options": {
         "command": "pnpm run tauri dev",
-        "cwd": "workspaces/gateway/apps/horizon-gateway"
+        "cwd": "workspaces/gateway"
       }
     }
   },
