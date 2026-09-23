@@ -58,9 +58,7 @@ async fn install_windows_update_inner(app: AppHandle) -> Result<(), String> {
     let bytes = update
         .download(
             |chunk, total| {
-                tracing::trace!(
-                    "[gui] update download chunk={chunk} total={total:?}"
-                );
+                tracing::trace!("[gui] update download chunk={chunk} total={total:?}");
             },
             || tracing::info!("[gui] update download finished"),
         )
@@ -80,10 +78,7 @@ async fn install_windows_update_inner(app: AppHandle) -> Result<(), String> {
         .join("pending-update");
     fs::create_dir_all(&dir).map_err(|e| format!("create update dir: {e}"))?;
 
-    let setup_path: PathBuf = dir.join(format!(
-        "horizon-gateway_{}_x64-setup.exe",
-        update.version
-    ));
+    let setup_path: PathBuf = dir.join(format!("horizon-gateway_{}_x64-setup.exe", update.version));
     fs::write(&setup_path, &bytes).map_err(|e| format!("write setup.exe: {e}"))?;
     tracing::info!(
         "[gui] install_windows_update: wrote {} ({} bytes)",

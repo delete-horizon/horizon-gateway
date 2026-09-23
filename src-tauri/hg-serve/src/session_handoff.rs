@@ -50,7 +50,9 @@ pub fn put(payload: PutPayload) -> Result<(), String> {
 
 fn put_with_ttl(payload: PutPayload, ttl: Duration) -> Result<(), String> {
     validate(&payload.access_token, &payload.refresh_token)?;
-    let mut slot = SLOT.lock().map_err(|_| "session handoff lock poisoned".to_string())?;
+    let mut slot = SLOT
+        .lock()
+        .map_err(|_| "session handoff lock poisoned".to_string())?;
     *slot = Some(Slot {
         access_token: payload.access_token,
         refresh_token: payload.refresh_token,
@@ -63,7 +65,9 @@ fn put_with_ttl(payload: PutPayload, ttl: Duration) -> Result<(), String> {
 
 /// Returns the tokens once, then clears the slot. Expired or empty → `None`.
 pub fn take() -> Result<Option<HandoffTokens>, String> {
-    let mut slot = SLOT.lock().map_err(|_| "session handoff lock poisoned".to_string())?;
+    let mut slot = SLOT
+        .lock()
+        .map_err(|_| "session handoff lock poisoned".to_string())?;
     let Some(held) = slot.take() else {
         return Ok(None);
     };

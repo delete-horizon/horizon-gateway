@@ -874,7 +874,9 @@ fn index_logs_batch_for_search(
             .map_err(|e| e.to_string())?;
 
         let mut stmt_params = tx
-            .prepare_cached("INSERT OR REPLACE INTO param_values (id, key, value) VALUES (?1, ?2, ?3)")
+            .prepare_cached(
+                "INSERT OR REPLACE INTO param_values (id, key, value) VALUES (?1, ?2, ?3)",
+            )
             .map_err(|e| e.to_string())?;
 
         for entry in entries {

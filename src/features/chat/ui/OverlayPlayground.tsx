@@ -263,7 +263,7 @@ export function OverlayPlayground({ embedded = false }: { embedded?: boolean }) 
             <div className="flex flex-wrap gap-2">
               <Button size="sm" onClick={() => void openAvatarStudioWindow()}>
                 <Pencil className="w-3.5 h-3.5" />
-                {lang === "ko" ? "파츠 스튜디오" : "Parts studio"}
+                {lang === "ko" ? "아바타 제작" : "Create avatar"}
               </Button>
               <Button size="sm" onClick={() => void loadCatalog()}>
                 {lang === "ko" ? "카탈로그 새로고침" : "Reload catalog"}

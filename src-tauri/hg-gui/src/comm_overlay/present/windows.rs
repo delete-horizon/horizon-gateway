@@ -12,17 +12,17 @@ use windows_sys::Win32::Foundation::{GetLastError, HWND, LPARAM, LRESULT, POINT,
 use windows_sys::Win32::Graphics::Gdi::{
     CreateCompatibleDC, CreateDIBSection, CreateFontW, DeleteDC, DeleteObject, GetDC, ReleaseDC,
     SelectObject, SetBkMode, SetTextAlign, SetTextColor, TextOutW, BITMAPINFO, BITMAPINFOHEADER,
-    BI_RGB, BLENDFUNCTION, DIB_RGB_COLORS, FW_SEMIBOLD, HBITMAP, HDC, HGDIOBJ, TRANSPARENT,
-    TA_CENTER, TA_TOP,
+    BI_RGB, BLENDFUNCTION, DIB_RGB_COLORS, FW_SEMIBOLD, HBITMAP, HDC, HGDIOBJ, TA_CENTER, TA_TOP,
+    TRANSPARENT,
 };
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetCursorPos, GetSystemMetrics,
-    PeekMessageW, RegisterClassW, ShowWindow, TranslateMessage, UpdateLayeredWindow,
-    CS_HREDRAW, CS_VREDRAW, MSG, PM_REMOVE, SM_CXSCREEN, SM_CYSCREEN, SW_HIDE, SW_SHOWNA,
-    ULW_ALPHA, WM_DESTROY, WM_LBUTTONDOWN, WM_NCHITTEST, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE,
-    WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
+    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetCursorPos,
+    GetSystemMetrics, PeekMessageW, RegisterClassW, ShowWindow, TranslateMessage,
+    UpdateLayeredWindow, CS_HREDRAW, CS_VREDRAW, MSG, PM_REMOVE, SM_CXSCREEN, SM_CYSCREEN, SW_HIDE,
+    SW_SHOWNA, ULW_ALPHA, WM_DESTROY, WM_LBUTTONDOWN, WM_NCHITTEST, WNDCLASSW, WS_EX_LAYERED,
+    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
 };
 
 use crate::comm_overlay::engine::{ActionKind, Banner, BannerKind, Engine, OverlayTool};
@@ -125,11 +125,7 @@ unsafe fn create_sprite_hwnd() -> Result<HWND, String> {
     let name = to_wide("HgCommSprite");
     let hinstance = GetModuleHandleW(ptr::null());
     let hwnd = CreateWindowExW(
-        WS_EX_LAYERED
-            | WS_EX_TRANSPARENT
-            | WS_EX_TOPMOST
-            | WS_EX_NOACTIVATE
-            | WS_EX_TOOLWINDOW,
+        WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW,
         class.as_ptr(),
         name.as_ptr(),
         WS_POPUP,
@@ -143,7 +139,10 @@ unsafe fn create_sprite_hwnd() -> Result<HWND, String> {
         ptr::null(),
     );
     if hwnd.is_null() {
-        return Err(format!("CreateWindowExW sprite failed ({})", GetLastError()));
+        return Err(format!(
+            "CreateWindowExW sprite failed ({})",
+            GetLastError()
+        ));
     }
     Ok(hwnd)
 }

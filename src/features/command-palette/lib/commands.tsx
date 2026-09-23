@@ -695,10 +695,10 @@ export function createPaletteCommands(handlers: {
       group: "team",
       icon: <Pencil className="w-4 h-4 text-amber-500" />,
       meta: {
-        label: { ko: "[팀] 아바타 스튜디오", en: "[Team] Avatar studio" },
+        label: { ko: "[팀] 아바타 꾸미기", en: "[Team] Dress avatar" },
         description: {
-          ko: "24×24 파츠를 그리고 JSON으로 저장합니다",
-          en: "Paint 24×24 parts and save them as JSON",
+          ko: "아바타 미리보기와 스킨 목록을 엽니다",
+          en: "Open the avatar preview and skin list",
         },
         aliases: {
           ko: ["아바타", "파츠", "스튜디오", "픽셀", "스킨"],

@@ -1,4 +1,5 @@
 pub mod api_log_commands;
+pub mod avatar_commands;
 pub mod crypto_commands;
 pub mod crypto_preset_commands;
 pub mod domain_commands;

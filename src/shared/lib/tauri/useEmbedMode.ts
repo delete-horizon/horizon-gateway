@@ -12,7 +12,9 @@ export function useIsChatWindow(): boolean {
   return (
     label === "chat-inbox" ||
     label === "chat-playground" ||
+    label === "chat-avatar-dress" ||
     label === "chat-avatar-studio" ||
+    label === "chat-avatar-catalog" ||
     label.startsWith("chat-room-")
   );
 }
@@ -28,7 +30,9 @@ export function useEmbedMode(): EmbedMode {
   if (
     label === "chat-inbox" ||
     label === "chat-playground" ||
+    label === "chat-avatar-dress" ||
     label === "chat-avatar-studio" ||
+    label === "chat-avatar-catalog" ||
     label.startsWith("chat-room-")
   ) {
     return "chat";

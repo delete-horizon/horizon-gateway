@@ -78,6 +78,10 @@ fn forward_events(app: &AppHandle) -> Result<(), String> {
                 break;
             }
             // Preserve string payload for FE `listen<string>("chat-frame-received")`.
+            "avatar-catalog-changed" => {
+                let _ = crate::comm_overlay::avatar::reload_from_disk();
+                let _ = app.emit(&evt.event, evt.payload);
+            }
             "chat-frame-received" => {
                 if let Some(frame) = evt.payload.as_str() {
                     let _ = app.emit("chat-frame-received", frame.to_string());

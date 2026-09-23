@@ -235,7 +235,14 @@ $ms.Dispose()
 "#;
 
         let output = Command::new("powershell.exe")
-            .args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", script])
+            .args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-WindowStyle",
+                "Hidden",
+                "-Command",
+                script,
+            ])
             .output()
             .map_err(|e| format!("Failed to execute powershell screenshot: {e}"))?;
 
@@ -253,8 +260,8 @@ $ms.Dispose()
     }
     #[cfg(target_os = "macos")]
     {
-        use std::process::Command;
         use base64::Engine;
+        use std::process::Command;
 
         let temp_path = std::env::temp_dir().join("hg_screenshot.png");
         let output = Command::new("screencapture")
@@ -301,4 +308,3 @@ pub async fn trigger_os_snip() -> Result<(), String> {
         Err("OS native snipping tool not supported on this platform".to_string())
     }
 }
-

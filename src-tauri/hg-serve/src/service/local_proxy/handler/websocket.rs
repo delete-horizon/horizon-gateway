@@ -68,23 +68,23 @@ async fn handle_local_websocket_upgrade(
         target_host
     };
 
-    let stream = match tokio::net::TcpStream::connect(format!("{target_host_clean}:{target_port}")).await
-    {
-        Ok(s) => s,
-        Err(e) => {
-            crate::proxy_log!(
-                "❌ [WS] Failed to connect to upstream {}:{}: {}",
-                target_host,
-                target_port,
-                e
-            );
-            return (
-                StatusCode::BAD_GATEWAY,
-                format!("Proxy WS connect error: {e}"),
-            )
-                .into_response();
-        }
-    };
+    let stream =
+        match tokio::net::TcpStream::connect(format!("{target_host_clean}:{target_port}")).await {
+            Ok(s) => s,
+            Err(e) => {
+                crate::proxy_log!(
+                    "❌ [WS] Failed to connect to upstream {}:{}: {}",
+                    target_host,
+                    target_port,
+                    e
+                );
+                return (
+                    StatusCode::BAD_GATEWAY,
+                    format!("Proxy WS connect error: {e}"),
+                )
+                    .into_response();
+            }
+        };
 
     let io = TokioIo::new(stream);
     let (mut sender, conn) = match hyper::client::conn::http1::handshake(io).await {

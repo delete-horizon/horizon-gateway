@@ -5,15 +5,19 @@ use tauri_plugin_deep_link::DeepLinkExt;
 
 pub use hg_core::model;
 
+mod comm_overlay;
 mod logging;
 pub mod serve;
-mod comm_overlay;
 
 mod command {
     pub mod window_commands;
     pub mod windows_update;
 }
 
+use comm_overlay::{
+    clear_comm_overlay, play_comm_action, set_comm_overlay_tool, show_comm_bubble,
+    sync_comm_residents,
+};
 use command::window_commands::{
     app_shell_role, capture_app_screenshot, ensure_serve_running, note_companion_open_from_args,
     open_annotation_dialog, open_external_url, open_hub_app, open_inspector_window, open_window,
@@ -21,11 +25,6 @@ use command::window_commands::{
     take_companion_open, trigger_os_snip,
 };
 use command::windows_update::install_windows_update;
-use comm_overlay::{
-    clear_comm_overlay, compose_comm_avatar, get_comm_avatar_catalog, play_comm_action,
-    reload_comm_avatar_catalog, set_comm_overlay_tool, show_comm_bubble, sync_comm_residents,
-    write_comm_avatar_part,
-};
 
 pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
     tauri_specta::Builder::<tauri::Wry>::new().commands(tauri_specta::collect_commands![
@@ -48,10 +47,6 @@ pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         clear_comm_overlay,
         sync_comm_residents,
         show_comm_bubble,
-        get_comm_avatar_catalog,
-        reload_comm_avatar_catalog,
-        compose_comm_avatar,
-        write_comm_avatar_part,
     ])
 }
 

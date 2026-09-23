@@ -120,7 +120,9 @@ fn draw_cmd(pixmap: &mut Pixmap, cmd: &DrawCmd) {
         } => draw_swatter(pixmap, x, y, scale, rot, alpha),
         DrawCmd::SprayCloud { x, y, r, alpha } => draw_spray_cloud(pixmap, x, y, r, alpha),
         DrawCmd::ArmChip { x, y, w, h } => draw_arm_chip(pixmap, x, y, w, h),
-        DrawCmd::SpeechBubble { x, y, w, h, alpha } => draw_speech_bubble(pixmap, x, y, w, h, alpha),
+        DrawCmd::SpeechBubble { x, y, w, h, alpha } => {
+            draw_speech_bubble(pixmap, x, y, w, h, alpha)
+        }
         DrawCmd::Mark {
             x,
             y,
@@ -173,7 +175,13 @@ fn stroke_circle(pixmap: &mut Pixmap, x: f32, y: f32, r: f32, stroke: f32, rgba:
             width: stroke,
             ..Stroke::default()
         };
-        pixmap.stroke_path(&path, &paint_rgba(rgba), &stroke, Transform::identity(), None);
+        pixmap.stroke_path(
+            &path,
+            &paint_rgba(rgba),
+            &stroke,
+            Transform::identity(),
+            None,
+        );
     }
 }
 
@@ -185,7 +193,9 @@ fn draw_glow(pixmap: &mut Pixmap, x: f32, y: f32, r: f32, rgba: [u8; 4], layers:
     for i in 0..layers {
         let k = (i as f32 + 1.0) / n;
         let rr = r * k;
-        let aa = (rgba[3] as f32 * (1.0 - k * 0.85)).round().clamp(0.0, 255.0) as u8;
+        let aa = (rgba[3] as f32 * (1.0 - k * 0.85))
+            .round()
+            .clamp(0.0, 255.0) as u8;
         fill_circle(pixmap, x, y, rr, [rgba[0], rgba[1], rgba[2], aa]);
     }
 }
@@ -206,7 +216,8 @@ fn fill_star(
     let points = 5usize;
     for i in 0..(points * 2) {
         let radius = if i % 2 == 0 { outer } else { inner.max(0.2) };
-        let ang = rot + i as f32 * std::f32::consts::PI / points as f32 - std::f32::consts::FRAC_PI_2;
+        let ang =
+            rot + i as f32 * std::f32::consts::PI / points as f32 - std::f32::consts::FRAC_PI_2;
         let x = cx + ang.cos() * radius;
         let y = cy + ang.sin() * radius;
         if i == 0 {
@@ -357,15 +368,45 @@ fn draw_cat(
         fill_circle(pixmap, elx, ely, s * 0.18, eye_w);
         fill_circle(pixmap, erx, ery + s * 0.06, s * 0.12, eye_w);
         fill_circle(pixmap, elx, ely, s * 0.07, [30, 30, 40, a(1.0)]);
-        fill_circle(pixmap, erx + s * 0.02, ery + s * 0.06, s * 0.05, [30, 30, 40, a(1.0)]);
+        fill_circle(
+            pixmap,
+            erx + s * 0.02,
+            ery + s * 0.06,
+            s * 0.05,
+            [30, 30, 40, a(1.0)],
+        );
     } else {
         fill_circle(pixmap, elx, ely, s * 0.16, eye_w);
         fill_circle(pixmap, erx, ery, s * 0.16, eye_w);
         let pupil = if mood == 1 { s * 0.1 } else { s * 0.08 };
-        fill_circle(pixmap, elx, ely + if mood == 1 { s * 0.02 } else { 0.0 }, pupil, [30, 30, 40, a(1.0)]);
-        fill_circle(pixmap, erx, ery + if mood == 1 { s * 0.02 } else { 0.0 }, pupil, [30, 30, 40, a(1.0)]);
-        fill_circle(pixmap, elx - s * 0.04, ely - s * 0.04, s * 0.035, [255, 255, 255, a(0.95)]);
-        fill_circle(pixmap, erx - s * 0.04, ery - s * 0.04, s * 0.035, [255, 255, 255, a(0.95)]);
+        fill_circle(
+            pixmap,
+            elx,
+            ely + if mood == 1 { s * 0.02 } else { 0.0 },
+            pupil,
+            [30, 30, 40, a(1.0)],
+        );
+        fill_circle(
+            pixmap,
+            erx,
+            ery + if mood == 1 { s * 0.02 } else { 0.0 },
+            pupil,
+            [30, 30, 40, a(1.0)],
+        );
+        fill_circle(
+            pixmap,
+            elx - s * 0.04,
+            ely - s * 0.04,
+            s * 0.035,
+            [255, 255, 255, a(0.95)],
+        );
+        fill_circle(
+            pixmap,
+            erx - s * 0.04,
+            ery - s * 0.04,
+            s * 0.035,
+            [255, 255, 255, a(0.95)],
+        );
     }
 
     // Angry brows
@@ -493,13 +534,7 @@ fn draw_coffee(
         fill_path(pixmap, path, cup);
     }
     // Coffee surface
-    fill_circle(
-        pixmap,
-        p(0.0, -0.08).0,
-        p(0.0, -0.08).1,
-        s * 0.38,
-        coffee,
-    );
+    fill_circle(pixmap, p(0.0, -0.08).0, p(0.0, -0.08).1, s * 0.38, coffee);
     // Handle
     let (hx, hy) = p(0.55, 0.15);
     stroke_circle(
@@ -528,7 +563,14 @@ fn draw_coffee(
         fill_heart(pixmap, hx, hy, s * 0.14, [255, 120, 150, a(0.9)]);
     } else {
         // ask: small "?"
-        draw_mark(pixmap, p(0.0, 0.18).0, p(0.0, 0.18).1, s * 0.2, 2, [80, 50, 40, a(0.85)]);
+        draw_mark(
+            pixmap,
+            p(0.0, 0.18).0,
+            p(0.0, 0.18).1,
+            s * 0.2,
+            2,
+            [80, 50, 40, a(0.85)],
+        );
     }
 }
 
@@ -562,8 +604,20 @@ fn draw_fly(pixmap: &mut Pixmap, cx: f32, cy: f32, scale: f32, rot: f32, wing: f
     let (hx, hy) = p(0.0, -0.45);
     fill_circle(pixmap, hx, hy, s * 0.28, body);
     // Eyes
-    fill_circle(pixmap, p(-0.12, -0.5).0, p(-0.12, -0.5).1, s * 0.1, [255, 220, 80, a(1.0)]);
-    fill_circle(pixmap, p(0.12, -0.5).0, p(0.12, -0.5).1, s * 0.1, [255, 220, 80, a(1.0)]);
+    fill_circle(
+        pixmap,
+        p(-0.12, -0.5).0,
+        p(-0.12, -0.5).1,
+        s * 0.1,
+        [255, 220, 80, a(1.0)],
+    );
+    fill_circle(
+        pixmap,
+        p(0.12, -0.5).0,
+        p(0.12, -0.5).1,
+        s * 0.1,
+        [255, 220, 80, a(1.0)],
+    );
 }
 
 fn draw_swatter(pixmap: &mut Pixmap, cx: f32, cy: f32, scale: f32, rot: f32, alpha: u8) {
@@ -610,7 +664,13 @@ fn draw_swatter(pixmap: &mut Pixmap, cx: f32, cy: f32, scale: f32, rot: f32, alp
                 width: 1.4,
                 ..Stroke::default()
             };
-            pixmap.stroke_path(&path, &paint_rgba(mesh), &stroke, Transform::identity(), None);
+            pixmap.stroke_path(
+                &path,
+                &paint_rgba(mesh),
+                &stroke,
+                Transform::identity(),
+                None,
+            );
         }
         let (ax, ay) = p(-0.28, -0.35 + t);
         let (bx, by) = p(0.28, -0.35 + t);
@@ -622,7 +682,13 @@ fn draw_swatter(pixmap: &mut Pixmap, cx: f32, cy: f32, scale: f32, rot: f32, alp
                 width: 1.4,
                 ..Stroke::default()
             };
-            pixmap.stroke_path(&path, &paint_rgba(mesh), &stroke, Transform::identity(), None);
+            pixmap.stroke_path(
+                &path,
+                &paint_rgba(mesh),
+                &stroke,
+                Transform::identity(),
+                None,
+            );
         }
     }
 }
@@ -632,9 +698,28 @@ fn draw_spray_cloud(pixmap: &mut Pixmap, x: f32, y: f32, r: f32, alpha: u8) {
         return;
     }
     fill_circle(pixmap, x, y, r, [140, 210, 255, alpha.saturating_div(3)]);
-    fill_circle(pixmap, x - r * 0.2, y - r * 0.15, r * 0.55, [180, 230, 255, alpha]);
-    fill_circle(pixmap, x + r * 0.25, y + r * 0.1, r * 0.4, [160, 220, 255, alpha]);
-    stroke_circle(pixmap, x, y, r, 2.0, [80, 160, 220, alpha.saturating_add(40).min(255)]);
+    fill_circle(
+        pixmap,
+        x - r * 0.2,
+        y - r * 0.15,
+        r * 0.55,
+        [180, 230, 255, alpha],
+    );
+    fill_circle(
+        pixmap,
+        x + r * 0.25,
+        y + r * 0.1,
+        r * 0.4,
+        [160, 220, 255, alpha],
+    );
+    stroke_circle(
+        pixmap,
+        x,
+        y,
+        r,
+        2.0,
+        [80, 160, 220, alpha.saturating_add(40).min(255)],
+    );
 }
 
 fn draw_arm_chip(pixmap: &mut Pixmap, x: f32, y: f32, w: f32, h: f32) {
@@ -784,7 +869,13 @@ fn draw_mark(pixmap: &mut Pixmap, x: f32, y: f32, scale: f32, kind: u8, rgba: [u
                         width: (scale * 0.22).max(1.5),
                         ..Stroke::default()
                     };
-                    pixmap.stroke_path(&path, &paint_rgba(rgba), &stroke, Transform::identity(), None);
+                    pixmap.stroke_path(
+                        &path,
+                        &paint_rgba(rgba),
+                        &stroke,
+                        Transform::identity(),
+                        None,
+                    );
                 }
             }
             fill_circle(pixmap, x, y, scale * 0.25, rgba);
@@ -811,13 +902,30 @@ fn draw_mark(pixmap: &mut Pixmap, x: f32, y: f32, scale: f32, kind: u8, rgba: [u
             pb.quad_to(x, y - scale * 0.55, x + scale * 0.2, y - scale * 0.15);
             pb.line_to(x - scale * 0.05, y + scale * 0.35);
             if let Some(path) = pb.finish() {
-                pixmap.stroke_path(&path, &paint_rgba(rgba), &stroke, Transform::identity(), None);
+                pixmap.stroke_path(
+                    &path,
+                    &paint_rgba(rgba),
+                    &stroke,
+                    Transform::identity(),
+                    None,
+                );
             }
             let mut pb = PathBuilder::new();
             pb.move_to(x + scale * 0.05, y - scale * 0.05);
-            pb.quad_to(x + scale * 0.45, y + scale * 0.05, x + scale * 0.15, y + scale * 0.4);
+            pb.quad_to(
+                x + scale * 0.45,
+                y + scale * 0.05,
+                x + scale * 0.15,
+                y + scale * 0.4,
+            );
             if let Some(path) = pb.finish() {
-                pixmap.stroke_path(&path, &paint_rgba(rgba), &stroke, Transform::identity(), None);
+                pixmap.stroke_path(
+                    &path,
+                    &paint_rgba(rgba),
+                    &stroke,
+                    Transform::identity(),
+                    None,
+                );
             }
         }
     }
@@ -856,11 +964,13 @@ fn cmd_bounds(cmd: &DrawCmd) -> Option<(f32, f32, f32, f32)> {
             let e = r + stroke.max(0.0);
             (x, y, e, e)
         }
-        DrawCmd::Star { x, y, outer, rgba, .. } if rgba[3] > 0 => (x, y, outer, outer),
+        DrawCmd::Star {
+            x, y, outer, rgba, ..
+        } if rgba[3] > 0 => (x, y, outer, outer),
         DrawCmd::Heart { x, y, size, rgba } if rgba[3] > 0 => (x, y, size * 1.2, size * 1.2),
-        DrawCmd::Cat { x, y, scale, alpha, .. } if alpha > 0 && scale >= 4.0 => {
-            (x, y, scale * 1.7, scale * 1.7)
-        }
+        DrawCmd::Cat {
+            x, y, scale, alpha, ..
+        } if alpha > 0 && scale >= 4.0 => (x, y, scale * 1.7, scale * 1.7),
         DrawCmd::Avatar {
             x,
             y,
@@ -883,13 +993,15 @@ fn cmd_bounds(cmd: &DrawCmd) -> Option<(f32, f32, f32, f32)> {
             let e = len.abs() + width.abs();
             (x, y, e, e)
         }
-        DrawCmd::Coffee { x, y, scale, alpha, .. } if alpha > 0 && scale >= 4.0 => {
-            (x, y, scale * 1.3, scale * 1.3)
-        }
-        DrawCmd::Fly { x, y, scale, alpha, .. } if alpha > 0 && scale >= 2.0 => {
-            (x, y, scale * 2.0, scale * 2.0)
-        }
-        DrawCmd::Swatter { x, y, scale, alpha, .. } if alpha > 0 => {
+        DrawCmd::Coffee {
+            x, y, scale, alpha, ..
+        } if alpha > 0 && scale >= 4.0 => (x, y, scale * 1.3, scale * 1.3),
+        DrawCmd::Fly {
+            x, y, scale, alpha, ..
+        } if alpha > 0 && scale >= 2.0 => (x, y, scale * 2.0, scale * 2.0),
+        DrawCmd::Swatter {
+            x, y, scale, alpha, ..
+        } if alpha > 0 => {
             let e = 42.0 * scale * 1.3;
             (x, y, e, e)
         }
@@ -898,7 +1010,9 @@ fn cmd_bounds(cmd: &DrawCmd) -> Option<(f32, f32, f32, f32)> {
         DrawCmd::SpeechBubble { x, y, w, h, alpha } if alpha > 0 => {
             (x, y, w * 0.5 + 4.0, h * 0.5 + 14.0)
         }
-        DrawCmd::Mark { x, y, scale, rgba, .. } if rgba[3] > 0 => (x, y, scale * 1.3, scale * 1.3),
+        DrawCmd::Mark {
+            x, y, scale, rgba, ..
+        } if rgba[3] > 0 => (x, y, scale * 1.3, scale * 1.3),
         _ => return None,
     };
     if !cx.is_finite() || !cy.is_finite() || !hx.is_finite() || !hy.is_finite() {

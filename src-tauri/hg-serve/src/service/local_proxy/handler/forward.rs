@@ -69,7 +69,13 @@ pub(crate) async fn handle_pass_through(
     let timeout_duration = if local_origin.is_some() {
         Duration::from_secs(600)
     } else {
-        Duration::from_secs(state.proxy_settings.get().upstream_timeout_secs.clamp(1, 600))
+        Duration::from_secs(
+            state
+                .proxy_settings
+                .get()
+                .upstream_timeout_secs
+                .clamp(1, 600),
+        )
     };
     req_builder = req_builder.timeout(timeout_duration);
 

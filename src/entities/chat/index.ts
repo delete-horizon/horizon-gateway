@@ -1,3 +1,22 @@
+export type { AvatarSnapshot, OwnedAvatar, PartSlot, UserPart } from "./api/avatarOwnership";
+export {
+  authorName,
+  copyOfficialKit,
+  copyOwnedAvatar,
+  forkSlot,
+  listMyAvatars,
+  listMyEntitlements,
+  listSharedAvatars,
+  loadParts,
+  officialRef,
+  ownedToKit,
+  parsePartRef,
+  purchaseAvatar,
+  pushAvatarUpdate,
+  setListedForSale,
+  setVisibility,
+  userPartIds,
+} from "./api/avatarOwnership";
 export * from "./api/signaling";
 export type { GlyphCh, StudioCatalog, StudioPalette, StudioPart, StudioSet } from "./lib/avatarGlyphs";
 export {

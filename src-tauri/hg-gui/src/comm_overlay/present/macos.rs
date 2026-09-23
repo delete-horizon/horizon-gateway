@@ -20,9 +20,17 @@ pub fn clear() {
 }
 
 pub fn sync_residents(items: Vec<CommResidentInput>) {
-    tracing::info!(count = items.len(), "comm overlay sync residents on macOS (stub)");
+    tracing::info!(
+        count = items.len(),
+        "comm overlay sync residents on macOS (stub)"
+    );
 }
 
 pub fn show_bubble(profile_id: &str, text: &str, ttl_ms: u64) {
-    tracing::info!(profile_id, text, ttl_ms, "comm overlay bubble on macOS (stub)");
+    tracing::info!(
+        profile_id,
+        text,
+        ttl_ms,
+        "comm overlay bubble on macOS (stub)"
+    );
 }

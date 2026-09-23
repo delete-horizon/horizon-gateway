@@ -1,28 +1,30 @@
+import { listen } from "@tauri-apps/api/event";
 import { useAtomValue } from "jotai";
-import { Copy, Pencil, Plus, RefreshCw, Save } from "lucide-react";
+import { Copy, Pencil, Plus, RefreshCw, Save, User } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import {
   AVATAR_COMPOSE_H,
   AVATAR_GRID,
-  type AvatarKit,
-  applyAvatarSet,
   blitRgba,
   composeStudioRgba,
+  copyOfficialKit,
   DEFAULT_AVATAR_KIT,
   drawGlyphGrid,
   emptyGlyphs,
+  forkSlot,
   GLYPH_CHANNELS,
   type GlyphCh,
   reloadCommAvatarCatalog,
   type StudioCatalog,
+  type StudioPart,
   setGlyphCell,
-  slotsFromStudioCatalog,
-  writeCommAvatarPart,
 } from "@/entities/chat";
+import { AVATAR_EDITOR_OPEN_EVENT, openAvatarDressWindow } from "@/shared/lib/tauri/openChatWindow";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { Input } from "@/shared/ui/input/Input";
+import { AvatarCatalogBrowser, type AvatarCatalogEntry } from "./AvatarCatalogCard";
 import { ChatShell } from "./ChatShell";
 
 const CELL = 14;
@@ -39,7 +41,15 @@ function cellAt(canvas: HTMLCanvasElement, clientX: number, clientY: number): { 
   return { x, y };
 }
 
-export function AvatarStudio({ embedded }: { embedded?: boolean } = {}) {
+export function AvatarStudio({
+  initialSlot,
+  initialId,
+  initialOwnedId,
+}: {
+  initialSlot?: string;
+  initialId?: string;
+  initialOwnedId?: string;
+} = {}) {
   const lang = useAtomValue(languageAtom);
   const ko = lang === "ko";
   const [catalog, setCatalog] = useState<StudioCatalog | null>(null);
@@ -53,8 +63,13 @@ export function AvatarStudio({ embedded }: { embedded?: boolean } = {}) {
   const [setKey, setSetKey] = useState("");
   const [glyphs, setGlyphs] = useState<string[]>(emptyGlyphs);
   const [brush, setBrush] = useState<GlyphCh>("O");
-  const [kit, setKit] = useState<AvatarKit>(DEFAULT_AVATAR_KIT);
   const [step, setStep] = useState(0);
+  const [ownedId, setOwnedId] = useState(initialOwnedId);
+  useEffect(() => {
+    if (initialOwnedId) {
+      setOwnedId(initialOwnedId);
+    }
+  }, [initialOwnedId]);
   const paintRef = useRef<HTMLCanvasElement>(null);
   const previewRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
@@ -74,23 +89,93 @@ export function AvatarStudio({ embedded }: { embedded?: boolean } = {}) {
   }, [loadCatalog]);
 
   const primed = useRef(false);
+  const catalogRef = useRef(catalog);
+  catalogRef.current = catalog;
+  const pendingOpen = useRef<{ slot: string; id: string } | null>(
+    initialSlot && initialId ? { slot: initialSlot, id: initialId } : null,
+  );
+
+  const loadPart = useCallback((part: StudioCatalog["parts"][number]) => {
+    if (!PART_SLOTS.includes(part.slot as (typeof PART_SLOTS)[number])) {
+      return;
+    }
+    setSlot(part.slot as (typeof PART_SLOTS)[number]);
+    setId(part.id);
+    setLabelKo(part.ko);
+    setLabelEn(part.en);
+    setShop(part.shop);
+    setSetKey(part.set ?? "");
+    setGlyphs(part.glyphs);
+    setNotice(null);
+  }, []);
+
   useEffect(() => {
+    if (initialSlot && initialId) {
+      pendingOpen.current = { slot: initialSlot, id: initialId };
+      primed.current = false;
+    }
+  }, [initialId, initialSlot]);
+
+  useEffect(() => {
+    const applyDraft = (part: StudioPart) => {
+      loadPart({ ...part, set: part.set ?? "", shop: part.shop ?? false });
+    };
+    const unlistenDraft = listen<StudioPart>("avatar-draft", (event) => {
+      applyDraft(event.payload);
+    });
+    const unlistenSaved = listen<StudioPart>("avatar-catalog-changed", (event) => {
+      applyDraft(event.payload);
+      void loadCatalog();
+    });
+    return () => {
+      void unlistenDraft.then((stop) => stop());
+      void unlistenSaved.then((stop) => stop());
+    };
+  }, [loadCatalog, loadPart]);
+
+  useEffect(() => {
+    const unlisten = listen<{ slot: string; id: string; ownedId?: string }>(AVATAR_EDITOR_OPEN_EVENT, (event) => {
+      if (event.payload.ownedId) {
+        setOwnedId(event.payload.ownedId);
+      }
+      const part = catalogRef.current?.parts.find(
+        (item) => item.slot === event.payload.slot && item.id === event.payload.id,
+      );
+      if (part) {
+        loadPart(part);
+        return;
+      }
+      pendingOpen.current = event.payload;
+    });
+    return () => {
+      void unlisten.then((stop) => stop());
+    };
+  }, [loadPart]);
+
+  useEffect(() => {
+    if (!catalog) {
+      return;
+    }
+    const pending = pendingOpen.current;
+    if (pending) {
+      const part = catalog.parts.find((item) => item.slot === pending.slot && item.id === pending.id);
+      if (part) {
+        pendingOpen.current = null;
+        primed.current = true;
+        loadPart(part);
+        return;
+      }
+    }
     if (primed.current) {
       return;
     }
-    const first = catalog?.parts.find((p) => p.slot === "body" && p.id === "sprite") ?? catalog?.parts[0];
+    const first = catalog.parts.find((p) => p.slot === "body" && p.id === "sprite") ?? catalog.parts[0];
     if (!first) {
       return;
     }
     primed.current = true;
-    setSlot(first.slot as (typeof PART_SLOTS)[number]);
-    setId(first.id);
-    setLabelKo(first.ko);
-    setLabelEn(first.en);
-    setShop(first.shop);
-    setSetKey(first.set ?? "");
-    setGlyphs(first.glyphs);
-  }, [catalog]);
+    loadPart(first);
+  }, [catalog, loadPart]);
 
   useEffect(() => {
     const canvas = paintRef.current;
@@ -104,9 +189,9 @@ export function AvatarStudio({ embedded }: { embedded?: boolean } = {}) {
     if (!canvas || !catalog) {
       return;
     }
-    const rgba = composeStudioRgba(kit, catalog, step, { slot, glyphs });
+    const rgba = composeStudioRgba(DEFAULT_AVATAR_KIT, catalog, step, { slot, glyphs });
     blitRgba(canvas, rgba, PREVIEW_SCALE);
-  }, [catalog, glyphs, kit, slot, step]);
+  }, [catalog, glyphs, slot, step]);
 
   const paintAt = (clientX: number, clientY: number, ch: GlyphCh) => {
     const canvas = paintRef.current;
@@ -120,35 +205,30 @@ export function AvatarStudio({ embedded }: { embedded?: boolean } = {}) {
     setGlyphs((prev) => setGlyphCell(prev, at.x, at.y, ch));
   };
 
-  const loadPart = (part: StudioCatalog["parts"][number]) => {
-    if (!PART_SLOTS.includes(part.slot as (typeof PART_SLOTS)[number])) {
-      return;
-    }
-    setSlot(part.slot as (typeof PART_SLOTS)[number]);
-    setId(part.id);
-    setLabelKo(part.ko);
-    setLabelEn(part.en);
-    setShop(part.shop);
-    setSetKey(part.set ?? "");
-    setGlyphs(part.glyphs);
-    setNotice(null);
-  };
-
   const save = async () => {
     setError(null);
     setNotice(null);
     try {
-      const path = await writeCommAvatarPart({
-        id: id.trim(),
-        slot,
-        set: setKey.trim(),
-        shop,
+      const fields = {
+        slug: id.trim(),
         ko: labelKo.trim() || id,
         en: labelEn.trim() || id,
+        setKey: setKey.trim(),
+        shop,
         glyphs,
-      });
-      setNotice(path);
-      await loadCatalog();
+      };
+      let target = ownedId;
+      if (!target) {
+        const created = await copyOfficialKit(
+          { ...DEFAULT_AVATAR_KIT, [slot]: id.trim() || "sprite" },
+          fields.ko,
+          fields.en,
+        );
+        target = created.id;
+        setOwnedId(target);
+      }
+      const saved = await forkSlot(target, slot, fields);
+      setNotice(saved.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -164,20 +244,47 @@ export function AvatarStudio({ embedded }: { embedded?: boolean } = {}) {
     }
   };
 
-  const slots = catalog ? slotsFromStudioCatalog(catalog) : [];
   const ascii = glyphs.join("\n");
 
   return (
-    <ChatShell embedded={embedded} title={ko ? "아바타 스튜디오" : "Avatar studio"}>
+    <ChatShell title={ko ? "아바타 제작" : "Create avatar"} icon={<Pencil className="w-4 h-4" />}>
       <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
+        <section className="space-y-2 min-w-0">
+          <h2 className="text-sm font-semibold text-base-content">ASCII</h2>
+          <p className="text-xs text-base-content/55 leading-relaxed">
+            {ko
+              ? "점을 직접 찍으려면 여기서 고칩니다. 한 줄은 24칸입니다."
+              : "Edit the dots here. Each line is 24 cells."}
+          </p>
+          <Card className="p-3 min-w-0">
+            <textarea
+              className="textarea textarea-bordered font-mono text-[10px] leading-[1.15] w-full h-64 bg-base-100"
+              spellCheck={false}
+              value={ascii}
+              onChange={(e) => {
+                const lines = e.target.value.replace(/\r/g, "").split("\n").slice(0, AVATAR_GRID);
+                while (lines.length < AVATAR_GRID) {
+                  lines.push(".".repeat(AVATAR_GRID));
+                }
+                setGlyphs(lines.map((line) => line.padEnd(AVATAR_GRID, ".").slice(0, AVATAR_GRID)));
+              }}
+            />
+          </Card>
+        </section>
         <section className="space-y-2 min-w-0">
           <h2 className="text-sm font-semibold text-base-content">{ko ? "파츠 그리기" : "Paint a part"}</h2>
           <p className="text-xs text-base-content/55 leading-relaxed">
             {ko
-              ? "24×24 ASCII입니다. 저장하면 avatar-parts/{슬롯}-{id}.json 에 씁니다. Gemini는 JSON만 추가하면 됩니다."
-              : "24×24 ASCII. Save writes avatar-parts/{slot}-{id}.json. Agents only need to add that file."}
+              ? "24×24 ASCII입니다. 저장하면 내 아바타의 이 슬롯만 사용자 파츠로 갈라집니다."
+              : "24×24 ASCII. Save forks this slot into a part you own."}
           </p>
           <Card className="p-3 space-y-3 min-w-0">
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => void openAvatarDressWindow()}>
+                <User className="w-3.5 h-3.5" />
+                {ko ? "꾸미기 창" : "Dress window"}
+              </Button>
+            </div>
             <div className="flex flex-wrap gap-2">
               {PART_SLOTS.map((s) => (
                 <Button key={s} size="xs" variant={slot === s ? "primary" : "secondary"} onClick={() => setSlot(s)}>
@@ -280,8 +387,8 @@ export function AvatarStudio({ embedded }: { embedded?: boolean } = {}) {
           <h2 className="text-sm font-semibold text-base-content">{ko ? "합성 미리보기" : "Composite preview"}</h2>
           <p className="text-xs text-base-content/55 leading-relaxed">
             {ko
-              ? "지금 그리는 슬롯이 킷에 덮어씌워집니다. 채널은 선택한 팔레트 색으로 바뀝니다."
-              : "The slot you are painting replaces that layer on the kit. Channels remap through the selected palette."}
+              ? "지금 그리는 슬롯이 기본 아바타 위에 덮입니다."
+              : "The slot you are painting replaces that layer on the default avatar."}
           </p>
           <Card className="p-3 space-y-3 min-w-0">
             <div className="flex items-end gap-3">
@@ -305,88 +412,43 @@ export function AvatarStudio({ embedded }: { embedded?: boolean } = {}) {
             {catalog?.warnings?.length ? (
               <p className="text-[11px] text-warning whitespace-pre-wrap">{catalog.warnings.join("\n")}</p>
             ) : null}
-            {(catalog?.sets ?? []).length > 0 ? (
-              <div className="space-y-1.5">
-                <p className="text-[11px] font-medium text-base-content/70">{ko ? "세트" : "Sets"}</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {(catalog?.sets ?? []).map((item) => (
-                    <Button
-                      key={item.id}
-                      size="xs"
-                      variant="secondary"
-                      onClick={() => setKit((prev) => applyAvatarSet(prev, item.kit))}
-                    >
-                      {ko ? item.ko : item.en}
-                      {item.shop ? <span className="opacity-60">Shop</span> : null}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-            {slots.map((group) => (
-              <div key={group.slot} className="space-y-1.5">
-                <p className="text-[11px] font-medium text-base-content/70">{ko ? group.ko : group.en}</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {group.options.map((opt) => (
-                    <Button
-                      key={opt.id}
-                      size="xs"
-                      variant={kit[group.slot] === opt.id ? "primary" : "secondary"}
-                      onClick={() => setKit((prev) => ({ ...prev, [group.slot]: opt.id }))}
-                    >
-                      {ko ? opt.ko : opt.en}
-                      {opt.shop ? <span className="opacity-60">Shop</span> : null}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            ))}
           </Card>
         </section>
 
         <section className="space-y-2 min-w-0">
-          <h2 className="text-sm font-semibold text-base-content">{ko ? "카탈로그" : "Catalog"}</h2>
-          <Card className="p-3 space-y-2 min-w-0">
-            {(catalog?.parts ?? []).length === 0 ? (
-              <p className="text-xs text-base-content/45">{ko ? "파츠가 없습니다." : "No parts yet."}</p>
-            ) : (
-              <ul className="space-y-1">
-                {(catalog?.parts ?? []).map((part) => (
-                  <li key={`${part.slot}-${part.id}`}>
-                    <Button
-                      size="xs"
-                      variant={part.slot === slot && part.id === id ? "primary" : "ghost"}
-                      className="w-full justify-start font-mono"
-                      onClick={() => loadPart(part)}
-                    >
-                      <Pencil className="w-3 h-3" />
-                      {part.slot}/{part.id}
-                      {part.set ? <span className="opacity-60">{part.set}</span> : null}
-                      {part.shop ? <span className="opacity-60">Shop</span> : null}
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-        </section>
-
-        <section className="space-y-2 min-w-0">
-          <h2 className="text-sm font-semibold text-base-content">ASCII</h2>
-          <Card className="p-3 min-w-0">
-            <textarea
-              className="textarea textarea-bordered font-mono text-[10px] leading-[1.15] w-full h-64 bg-base-100"
-              spellCheck={false}
-              value={ascii}
-              onChange={(e) => {
-                const lines = e.target.value.replace(/\r/g, "").split("\n").slice(0, AVATAR_GRID);
-                while (lines.length < AVATAR_GRID) {
-                  lines.push(".".repeat(AVATAR_GRID));
-                }
-                setGlyphs(lines.map((line) => line.padEnd(AVATAR_GRID, ".").slice(0, AVATAR_GRID)));
-              }}
+          <h2 className="text-sm font-semibold text-base-content">{ko ? "편집할 파츠" : "Part to edit"}</h2>
+          {catalog ? (
+            <AvatarCatalogBrowser
+              catalog={catalog}
+              langKo={ko}
+              entries={catalog.parts.map(
+                (part): AvatarCatalogEntry => ({
+                  key: `${part.slot}:${part.id}`,
+                  slot: part.slot,
+                  partId: part.id,
+                  ko: part.ko,
+                  en: part.en,
+                  setName: part.set,
+                  glyphs: part.glyphs,
+                  shop: part.shop,
+                  mode: "part",
+                }),
+              )}
+              renderActions={(entry) => (
+                <Button
+                  size="xs"
+                  onClick={() => {
+                    const part = catalog.parts.find((item) => item.slot === entry.slot && item.id === entry.partId);
+                    if (part) {
+                      loadPart(part);
+                    }
+                  }}
+                >
+                  {ko ? "열기" : "Open"}
+                </Button>
+              )}
             />
-          </Card>
+          ) : null}
         </section>
       </div>
     </ChatShell>

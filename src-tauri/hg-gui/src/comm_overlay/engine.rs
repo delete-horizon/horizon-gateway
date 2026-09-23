@@ -176,19 +176,9 @@ pub enum DrawCmd {
         alpha: u8,
     },
     /// Mist cloud for the spray tool.
-    SprayCloud {
-        x: f32,
-        y: f32,
-        r: f32,
-        alpha: u8,
-    },
+    SprayCloud { x: f32, y: f32, r: f32, alpha: u8 },
     /// Bottom-right arm chip (visual); hit handled separately.
-    ArmChip {
-        x: f32,
-        y: f32,
-        w: f32,
-        h: f32,
-    },
+    ArmChip { x: f32, y: f32, w: f32, h: f32 },
     /// Annoy marks: 0=💢 vein, 1=sweat, 2=ㅋ blob
     Mark {
         x: f32,
@@ -469,7 +459,12 @@ impl Engine {
     }
 
     /// Zones that should receive mouse (everything else stays click-through).
-    pub fn hit_zones(&self, width: f32, height: f32, cursor: Option<(f32, f32)>) -> Vec<(f32, f32, f32)> {
+    pub fn hit_zones(
+        &self,
+        width: f32,
+        height: f32,
+        cursor: Option<(f32, f32)>,
+    ) -> Vec<(f32, f32, f32)> {
         if !self.has_catchables() {
             return Vec::new();
         }
@@ -665,7 +660,8 @@ impl Engine {
                     }
                     for i in 0..8 {
                         let ang = chaos * 10.0 + i as f32 * 0.9 + t * 6.0;
-                        let dist = (18.0 + t * 50.0 + (hash_u64(s.seed + i as u64) % 40) as f32) * sc;
+                        let dist =
+                            (18.0 + t * 50.0 + (hash_u64(s.seed + i as u64) % 40) as f32) * sc;
                         cmds.push(DrawCmd::Star {
                             x: s.x + ang.cos() * dist,
                             y: s.y + ang.sin() * dist,
@@ -692,7 +688,12 @@ impl Engine {
                             y: s.y,
                             r: (10.0 + e * (55.0 + k as f32 * 22.0)) * sc,
                             stroke: (2.0 + fade * 2.0) * sc,
-                            rgba: [100 + k * 40, 200, 255, a(fade * (1.0 - k as f32 * 0.2), 200.0)],
+                            rgba: [
+                                100 + k * 40,
+                                200,
+                                255,
+                                a(fade * (1.0 - k as f32 * 0.2), 200.0),
+                            ],
                         });
                     }
                     for i in 0..6 {
@@ -850,7 +851,8 @@ impl Engine {
                     });
                 }
                 ActionKind::Fly => {
-                    let phase = now.duration_since(s.born).as_secs_f32() * 40.0 + (s.seed % 20) as f32;
+                    let phase =
+                        now.duration_since(s.born).as_secs_f32() * 40.0 + (s.seed % 20) as f32;
                     let rot = s.vy.atan2(s.vx) + phase.sin() * 0.4;
                     let life_fade = if t > 0.85 {
                         ((1.0 - t) / 0.15).clamp(0.0, 1.0)
@@ -970,7 +972,10 @@ mod tests {
             .filter(|c| matches!(c, DrawCmd::Fly { .. }))
             .count();
         assert_eq!(flies, MAX_FLY_BURST as usize);
-        assert!(frame.cmds.iter().any(|c| matches!(c, DrawCmd::ArmChip { .. })));
+        assert!(frame
+            .cmds
+            .iter()
+            .any(|c| matches!(c, DrawCmd::ArmChip { .. })));
         assert!(frame.banners.iter().any(|b| b.text.contains("똥파리")));
     }
 
@@ -1002,4 +1007,3 @@ mod tests {
         assert_eq!(e.tool(), OverlayTool::Spray);
     }
 }
-

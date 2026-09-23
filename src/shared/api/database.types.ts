@@ -344,12 +344,145 @@ export type Database = {
         };
         Relationships: [];
       };
+      avatar_user_parts: {
+        Row: {
+          id: string;
+          owner_id: string;
+          slot: string;
+          slug: string;
+          ko: string;
+          en: string;
+          set_key: string;
+          shop: boolean;
+          glyphs: Json;
+          copied_from: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_id: string;
+          slot: string;
+          slug?: string;
+          ko?: string;
+          en?: string;
+          set_key?: string;
+          shop?: boolean;
+          glyphs: Json;
+          copied_from?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          owner_id?: string;
+          slot?: string;
+          slug?: string;
+          ko?: string;
+          en?: string;
+          set_key?: string;
+          shop?: boolean;
+          glyphs?: Json;
+          copied_from?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      avatar_owned: {
+        Row: {
+          id: string;
+          owner_id: string;
+          name_ko: string;
+          name_en: string;
+          body_ref: string;
+          head_ref: string;
+          outfit_ref: string;
+          back_ref: string;
+          held_ref: string;
+          palette: string;
+          copied_from: string | null;
+          visibility: string;
+          listed_for_sale: boolean;
+          price_cents: number | null;
+          revision: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_id: string;
+          name_ko?: string;
+          name_en?: string;
+          body_ref: string;
+          head_ref: string;
+          outfit_ref: string;
+          back_ref: string;
+          held_ref: string;
+          palette?: string;
+          copied_from?: string | null;
+          visibility?: string;
+          listed_for_sale?: boolean;
+          price_cents?: number | null;
+          revision?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          owner_id?: string;
+          name_ko?: string;
+          name_en?: string;
+          body_ref?: string;
+          head_ref?: string;
+          outfit_ref?: string;
+          back_ref?: string;
+          held_ref?: string;
+          palette?: string;
+          copied_from?: string | null;
+          visibility?: string;
+          listed_for_sale?: boolean;
+          price_cents?: number | null;
+          revision?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      avatar_entitlements: {
+        Row: {
+          id: string;
+          avatar_id: string;
+          buyer_id: string;
+          revision: number;
+          snapshot: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          avatar_id: string;
+          buyer_id: string;
+          revision: number;
+          snapshot: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          avatar_id?: string;
+          buyer_id?: string;
+          revision?: number;
+          snapshot?: Json;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
       is_workspace_member: { Args: { ws_id: string }; Returns: boolean };
       is_workspace_admin: { Args: { ws_id: string }; Returns: boolean };
       shares_workspace_with: { Args: { target_profile: string }; Returns: boolean };
+      avatar_author_name: { Args: { target: string }; Returns: string };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

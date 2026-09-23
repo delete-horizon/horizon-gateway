@@ -124,7 +124,10 @@ fn test_resolve_target_explicit_localhost_port_preserved() {
     assert!(local_origin.is_some());
     let (host, port, path) = local_origin.unwrap();
     assert_eq!(host, "127.0.0.1");
-    assert_eq!(port, 3000, "Must preserve explicit port 3000 instead of hijacking to 8080");
+    assert_eq!(
+        port, 3000,
+        "Must preserve explicit port 3000 instead of hijacking to 8080"
+    );
     assert_eq!(path, "/api/check");
     assert_eq!(target_uri, "http://127.0.0.1:3000/api/check");
 }
@@ -142,6 +145,9 @@ fn test_resolve_connect_target_localhost_normalized() {
     let result = resolve_connect_target("www.modetour.dev", &[route]);
     assert!(result.is_some());
     let (host, port) = result.unwrap();
-    assert_eq!(host, "127.0.0.1", "localhost must normalize to 127.0.0.1 for connect");
+    assert_eq!(
+        host, "127.0.0.1",
+        "localhost must normalize to 127.0.0.1 for connect"
+    );
     assert_eq!(port, 3000);
 }

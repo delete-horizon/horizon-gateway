@@ -5,6 +5,7 @@ import { useAtomValue } from "jotai";
 import { AppWindow, Monitor } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { commands } from "@/shared/api";
+import { openAvatarDressWindow } from "@/shared/lib/tauri/openChatWindow";
 import { useIsDetached } from "@/shared/lib/tauri/useIsDetached";
 import { toastError } from "@/shared/ui/toast";
 import { languageAtom } from "../i18n/store";
@@ -13,16 +14,13 @@ import { WindowControls } from "./WindowControls";
 
 const appWindow = getCurrentWindow();
 
-type CommMenu = "avatar" | "lab";
+type CommMenu = "lab";
 
 function commMenuFromSearch(search: unknown): CommMenu | null {
   if (!search || typeof search !== "object" || !("menu" in search)) {
     return null;
   }
   const menu = (search as { menu?: unknown }).menu;
-  if (menu === "avatar") {
-    return "avatar";
-  }
   if (menu === "lab" && import.meta.env.DEV) {
     return "lab";
   }
@@ -34,17 +32,19 @@ function CommTitleMenus({
   showLab,
   ko,
   onMenu,
+  onOpenAvatar,
   onOpenHub,
 }: {
   menu: CommMenu | null;
   showLab: boolean;
   ko: boolean;
   onMenu: (next: CommMenu | null) => void;
+  onOpenAvatar: () => void;
   onOpenHub: () => void;
 }) {
   return (
     <div className="flex items-center h-full mr-1">
-      <TitleMenuButton active={menu === "avatar"} onClick={() => onMenu(menu === "avatar" ? null : "avatar")}>
+      <TitleMenuButton active={false} onClick={onOpenAvatar}>
         {ko ? "아바타" : "Avatar"}
       </TitleMenuButton>
       {showLab ? (
@@ -197,6 +197,11 @@ export function Titlebar({ trailing }: TitlebarProps) {
             ko={lang === "ko"}
             onMenu={(next) => {
               void navigate({ to: "/comm", search: next ? { menu: next } : {} });
+            }}
+            onOpenAvatar={() => {
+              void openAvatarDressWindow().catch((error: unknown) => {
+                toastError(error instanceof Error ? error.message : String(error));
+              });
             }}
             onOpenHub={() => {
               void openHubApp().then((error) => {

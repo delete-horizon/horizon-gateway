@@ -52,7 +52,7 @@ Shop later: persist `{slot}:{id}` and `set:{id}` strings. Never store slot index
 ## Check
 
 ```bash
-cargo test --package horizon-gateway --lib comm_overlay::avatar
+cargo test -p hg-avatar
 ```
 
 Open the desktop **Avatar studio** or Overlay lab and hit **Reload catalog**. Do not add TypeScript catalog entries.

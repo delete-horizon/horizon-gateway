@@ -742,7 +742,8 @@ pub struct UpdateProxySettingsPayload {
 
 pub const UPDATE_PROXY_SETTINGS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "update_proxy_settings",
-    description: "프록시 엔진 옵션(CORS, TLS 우회, 타임아웃, 로그 보관 기간)을 부분 업데이트합니다.",
+    description:
+        "프록시 엔진 옵션(CORS, TLS 우회, 타임아웃, 로그 보관 기간)을 부분 업데이트합니다.",
     payload_example: r#"{"corsRewriteEnabled": true, "logRetentionDays": 14}"#,
     category: "proxy",
     gui_only: false,

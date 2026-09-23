@@ -61,8 +61,10 @@ impl Engine {
             .filter(|s| s.online && !s.profile_id.trim().is_empty())
             .collect();
         let keep: HashSet<&str> = online.iter().map(|s| s.profile_id.as_str()).collect();
-        self.residents.retain(|r| keep.contains(r.profile_id.as_str()));
-        self.bubbles.retain(|b| keep.contains(b.profile_id.as_str()));
+        self.residents
+            .retain(|r| keep.contains(r.profile_id.as_str()));
+        self.bubbles
+            .retain(|b| keep.contains(b.profile_id.as_str()));
 
         for spec in online {
             if let Some(existing) = self
@@ -96,8 +98,16 @@ impl Engine {
                 online: true,
                 kit: AvatarKit::default(),
             };
-            let w = if self.bounds_w < 64.0 { 1280.0 } else { self.bounds_w };
-            let h = if self.bounds_h < 64.0 { 720.0 } else { self.bounds_h };
+            let w = if self.bounds_w < 64.0 {
+                1280.0
+            } else {
+                self.bounds_w
+            };
+            let h = if self.bounds_h < 64.0 {
+                720.0
+            } else {
+                self.bounds_h
+            };
             self.residents
                 .push(spawn_resident(&spec, w, h, self.residents.len()));
         }
@@ -153,10 +163,8 @@ impl Engine {
                 step,
                 ids: r.kit.ids(),
             });
-            let label_dy = 22.0
-                * crate::comm_overlay::avatar::body_scale(&r.kit)
-                * r.scale.max(0.8)
-                + 28.0;
+            let label_dy =
+                22.0 * crate::comm_overlay::avatar::body_scale(&r.kit) * r.scale.max(0.8) + 28.0;
             banners.push(Banner::label(r.label.clone(), r.x, draw_y + label_dy));
         }
 
@@ -292,7 +300,10 @@ mod tests {
         e.show_bubble("me", "안녕 테스트", Duration::from_millis(1000), t0);
         let frame = e.tick(t0, 800.0, 600.0, None);
         assert!(frame.banners.iter().any(|b| b.text.contains("안녕")));
-        assert!(frame.cmds.iter().any(|c| matches!(c, DrawCmd::SpeechBubble { .. })));
+        assert!(frame
+            .cmds
+            .iter()
+            .any(|c| matches!(c, DrawCmd::SpeechBubble { .. })));
         let later = t0 + Duration::from_millis(1600);
         e.tick(later, 800.0, 600.0, None);
         assert!(e.bubbles.is_empty());

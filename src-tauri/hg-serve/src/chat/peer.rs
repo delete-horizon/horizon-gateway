@@ -84,7 +84,9 @@ pub fn start_listener() -> Result<ListenInfo, String> {
     let port = listener.local_addr().map_err(|e| e.to_string())?.port();
     LISTEN_PORT.store(port, Ordering::SeqCst);
 
-    let stop = STOP.get_or_init(|| Arc::new(AtomicBool::new(false))).clone();
+    let stop = STOP
+        .get_or_init(|| Arc::new(AtomicBool::new(false)))
+        .clone();
     stop.store(false, Ordering::SeqCst);
     RUNNING.store(true, Ordering::SeqCst);
 

@@ -60,7 +60,8 @@ pub fn bootstrap_app_context() -> Result<AppContext, String> {
             }
 
             // Merge domains by hostname — append old entries not present in the new store.
-            let merged = merge_domains_from_legacy(&old_domains_path, &app_data_dir.join("domains.json"));
+            let merged =
+                merge_domains_from_legacy(&old_domains_path, &app_data_dir.join("domains.json"));
             if let Some(merged_domains) = merged {
                 if let Ok(content) = serde_json::to_string_pretty(&serde_json::json!({
                     "schema_version": 2,
@@ -101,7 +102,9 @@ pub fn bootstrap_app_context() -> Result<AppContext, String> {
             if let Err(e) = fs::rename(&old_dir, &migrated_dir) {
                 eprintln!("Warning: could not rename legacy app data dir after migration: {e}");
             } else {
-                println!("Migrated app data from com.lurain.watchtower to com.lurain.horizon-gateway.");
+                println!(
+                    "Migrated app data from com.lurain.watchtower to com.lurain.horizon-gateway."
+                );
             }
         }
     }
@@ -223,19 +226,15 @@ fn migrate_removed_global_toggles(
     proxy_settings.seed_tls_defaults_if_needed(decrypt_hosts);
 }
 
-fn merge_domains_from_legacy(
-    old_path: &Path,
-    new_path: &Path,
-) -> Option<Vec<serde_json::Value>> {
+fn merge_domains_from_legacy(old_path: &Path, new_path: &Path) -> Option<Vec<serde_json::Value>> {
     let load = |path: &Path| -> Option<Vec<serde_json::Value>> {
         let content = fs::read_to_string(path).ok()?;
         let value: serde_json::Value = serde_json::from_str(&content).ok()?;
         match value {
             serde_json::Value::Array(items) => Some(items),
-            serde_json::Value::Object(ref map) => map
-                .get("data")
-                .and_then(|v| v.as_array())
-                .cloned(),
+            serde_json::Value::Object(ref map) => {
+                map.get("data").and_then(|v| v.as_array()).cloned()
+            }
             _ => None,
         }
     };

@@ -386,7 +386,10 @@ pub fn dispatch_headless(
                 let _ = ctx.api_log_service.purge_logs_older_than(days);
             }
             crate::serve::events::publish_event("proxy-settings-changed", result.data.clone());
-            crate::serve::events::publish_event("hub-data-changed", serde_json::json!({ "reason": "settings" }));
+            crate::serve::events::publish_event(
+                "hub-data-changed",
+                serde_json::json!({ "reason": "settings" }),
+            );
             Ok(serde_json::to_value(result).unwrap())
         }
         "set_https_decrypt_host" => {
@@ -639,11 +642,11 @@ pub fn dispatch_headless(
             // When the outer object contains both keys we must unwrap them.
             let (settings_value, mode_opt) = if let Some(obj) = payload.as_object() {
                 if obj.contains_key("payload") {
-                    let inner = obj.get("payload").cloned().unwrap_or(serde_json::Value::Null);
-                    let mode = obj
-                        .get("mode")
-                        .and_then(|v| v.as_str())
-                        .map(str::to_string);
+                    let inner = obj
+                        .get("payload")
+                        .cloned()
+                        .unwrap_or(serde_json::Value::Null);
+                    let mode = obj.get("mode").and_then(|v| v.as_str()).map(str::to_string);
                     (inner, mode)
                 } else {
                     (payload, None)
@@ -1036,6 +1039,28 @@ pub fn dispatch_headless(
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
             crate::session_handoff::put(parsed)?;
             Ok(serde_json::json!({ "ready": true }))
+        }
+        "get_comm_avatar_catalog" | "reload_comm_avatar_catalog" => {
+            let result = command::avatar_commands::get_comm_avatar_catalog()?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "compose_comm_avatar" => {
+            let parsed: command::avatar_commands::ComposePayload = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::avatar_commands::compose_comm_avatar(parsed)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "write_comm_avatar_part" => {
+            let parsed: command::avatar_commands::PartPayload = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::avatar_commands::write_comm_avatar_part(parsed)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "push_comm_avatar_draft" => {
+            let parsed: command::avatar_commands::PartPayload = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            command::avatar_commands::push_comm_avatar_draft(parsed)?;
+            Ok(serde_json::json!({ "ok": true }))
         }
         "session_handoff_take" => match crate::session_handoff::take()? {
             Some(tokens) => Ok(serde_json::to_value(tokens).unwrap()),

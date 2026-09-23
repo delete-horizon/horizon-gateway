@@ -114,7 +114,8 @@ pub(crate) fn try_mock_response(
                     hv
                 } else {
                     let enc = urlencoding::encode(v);
-                    header::HeaderValue::from_str(&enc).unwrap_or_else(|_| HeaderValue::from_static(""))
+                    header::HeaderValue::from_str(&enc)
+                        .unwrap_or_else(|_| HeaderValue::from_static(""))
                 };
                 headers.insert(header_name, header_value);
             }
@@ -149,7 +150,10 @@ pub(crate) fn try_mock_response(
             let enc = urlencoding::encode(&rule.name);
             HeaderValue::from_str(&enc).unwrap_or_else(|_| HeaderValue::from_static(""))
         };
-        headers.insert(header::HeaderName::from_static("x-mock-rule-name"), rule_name_hv);
+        headers.insert(
+            header::HeaderName::from_static("x-mock-rule-name"),
+            rule_name_hv,
+        );
     }
     let body = rule.response_body.unwrap_or_default();
 

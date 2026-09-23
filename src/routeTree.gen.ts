@@ -14,6 +14,8 @@ import { Route as AboutIndexRouteImport } from './routes/about/index'
 import { Route as ApisIndexRouteImport } from './routes/apis/index'
 import { Route as ChatIndexRouteImport } from './routes/chat/index'
 import { Route as ChatRoomIdRouteImport } from './routes/chat/$roomId'
+import { Route as ChatAvatarRouteImport } from './routes/chat/avatar'
+import { Route as ChatAvatarCatalogRouteImport } from './routes/chat/avatar-catalog'
 import { Route as ChatAvatarStudioRouteImport } from './routes/chat/avatar-studio'
 import { Route as ChatPlaygroundRouteImport } from './routes/chat/playground'
 import { Route as CommIndexRouteImport } from './routes/comm/index'
@@ -79,6 +81,16 @@ const ChatIndexRoute = ChatIndexRouteImport.update({
 const ChatRoomIdRoute = ChatRoomIdRouteImport.update({
   id: '/chat/$roomId',
   path: '/chat/$roomId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatAvatarRoute = ChatAvatarRouteImport.update({
+  id: '/chat/avatar',
+  path: '/chat/avatar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatAvatarCatalogRoute = ChatAvatarCatalogRouteImport.update({
+  id: '/chat/avatar-catalog',
+  path: '/chat/avatar-catalog',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChatAvatarStudioRoute = ChatAvatarStudioRouteImport.update({
@@ -292,6 +304,8 @@ const UxPoliciesIndexRoute = UxPoliciesIndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/chat/$roomId': typeof ChatRoomIdRoute
+  '/chat/avatar': typeof ChatAvatarRoute
+  '/chat/avatar-catalog': typeof ChatAvatarCatalogRoute
   '/chat/avatar-studio': typeof ChatAvatarStudioRoute
   '/chat/playground': typeof ChatPlaygroundRoute
   '/about/': typeof AboutIndexRoute
@@ -340,6 +354,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/chat/$roomId': typeof ChatRoomIdRoute
+  '/chat/avatar': typeof ChatAvatarRoute
+  '/chat/avatar-catalog': typeof ChatAvatarCatalogRoute
   '/chat/avatar-studio': typeof ChatAvatarStudioRoute
   '/chat/playground': typeof ChatPlaygroundRoute
   '/about': typeof AboutIndexRoute
@@ -389,6 +405,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/chat/$roomId': typeof ChatRoomIdRoute
+  '/chat/avatar': typeof ChatAvatarRoute
+  '/chat/avatar-catalog': typeof ChatAvatarCatalogRoute
   '/chat/avatar-studio': typeof ChatAvatarStudioRoute
   '/chat/playground': typeof ChatPlaygroundRoute
   '/about/': typeof AboutIndexRoute
@@ -439,6 +457,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/chat/$roomId'
+    | '/chat/avatar'
+    | '/chat/avatar-catalog'
     | '/chat/avatar-studio'
     | '/chat/playground'
     | '/about/'
@@ -487,6 +507,8 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/chat/$roomId'
+    | '/chat/avatar'
+    | '/chat/avatar-catalog'
     | '/chat/avatar-studio'
     | '/chat/playground'
     | '/about'
@@ -535,6 +557,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/chat/$roomId'
+    | '/chat/avatar'
+    | '/chat/avatar-catalog'
     | '/chat/avatar-studio'
     | '/chat/playground'
     | '/about/'
@@ -584,6 +608,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ChatRoomIdRoute: typeof ChatRoomIdRoute
+  ChatAvatarRoute: typeof ChatAvatarRoute
+  ChatAvatarCatalogRoute: typeof ChatAvatarCatalogRoute
   ChatAvatarStudioRoute: typeof ChatAvatarStudioRoute
   ChatPlaygroundRoute: typeof ChatPlaygroundRoute
   AboutIndexRoute: typeof AboutIndexRoute
@@ -665,6 +691,20 @@ declare module '@tanstack/react-router' {
       path: '/chat/$roomId'
       fullPath: '/chat/$roomId'
       preLoaderRoute: typeof ChatRoomIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chat/avatar': {
+      id: '/chat/avatar'
+      path: '/chat/avatar'
+      fullPath: '/chat/avatar'
+      preLoaderRoute: typeof ChatAvatarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chat/avatar-catalog': {
+      id: '/chat/avatar-catalog'
+      path: '/chat/avatar-catalog'
+      fullPath: '/chat/avatar-catalog'
+      preLoaderRoute: typeof ChatAvatarCatalogRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chat/avatar-studio': {
@@ -960,6 +1000,8 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ChatRoomIdRoute: ChatRoomIdRoute,
+  ChatAvatarRoute: ChatAvatarRoute,
+  ChatAvatarCatalogRoute: ChatAvatarCatalogRoute,
   ChatAvatarStudioRoute: ChatAvatarStudioRoute,
   ChatPlaygroundRoute: ChatPlaygroundRoute,
   AboutIndexRoute: AboutIndexRoute,

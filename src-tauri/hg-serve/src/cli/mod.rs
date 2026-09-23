@@ -137,6 +137,11 @@ pub const CLI_COMMANDS: &[CliCommandInfo] = &[
     crate::command::usb_commands::START_USB_REVERSE_CLI_INFO,
     crate::command::usb_commands::STOP_USB_REVERSE_CLI_INFO,
     // --- Window ---
+    crate::command::avatar_commands::GET_COMM_AVATAR_CATALOG_CLI_INFO,
+    crate::command::avatar_commands::RELOAD_COMM_AVATAR_CATALOG_CLI_INFO,
+    crate::command::avatar_commands::COMPOSE_COMM_AVATAR_CLI_INFO,
+    crate::command::avatar_commands::WRITE_COMM_AVATAR_PART_CLI_INFO,
+    crate::command::avatar_commands::PUSH_COMM_AVATAR_DRAFT_CLI_INFO,
     crate::command::window_commands::OPEN_WINDOW_CLI_INFO,
     crate::command::window_commands::OPEN_INSPECTOR_WINDOW_CLI_INFO,
     crate::command::window_commands::OPEN_ANNOTATION_DIALOG_CLI_INFO,
@@ -627,6 +632,11 @@ const DISPATCHED_COMMAND_NAMES: &[&str] = &[
     "update_crypto_preset",
     "delete_crypto_preset",
     "import_crypto_presets",
+    "get_comm_avatar_catalog",
+    "reload_comm_avatar_catalog",
+    "compose_comm_avatar",
+    "write_comm_avatar_part",
+    "push_comm_avatar_draft",
 ];
 
 #[cfg(test)]
@@ -756,6 +766,11 @@ mod parity_tests {
         "update_crypto_preset",
         "delete_crypto_preset",
         "import_crypto_presets",
+        "get_comm_avatar_catalog",
+        "reload_comm_avatar_catalog",
+        "compose_comm_avatar",
+        "write_comm_avatar_part",
+        "push_comm_avatar_draft",
     ];
 
     #[test]

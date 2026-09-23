@@ -1,3 +1,5 @@
+export { AvatarCatalogPage } from "./ui/AvatarCatalogPage";
+export { AvatarDress } from "./ui/AvatarDress";
 export { AvatarStudio } from "./ui/AvatarStudio";
 export { ChatInboxView } from "./ui/ChatInboxView";
 export { ChatLiveBridge } from "./ui/ChatLiveBridge";

@@ -18,7 +18,7 @@ Do not persist palette/index numbers. Equipped kits store **string ids**. Adding
 3. Change `id`, `ko`, `en`, `shop`, optional `set`, and the 24 glyph rows.
 4. Save as `{slot}-{id}.json` (filename must match `slot` + `id`).
 5. If the parts belong together, add or update an entry in `sets.json`.
-6. `cargo test --package horizon-gateway --lib comm_overlay::avatar`
+6. `cargo test -p hg-avatar`
 7. Open **Avatar studio** or Overlay lab and **Reload catalog**. Overlay uses the on-disk catalog after reload (or a Tauri restart).
 
 Do not edit `src-tauri/hg-gui/src/comm_overlay/avatar.rs` to add a part. Do not add TypeScript catalog entries.

@@ -87,8 +87,14 @@ pub(crate) fn is_likely_text_or_json(bytes: &[u8]) -> bool {
     }
 
     // Check if trimmed starts with json/text indicators
-    let trimmed = sample.iter().position(|b| !b.is_ascii_whitespace()).map(|i| sample[i]);
-    matches!(trimmed, Some(b'{' | b'[' | b'<' | b'"' | b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9'))
+    let trimmed = sample
+        .iter()
+        .position(|b| !b.is_ascii_whitespace())
+        .map(|i| sample[i]);
+    matches!(
+        trimmed,
+        Some(b'{' | b'[' | b'<' | b'"' | b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9')
+    )
 }
 
 pub(crate) fn extract_log_body(
@@ -174,7 +180,13 @@ pub(crate) async fn handle_with_logging(
     let timeout_duration = if local_origin.is_some() {
         Duration::from_secs(600)
     } else {
-        Duration::from_secs(state.proxy_settings.get().upstream_timeout_secs.clamp(1, 600))
+        Duration::from_secs(
+            state
+                .proxy_settings
+                .get()
+                .upstream_timeout_secs
+                .clamp(1, 600),
+        )
     };
     req_builder = req_builder.timeout(timeout_duration);
 
@@ -350,12 +362,18 @@ mod tests {
     #[test]
     fn test_is_text_or_json_content_type() {
         assert!(is_text_or_json_content_type("application/json"));
-        assert!(is_text_or_json_content_type("application/json; charset=utf-8"));
+        assert!(is_text_or_json_content_type(
+            "application/json; charset=utf-8"
+        ));
         assert!(is_text_or_json_content_type("application/problem+json"));
         assert!(is_text_or_json_content_type("text/html"));
-        assert!(is_text_or_json_content_type("text/plain; charset=iso-8859-1"));
+        assert!(is_text_or_json_content_type(
+            "text/plain; charset=iso-8859-1"
+        ));
         assert!(is_text_or_json_content_type("application/xml"));
-        assert!(is_text_or_json_content_type("application/x-www-form-urlencoded"));
+        assert!(is_text_or_json_content_type(
+            "application/x-www-form-urlencoded"
+        ));
 
         assert!(!is_text_or_json_content_type("image/png"));
         assert!(!is_text_or_json_content_type("video/mp4"));

@@ -15,7 +15,11 @@ mod present_impl;
 #[path = "present/linux.rs"]
 mod present_impl;
 
-#[cfg(not(any(target_os = "windows", target_os = "macos", all(unix, not(target_os = "macos")))))]
+#[cfg(not(any(
+    target_os = "windows",
+    target_os = "macos",
+    all(unix, not(target_os = "macos"))
+)))]
 mod present_impl {
     use super::engine::ActionKind;
     use super::presence::CommResidentInput;
@@ -26,7 +30,6 @@ mod present_impl {
     pub fn show_bubble(_profile_id: &str, _text: &str, _ttl_ms: u64) {}
 }
 
-use avatar::{AvatarKit, AvatarPreview, AvatarStudioCatalog, AvatarStudioPart};
 use engine::{ActionKind, OverlayTool};
 use presence::CommResidentInput;
 
@@ -81,7 +84,11 @@ pub fn sync_comm_residents(residents: Vec<CommResidentInput>) -> Result<(), Stri
 
 #[tauri::command]
 #[specta::specta]
-pub fn show_comm_bubble(profile_id: String, text: String, ttl_ms: Option<u32>) -> Result<(), String> {
+pub fn show_comm_bubble(
+    profile_id: String,
+    text: String,
+    ttl_ms: Option<u32>,
+) -> Result<(), String> {
     let ttl_ms = ttl_ms
         .map(u64::from)
         .unwrap_or(presence::BUBBLE_TTL_MS)
@@ -92,28 +99,4 @@ pub fn show_comm_bubble(profile_id: String, text: String, ttl_ms: Option<u32>) -
         Ok(()) => Ok(()),
         Err(_) => Err("comm overlay bubble panicked".into()),
     }
-}
-
-#[tauri::command]
-#[specta::specta]
-pub fn get_comm_avatar_catalog() -> Result<AvatarStudioCatalog, String> {
-    avatar::reload_from_disk()
-}
-
-#[tauri::command]
-#[specta::specta]
-pub fn reload_comm_avatar_catalog() -> Result<AvatarStudioCatalog, String> {
-    avatar::reload_from_disk()
-}
-
-#[tauri::command]
-#[specta::specta]
-pub fn compose_comm_avatar(kit: AvatarKit, step: Option<u8>) -> Result<AvatarPreview, String> {
-    Ok(avatar::preview_pngish(&kit, step.unwrap_or(0)))
-}
-
-#[tauri::command]
-#[specta::specta]
-pub fn write_comm_avatar_part(part: AvatarStudioPart) -> Result<String, String> {
-    avatar::write_part(part)
 }

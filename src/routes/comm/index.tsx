@@ -2,12 +2,13 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect } from "react";
 import { TeamWorkspaceShell } from "@/entities/team";
-import { AvatarStudio, OverlayPlayground } from "@/features/chat";
+import { OverlayPlayground } from "@/features/chat";
 import { commands } from "@/shared/api";
+import { openAvatarDressWindow } from "@/shared/lib/tauri/openChatWindow";
 
-type CommMenu = "avatar" | "lab";
+type CommMenu = "lab";
 
-function menuFromOpenPath(path: string): CommMenu | null {
+function menuFromOpenPath(path: string): CommMenu | "avatar" | null {
   const query = path.includes("?") ? path.slice(path.indexOf("?") + 1) : "";
   const tab = new URLSearchParams(query).get("tab");
   if (tab === "avatar" || tab === "character") {
@@ -21,9 +22,6 @@ function menuFromOpenPath(path: string): CommMenu | null {
 
 export const Route = createFileRoute("/comm/")({
   validateSearch: (search: Record<string, unknown>): { menu?: CommMenu } => {
-    if (search.menu === "avatar") {
-      return { menu: "avatar" };
-    }
     if (search.menu === "lab" && import.meta.env.DEV) {
       return { menu: "lab" };
     }
@@ -40,6 +38,10 @@ function CommPage() {
   useEffect(() => {
     const apply = (path: string) => {
       const next = menuFromOpenPath(path);
+      if (next === "avatar") {
+        void openAvatarDressWindow();
+        return;
+      }
       void navigate({ to: "/comm", search: next ? { menu: next } : {} });
     };
 
@@ -59,7 +61,6 @@ function CommPage() {
 
   return (
     <div className="flex flex-col h-full min-h-0 w-full overflow-hidden bg-base-200">
-      {menu === "avatar" ? <AvatarStudio embedded /> : null}
       {menu === "lab" && showLab ? <OverlayPlayground embedded /> : null}
       {menu == null ? <TeamWorkspaceShell /> : null}
     </div>

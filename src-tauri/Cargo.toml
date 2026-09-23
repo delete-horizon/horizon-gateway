@@ -1,5 +1,5 @@
 [workspace]
-members = ["hg-core", "hg-gui", "hg-serve", "hgc"]
+members = ["hg-core", "hg-avatar", "hg-gui", "hg-serve", "hgc"]
 resolver = "2"
 
 [workspace.lints.rust]

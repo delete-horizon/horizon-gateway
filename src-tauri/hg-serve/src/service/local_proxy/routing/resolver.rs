@@ -64,7 +64,10 @@ pub(crate) fn resolve_target(
             r.target_host.as_str()
         };
         return (
-            format!("http://{}:{}{}", target_host_clean, r.target_port, path_query),
+            format!(
+                "http://{}:{}{}",
+                target_host_clean, r.target_port, path_query
+            ),
             None,
             Some(r.target_host.clone()),
             Some((target_host_clean.to_string(), r.target_port, path)),
@@ -75,14 +78,11 @@ pub(crate) fn resolve_target(
     // If an explicit port was requested (e.g. localhost:3000), pass through directly to 127.0.0.1:port
     // instead of hijacking to an unrelated route.
     let host_no_port = host.split(':').next().unwrap_or(host).trim();
-    let port_explicit = uri
-        .authority()
-        .and_then(|a| a.port_u16())
-        .or_else(|| {
-            host_from_header
-                .and_then(|h| h.split(':').nth(1))
-                .and_then(|p| p.parse::<u16>().ok())
-        });
+    let port_explicit = uri.authority().and_then(|a| a.port_u16()).or_else(|| {
+        host_from_header
+            .and_then(|h| h.split(':').nth(1))
+            .and_then(|p| p.parse::<u16>().ok())
+    });
     if (host_no_port.eq_ignore_ascii_case("127.0.0.1")
         || host_no_port.eq_ignore_ascii_case("localhost"))
         && !host_no_port.is_empty()
@@ -104,7 +104,10 @@ pub(crate) fn resolve_target(
                 r.target_host.as_str()
             };
             return (
-                format!("http://{}:{}{}", target_host_clean, r.target_port, path_query),
+                format!(
+                    "http://{}:{}{}",
+                    target_host_clean, r.target_port, path_query
+                ),
                 None,
                 Some(r.target_host.clone()),
                 Some((target_host_clean.to_string(), r.target_port, path)),
