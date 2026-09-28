@@ -73,7 +73,7 @@
         "https://github.com/delete-horizon/horizon-gateway/releases/latest/download/latest.json"
       ],
       "windows": {
-        "installMode": "passive"
+        "installMode": "basicUi"
       }
     },
     "deep-link": {

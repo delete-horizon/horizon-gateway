@@ -21,6 +21,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - **Release bundle**: Stage serve and hgc before compiling the workspace app. Hub and the workspace shell no longer embed two Tauri contexts in one build, which broke macOS (`_EMBED_INFO_PLIST` defined twice) and pointed `dist` at the wrong directory.
+- **Workspace window**: The installed companion embeds the app UI. The team menu no longer opens the Vite dev address.
+- **Windows update**: The installer starts outside the app, so the wizard stays up after Horizon Gateway exits.
 
 ## [v2.8.8] - 2026-09-09
 

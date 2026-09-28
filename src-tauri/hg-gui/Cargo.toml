@@ -12,6 +12,10 @@ default-run = "horizon-gateway"
 [features]
 default = []
 workspace-shell = []
+# Same switch `tauri build` passes as `tauri/custom-protocol` for the Hub.
+# Release workspace sidecars must opt in. `tauri dev` and `--debug` sidecars must not,
+# or they embed `frontendDist` and stop using `devUrl`.
+custom-protocol = ["tauri/custom-protocol"]
 
 [[bin]]
 name = "horizon-gateway"

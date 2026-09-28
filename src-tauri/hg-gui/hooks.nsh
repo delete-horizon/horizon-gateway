@@ -1,6 +1,8 @@
 !macro NSIS_HOOK_PREINSTALL
   ; Force terminate all related processes and drivers before unpacking/updating files.
-  nsExec::Exec `taskkill /IM horizon-gateway.exe /F /T`
+  ; Do not pass /T for the GUI image. A setup.exe launched as its child would be
+  ; killed with it, which closes the app and never shows the installer.
+  nsExec::Exec `taskkill /IM horizon-gateway.exe /F`
   nsExec::Exec `taskkill /IM horizon-gateway-workspace.exe /F /T`
   nsExec::Exec `taskkill /IM horizon-gateway-serve.exe /F /T`
   nsExec::Exec `taskkill /IM hgc.exe /F /T`
@@ -52,7 +54,8 @@
 
 !macro NSIS_HOOK_PREUNINSTALL
   ; Stop headless backend, CLI and drivers before removing files.
-  nsExec::Exec `taskkill /IM horizon-gateway.exe /F /T`
+  ; Same as preinstall: /T on the GUI image also kills a child setup.exe.
+  nsExec::Exec `taskkill /IM horizon-gateway.exe /F`
   nsExec::Exec `taskkill /IM horizon-gateway-workspace.exe /F /T`
   nsExec::Exec `taskkill /IM horizon-gateway-serve.exe /F /T`
   nsExec::Exec `taskkill /IM hgc.exe /F /T`

@@ -89,6 +89,10 @@ function run() {
 	// cargo build skips the bundle check and the copy below fills it in.
 	copySidecars(SIDECARS, ext, triple);
 
+	// Release only. `tauri build` enables `tauri/custom-protocol` for the Hub binary.
+	// This sidecar is a plain cargo build, so without the feature Tauri stays in dev
+	// and loads devUrl (http://localhost:1420). `--debug` must keep that dev URL.
+	const workspaceFeatures = debug ? "workspace-shell" : "workspace-shell,custom-protocol";
 	const workspaceArgs = [
 		"build",
 		"-p",
@@ -96,7 +100,7 @@ function run() {
 		"--bin",
 		"horizon-gateway-workspace",
 		"--features",
-		"workspace-shell",
+		workspaceFeatures,
 		"--profile",
 		profile,
 		"--target",
