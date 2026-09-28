@@ -80,6 +80,7 @@ fn load_dotenv_manually() {
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+#[cfg(not(feature = "workspace-shell"))]
 pub fn run() {
     run_inner(false, tauri::generate_context!());
 }
