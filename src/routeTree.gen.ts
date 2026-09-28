@@ -18,6 +18,7 @@ import { Route as ChatAvatarRouteImport } from './routes/chat/avatar'
 import { Route as ChatAvatarCatalogRouteImport } from './routes/chat/avatar-catalog'
 import { Route as ChatAvatarStudioRouteImport } from './routes/chat/avatar-studio'
 import { Route as ChatPlaygroundRouteImport } from './routes/chat/playground'
+import { Route as ChatResidentRouteImport } from './routes/chat/resident'
 import { Route as CommIndexRouteImport } from './routes/comm/index'
 import { Route as DomainsIndexRouteImport } from './routes/domains/index'
 import { Route as MonitorIndexRouteImport } from './routes/monitor/index'
@@ -101,6 +102,11 @@ const ChatAvatarStudioRoute = ChatAvatarStudioRouteImport.update({
 const ChatPlaygroundRoute = ChatPlaygroundRouteImport.update({
   id: '/chat/playground',
   path: '/chat/playground',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatResidentRoute = ChatResidentRouteImport.update({
+  id: '/chat/resident',
+  path: '/chat/resident',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CommIndexRoute = CommIndexRouteImport.update({
@@ -308,6 +314,7 @@ export interface FileRoutesByFullPath {
   '/chat/avatar-catalog': typeof ChatAvatarCatalogRoute
   '/chat/avatar-studio': typeof ChatAvatarStudioRoute
   '/chat/playground': typeof ChatPlaygroundRoute
+  '/chat/resident': typeof ChatResidentRoute
   '/about/': typeof AboutIndexRoute
   '/apis/': typeof ApisIndexRoute
   '/chat/': typeof ChatIndexRoute
@@ -358,6 +365,7 @@ export interface FileRoutesByTo {
   '/chat/avatar-catalog': typeof ChatAvatarCatalogRoute
   '/chat/avatar-studio': typeof ChatAvatarStudioRoute
   '/chat/playground': typeof ChatPlaygroundRoute
+  '/chat/resident': typeof ChatResidentRoute
   '/about': typeof AboutIndexRoute
   '/apis': typeof ApisIndexRoute
   '/chat': typeof ChatIndexRoute
@@ -409,6 +417,7 @@ export interface FileRoutesById {
   '/chat/avatar-catalog': typeof ChatAvatarCatalogRoute
   '/chat/avatar-studio': typeof ChatAvatarStudioRoute
   '/chat/playground': typeof ChatPlaygroundRoute
+  '/chat/resident': typeof ChatResidentRoute
   '/about/': typeof AboutIndexRoute
   '/apis/': typeof ApisIndexRoute
   '/chat/': typeof ChatIndexRoute
@@ -461,6 +470,7 @@ export interface FileRouteTypes {
     | '/chat/avatar-catalog'
     | '/chat/avatar-studio'
     | '/chat/playground'
+    | '/chat/resident'
     | '/about/'
     | '/apis/'
     | '/chat/'
@@ -511,6 +521,7 @@ export interface FileRouteTypes {
     | '/chat/avatar-catalog'
     | '/chat/avatar-studio'
     | '/chat/playground'
+    | '/chat/resident'
     | '/about'
     | '/apis'
     | '/chat'
@@ -561,6 +572,7 @@ export interface FileRouteTypes {
     | '/chat/avatar-catalog'
     | '/chat/avatar-studio'
     | '/chat/playground'
+    | '/chat/resident'
     | '/about/'
     | '/apis/'
     | '/chat/'
@@ -612,6 +624,7 @@ export interface RootRouteChildren {
   ChatAvatarCatalogRoute: typeof ChatAvatarCatalogRoute
   ChatAvatarStudioRoute: typeof ChatAvatarStudioRoute
   ChatPlaygroundRoute: typeof ChatPlaygroundRoute
+  ChatResidentRoute: typeof ChatResidentRoute
   AboutIndexRoute: typeof AboutIndexRoute
   ApisIndexRoute: typeof ApisIndexRoute
   ChatIndexRoute: typeof ChatIndexRoute
@@ -719,6 +732,13 @@ declare module '@tanstack/react-router' {
       path: '/chat/playground'
       fullPath: '/chat/playground'
       preLoaderRoute: typeof ChatPlaygroundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chat/resident': {
+      id: '/chat/resident'
+      path: '/chat/resident'
+      fullPath: '/chat/resident'
+      preLoaderRoute: typeof ChatResidentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/comm/': {
@@ -1004,6 +1024,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChatAvatarCatalogRoute: ChatAvatarCatalogRoute,
   ChatAvatarStudioRoute: ChatAvatarStudioRoute,
   ChatPlaygroundRoute: ChatPlaygroundRoute,
+  ChatResidentRoute: ChatResidentRoute,
   AboutIndexRoute: AboutIndexRoute,
   ApisIndexRoute: ApisIndexRoute,
   ChatIndexRoute: ChatIndexRoute,

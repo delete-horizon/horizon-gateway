@@ -484,8 +484,18 @@ impl Catalog {
     }
 
     fn dto(&self) -> AvatarStudioCatalog {
+        let hidden: std::collections::HashSet<(String, String)> = runtime_store()
+            .read()
+            .iter()
+            .map(|part| (part.slot.clone(), part.id.clone()))
+            .collect();
         AvatarStudioCatalog {
-            parts: self.parts.clone(),
+            parts: self
+                .parts
+                .iter()
+                .filter(|part| !hidden.contains(&(part.slot.clone(), part.id.clone())))
+                .cloned()
+                .collect(),
             sets: self.sets.clone(),
             groups: self.groups.clone(),
             warnings: self.warnings.clone(),
@@ -720,9 +730,7 @@ fn find_parts_dir() -> Option<PathBuf> {
             cands.push(exe.join("avatar-parts"));
         }
     }
-    cands
-        .into_iter()
-        .find(|p| p.join("sets.json").is_file())
+    cands.into_iter().find(|p| p.join("sets.json").is_file())
 }
 
 pub fn apply_set(base: &AvatarKit, set_id: &str) -> AvatarKit {
@@ -747,10 +755,86 @@ pub fn apply_set(base: &AvatarKit, set_id: &str) -> AvatarKit {
     .normalized()
 }
 
+fn runtime_store() -> &'static RwLock<Vec<AvatarStudioPart>> {
+    static CELL: OnceCell<RwLock<Vec<AvatarStudioPart>>> = OnceCell::new();
+    CELL.get_or_init(|| RwLock::new(Vec::new()))
+}
+
+fn merge_runtime(mut base: Catalog) -> Catalog {
+    let extra = runtime_store().read().clone();
+    for part in extra {
+        base.parts
+            .retain(|kept| !(kept.slot == part.slot && kept.id == part.id));
+        base.parts.push(part);
+    }
+    base.body_ids = ids_in(&base.parts, "body");
+    base.head_ids = with_none(ids_in(&base.parts, "head"));
+    base.outfit_ids = with_none(ids_in(&base.parts, "outfit"));
+    base.back_ids = with_none(ids_in(&base.parts, "back"));
+    base.held_ids = with_none(ids_in(&base.parts, "held"));
+    base
+}
+
+fn validate_runtime_part(part: &AvatarStudioPart) -> Result<(), String> {
+    let id = part.id.trim();
+    if id.is_empty() || id.len() > 64 || !SLOTS.contains(&part.slot.as_str()) {
+        return Err(format!("bad runtime part {}:{}", part.slot, part.id));
+    }
+    if part.glyphs.len() != GRID as usize {
+        return Err(format!(
+            "{}:{} needs {GRID} glyph rows, got {}",
+            part.slot,
+            part.id,
+            part.glyphs.len()
+        ));
+    }
+    for (i, row) in part.glyphs.iter().enumerate() {
+        if row.chars().count() != GRID as usize {
+            return Err(format!(
+                "{}:{} row {i} must be {GRID} chars, got {}",
+                part.slot,
+                part.id,
+                row.chars().count()
+            ));
+        }
+        if let Some(bad) = row.chars().find(|c| !GLYPH_OK.contains(*c)) {
+            return Err(format!(
+                "{}:{} row {i} has '{bad}' — only {GLYPH_OK}",
+                part.slot, part.id
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Teammate parts that are not in the on-disk catalog. Compose can see them; catalog DTO does not.
+pub fn install_runtime_parts(incoming: Vec<AvatarStudioPart>) -> Result<(), String> {
+    {
+        let mut extra = runtime_store().write();
+        for part in incoming {
+            validate_runtime_part(&part)?;
+            let mut part = part;
+            part.id = part.id.trim().to_ascii_lowercase();
+            extra.retain(|kept| !(kept.slot == part.slot && kept.id == part.id));
+            extra.push(part);
+        }
+    }
+    let base = load_best().unwrap_or_else(|_| (**store().read()).clone());
+    *store().write() = Arc::new(merge_runtime(base));
+    Ok(())
+}
+
+fn reset_runtime_parts() {
+    runtime_store().write().clear();
+    if let Ok(base) = load_best() {
+        *store().write() = Arc::new(base);
+    }
+}
+
 pub fn reload_from_disk() -> Result<AvatarStudioCatalog, String> {
-    let cat = Arc::new(load_best()?);
-    let dto = cat.dto();
-    *store().write() = cat;
+    let merged = merge_runtime(load_best()?);
+    let dto = merged.dto();
+    *store().write() = Arc::new(merged);
     Ok(dto)
 }
 
@@ -1187,6 +1271,60 @@ mod tests {
         assert_eq!(kit.back, "crusader");
         assert_eq!(kit.held, "shield");
         assert_eq!(kit.body, "sprite");
+    }
+
+    #[test]
+    fn runtime_part_is_composed_and_hidden_from_catalog() {
+        let id = "11111111-1111-4111-8111-111111111111";
+        let row = "S".repeat(GRID as usize);
+        reset_runtime_parts();
+        struct Reset;
+        impl Drop for Reset {
+            fn drop(&mut self) {
+                reset_runtime_parts();
+            }
+        }
+        let _reset = Reset;
+        install_runtime_parts(vec![AvatarStudioPart {
+            id: id.into(),
+            slot: "body".into(),
+            set: String::new(),
+            shop: false,
+            ko: "custom".into(),
+            en: "custom".into(),
+            glyphs: vec![row; GRID as usize],
+            group: String::new(),
+            scale: 1.0,
+            rig: None,
+            attach: String::new(),
+            seat: None,
+            fits: Vec::new(),
+            chroma: None,
+        }])
+        .unwrap();
+        let custom = compose(
+            &AvatarKit {
+                body: id.into(),
+                ..AvatarKit::default()
+            },
+            255,
+            0,
+        );
+        let fallback = compose(
+            &AvatarKit {
+                body: "no-such-body".into(),
+                ..AvatarKit::default()
+            },
+            255,
+            0,
+        );
+        assert_ne!(custom, fallback);
+        assert!(current_catalog()
+            .dto()
+            .parts
+            .iter()
+            .all(|part| part.id != id));
+        reset_runtime_parts();
     }
 
     #[test]

@@ -34,7 +34,15 @@ import {
   upsertLocalRoom,
 } from "./localStore";
 import { notifyIncomingChat } from "./notify";
-import { getTailscaleIp, playCommAction, sendChatFrame, startChatListener, tryStartTunnel } from "./transport";
+import {
+  getTailscaleIp,
+  playCommAction,
+  sendChatFrame,
+  showCommBubble,
+  startChatListener,
+  tryStartTunnel,
+} from "./transport";
+import { noteWornPing } from "./wornAvatar";
 
 export interface ChatWireFrame {
   v: 1;
@@ -760,7 +768,11 @@ async function sendAckToPeer(opts: {
   }
 }
 
-export async function handleIncomingFrame(raw: string, myId: string): Promise<void> {
+export async function handleIncomingFrame(
+  raw: string,
+  myId: string,
+  opts?: { overlayBubble?: boolean },
+): Promise<void> {
   let frame: ChatWireFrame;
   try {
     frame = JSON.parse(raw) as ChatWireFrame;
@@ -768,6 +780,20 @@ export async function handleIncomingFrame(raw: string, myId: string): Promise<vo
     return;
   }
   if (frame.v !== 1 || frame.senderId === myId) {
+    return;
+  }
+
+  if (frame.kind === "worn") {
+    let phase: "announce" | "reply" = "announce";
+    try {
+      const parsed = JSON.parse(frame.ciphertext) as { phase?: string };
+      if (parsed.phase === "reply") {
+        phase = "reply";
+      }
+    } catch {
+      /* treat as announce */
+    }
+    noteWornPing({ profileId: frame.senderId, phase });
     return;
   }
 
@@ -992,6 +1018,10 @@ export async function handleIncomingFrame(raw: string, myId: string): Promise<vo
     actionKind: frame.actionKind,
     createdAt: frame.createdAt,
   });
+
+  if (opts?.overlayBubble && frame.senderId !== myId) {
+    void showCommBubble(frame.senderId, body).catch(() => {});
+  }
 
   if (room?.workspaceId) {
     void sendAckToPeer({

@@ -34,7 +34,7 @@ export interface ChatRoom {
   unread: number;
 }
 
-export type ChatWireFrameKind = "text" | "system" | "action" | "typing" | "reaction" | "ack";
+export type ChatWireFrameKind = "text" | "system" | "action" | "typing" | "reaction" | "ack" | "worn";
 
 export interface ChatReaction {
   emoji: string;

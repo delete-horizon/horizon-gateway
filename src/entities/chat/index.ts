@@ -62,6 +62,7 @@ export {
   upsertLocalRoom,
 } from "./lib/localStore";
 export { ensureChatNotificationPermission, notifyIncomingChat } from "./lib/notify";
+export { overlayCharactersEnabledAtom } from "./lib/overlayPrefs";
 export type { InviteMembersResult } from "./lib/service";
 export {
   announcePresence,
@@ -82,6 +83,20 @@ export {
   syncRemoteRooms,
 } from "./lib/service";
 export * from "./lib/transport";
+export {
+  announceWorn,
+  defaultWornRefs,
+  fetchWorn,
+  kitsForWorn,
+  kitToRefs,
+  publishWorn,
+  readLocalWorn,
+  refsToKit,
+  setWornHandshakeHandler,
+  WORN_STORAGE_KEY,
+  type WornLook,
+  type WornRefs,
+} from "./lib/wornAvatar";
 export type {
   ChatConnState,
   ChatMessage,

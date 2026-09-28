@@ -1,9 +1,10 @@
-//! Edge-walking residents and speech bubbles. Separate from TTL'd FX sprites.
+//! Residents wander the virtual desktop. Speech bubbles stay with them, separate from TTL'd FX sprites.
 
 use std::collections::HashSet;
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use specta::Type;
 
 use super::avatar::AvatarKit;
@@ -11,9 +12,11 @@ use super::engine::{hash_u64, Banner, DrawCmd, Engine};
 
 pub const BUBBLE_TTL_MS: u64 = 5000;
 pub const BUBBLE_MAX_CHARS: usize = 50;
-const EDGE_Y: f32 = 56.0;
-const EDGE_X_PAD: f32 = 44.0;
-const WALK_SPEED: f32 = 42.0;
+const WALK_PAD_X: f32 = 48.0;
+const WALK_PAD_TOP: f32 = 72.0;
+const WALK_PAD_BOTTOM: f32 = 88.0;
+const WALK_SPEED: f32 = 54.0;
+const ARRIVE_DIST: f32 = 12.0;
 
 #[derive(Clone, Debug, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
@@ -42,6 +45,38 @@ pub struct Resident {
     pub scale: f32,
     pub phase: f32,
     pub kit: AvatarKit,
+    pub online: bool,
+    pub tx: f32,
+    pub ty: f32,
+    /// Seconds to stand still before choosing the next point.
+    pub pause: f32,
+}
+
+/// One resident click, taken by the workspace shell and turned into a composer.
+#[derive(Clone, Debug, Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct OverlayResidentClick {
+    pub profile_id: String,
+    pub label: String,
+    pub x: f64,
+    pub y: f64,
+}
+
+static RESIDENT_CLICK: Mutex<Option<OverlayResidentClick>> = Mutex::new(None);
+
+pub fn store_resident_click(profile_id: String, label: String, x: f64, y: f64) {
+    if let Ok(mut slot) = RESIDENT_CLICK.lock() {
+        *slot = Some(OverlayResidentClick {
+            profile_id,
+            label,
+            x,
+            y,
+        });
+    }
+}
+
+pub fn take_resident_click() -> Option<OverlayResidentClick> {
+    RESIDENT_CLICK.lock().ok().and_then(|mut slot| slot.take())
 }
 
 #[derive(Clone, Debug)]
@@ -56,17 +91,17 @@ impl Engine {
     pub fn sync_residents(&mut self, specs: &[CommResidentInput], width: f32, height: f32) {
         self.bounds_w = width.max(1.0);
         self.bounds_h = height.max(1.0);
-        let online: Vec<&CommResidentInput> = specs
+        let wanted: Vec<&CommResidentInput> = specs
             .iter()
-            .filter(|s| s.online && !s.profile_id.trim().is_empty())
+            .filter(|s| !s.profile_id.trim().is_empty())
             .collect();
-        let keep: HashSet<&str> = online.iter().map(|s| s.profile_id.as_str()).collect();
+        let keep: HashSet<&str> = wanted.iter().map(|s| s.profile_id.as_str()).collect();
         self.residents
             .retain(|r| keep.contains(r.profile_id.as_str()));
         self.bubbles
             .retain(|b| keep.contains(b.profile_id.as_str()));
 
-        for spec in online {
+        for spec in wanted {
             if let Some(existing) = self
                 .residents
                 .iter_mut()
@@ -77,12 +112,35 @@ impl Engine {
                     existing.label = label.to_string();
                 }
                 existing.kit = spec.kit.normalized();
-                existing.y = (height - EDGE_Y).max(EDGE_Y);
+                existing.online = spec.online;
                 continue;
             }
-            self.residents
-                .push(spawn_resident(spec, width, height, self.residents.len()));
+            self.residents.push(spawn_resident(
+                spec,
+                self.bounds_x,
+                self.bounds_y,
+                width,
+                height,
+                self.residents.len(),
+            ));
         }
+    }
+
+    /// Body-sized hit, closest resident wins. `y` is above the feet anchor.
+    pub fn resident_at(&self, x: f32, y: f32) -> Option<(String, String)> {
+        let mut best: Option<(f32, &Resident)> = None;
+        for resident in &self.residents {
+            let dx = resident.x - x;
+            let dy = (resident.y - 36.0) - y;
+            let dist = dx * dx + dy * dy;
+            if dist > 52.0 * 52.0 {
+                continue;
+            }
+            if best.as_ref().is_none_or(|found| dist < found.0) {
+                best = Some((dist, resident));
+            }
+        }
+        best.map(|(_, resident)| (resident.profile_id.clone(), resident.label.clone()))
     }
 
     pub fn show_bubble(&mut self, profile_id: &str, text: &str, ttl: Duration, now: Instant) {
@@ -108,8 +166,14 @@ impl Engine {
             } else {
                 self.bounds_h
             };
-            self.residents
-                .push(spawn_resident(&spec, w, h, self.residents.len()));
+            self.residents.push(spawn_resident(
+                &spec,
+                self.bounds_x,
+                self.bounds_y,
+                w,
+                h,
+                self.residents.len(),
+            ));
         }
         self.bubbles.retain(|b| b.profile_id != profile_id);
         self.bubbles.push(Bubble {
@@ -129,20 +193,44 @@ impl Engine {
         cmds: &mut Vec<DrawCmd>,
         banners: &mut Vec<Banner>,
     ) {
-        let min_x = EDGE_X_PAD;
-        let max_x = (width - EDGE_X_PAD).max(min_x);
-        let y = (height - EDGE_Y).max(EDGE_Y);
+        let rect = walk_rect(self.bounds_x, self.bounds_y, width, height);
 
         for r in &mut self.residents {
-            r.y = y;
-            r.x += r.vx * dt;
             r.phase += dt * 5.2;
-            if r.x <= min_x {
-                r.x = min_x;
-                r.vx = r.vx.abs();
-            } else if r.x >= max_x {
-                r.x = max_x;
-                r.vx = -r.vx.abs();
+            if r.x < rect.min_x || r.x > rect.max_x || r.y < rect.min_y || r.y > rect.max_y {
+                r.x = r.x.clamp(rect.min_x, rect.max_x);
+                r.y = r.y.clamp(rect.min_y, rect.max_y);
+                let (tx, ty) = pick_target(rect, r.seed ^ r.x.to_bits() as u64);
+                r.tx = tx;
+                r.ty = ty;
+            }
+            if r.pause > 0.0 {
+                r.pause = (r.pause - dt).max(0.0);
+                continue;
+            }
+            let dx = r.tx - r.x;
+            let dy = r.ty - r.y;
+            let dist = (dx * dx + dy * dy).sqrt();
+            let speed = resident_speed(r.seed);
+            if dist <= ARRIVE_DIST {
+                r.x = r.tx;
+                r.y = r.ty;
+                let roll = hash_u64(r.seed ^ r.tx.to_bits() as u64 ^ r.ty.to_bits() as u64);
+                r.pause = if roll % 3 == 0 {
+                    0.8 + (roll % 140) as f32 / 100.0
+                } else {
+                    0.12
+                };
+                let (tx, ty) = pick_target(rect, roll);
+                r.tx = tx;
+                r.ty = ty;
+                continue;
+            }
+            let step = speed * dt;
+            r.x += dx / dist * step;
+            r.y += dy / dist * step;
+            if dx.abs() > 0.5 {
+                r.vx = dx.signum() * speed;
             }
         }
 
@@ -159,7 +247,7 @@ impl Engine {
                 y: draw_y,
                 pixel_size: crate::comm_overlay::avatar::display_pixel_size(&r.kit, r.scale),
                 facing,
-                alpha: 255,
+                alpha: if r.online { 255 } else { 110 },
                 step,
                 ids: r.kit.ids(),
             });
@@ -197,14 +285,53 @@ impl Engine {
     }
 }
 
-fn spawn_resident(spec: &CommResidentInput, width: f32, height: f32, index: usize) -> Resident {
-    let seed = hash_profile(&spec.profile_id);
-    let min_x = EDGE_X_PAD;
-    let max_x = (width - EDGE_X_PAD).max(min_x);
-    let slot = (seed.wrapping_add(index as u64 * 0x9E37_79B9) % 1000) as f32 / 1000.0;
-    let x = min_x + slot * (max_x - min_x).max(1.0);
-    let dir = if seed & 1 == 0 { 1.0 } else { -1.0 };
-    let speed = WALK_SPEED * (0.82 + ((seed >> 3) % 25) as f32 * 0.01);
+#[derive(Clone, Copy)]
+struct WalkRect {
+    min_x: f32,
+    max_x: f32,
+    min_y: f32,
+    max_y: f32,
+}
+
+fn walk_rect(origin_x: f32, origin_y: f32, width: f32, height: f32) -> WalkRect {
+    let min_x = origin_x + WALK_PAD_X;
+    let max_x = (origin_x + width - WALK_PAD_X).max(min_x);
+    let min_y = origin_y + WALK_PAD_TOP;
+    let max_y = (origin_y + height - WALK_PAD_BOTTOM).max(min_y);
+    WalkRect {
+        min_x,
+        max_x,
+        min_y,
+        max_y,
+    }
+}
+
+fn unit(seed: u64) -> f32 {
+    (hash_u64(seed) % 10_000) as f32 / 10_000.0
+}
+
+fn pick_target(rect: WalkRect, seed: u64) -> (f32, f32) {
+    let x = rect.min_x + unit(seed) * (rect.max_x - rect.min_x);
+    let y = rect.min_y + unit(seed ^ 0xA5A5_5A5A) * (rect.max_y - rect.min_y);
+    (x, y)
+}
+
+fn resident_speed(seed: u64) -> f32 {
+    WALK_SPEED * (0.82 + ((seed >> 3) % 30) as f32 * 0.012)
+}
+
+fn spawn_resident(
+    spec: &CommResidentInput,
+    origin_x: f32,
+    origin_y: f32,
+    width: f32,
+    height: f32,
+    index: usize,
+) -> Resident {
+    let seed = hash_profile(&spec.profile_id).wrapping_add(index as u64 * 0x9E37_79B9);
+    let rect = walk_rect(origin_x, origin_y, width, height);
+    let (x, y) = pick_target(rect, seed);
+    let (tx, ty) = pick_target(rect, seed ^ 0x51ED_1234);
     Resident {
         profile_id: spec.profile_id.clone(),
         label: {
@@ -216,13 +343,21 @@ fn spawn_resident(spec: &CommResidentInput, width: f32, height: f32, index: usiz
             }
         },
         x,
-        y: (height - EDGE_Y).max(EDGE_Y),
-        vx: dir * speed,
+        y,
+        vx: if tx < x {
+            -resident_speed(seed)
+        } else {
+            resident_speed(seed)
+        },
         seed,
         mood: (seed % 3) as u8,
         scale: 0.9 + ((seed >> 5) % 20) as f32 * 0.01,
         phase: ((seed >> 8) % 100) as f32 * 0.1,
         kit: spec.kit.normalized(),
+        online: spec.online,
+        tx,
+        ty,
+        pause: 0.0,
     }
 }
 
@@ -277,7 +412,7 @@ mod tests {
     }
 
     #[test]
-    fn offline_specs_are_dropped() {
+    fn offline_specs_stay_dimmed() {
         let mut e = Engine::default();
         e.sync_residents(
             &[CommResidentInput {
@@ -289,7 +424,13 @@ mod tests {
             800.0,
             600.0,
         );
-        assert!(e.residents.is_empty());
+        assert_eq!(e.residents.len(), 1);
+        assert!(!e.residents[0].online);
+        let frame = e.tick(Instant::now(), 800.0, 600.0, None);
+        assert!(frame
+            .cmds
+            .iter()
+            .any(|cmd| matches!(cmd, DrawCmd::Avatar { alpha: 110, .. })));
     }
 
     #[test]
@@ -320,17 +461,31 @@ mod tests {
     }
 
     #[test]
-    fn residents_stay_on_bottom_and_walk() {
+    fn residents_wander_inside_the_screen() {
         let mut e = Engine::default();
-        e.sync_residents(&[spec("me", "나")], 800.0, 600.0);
-        let x0 = e.residents[0].x;
-        let t0 = Instant::now();
-        e.tick(t0, 800.0, 600.0, None);
-        e.tick(t0 + Duration::from_millis(400), 800.0, 600.0, None);
-        assert!((e.residents[0].y - (600.0 - super::EDGE_Y)).abs() < 0.1);
-        assert!((e.residents[0].x - x0).abs() > 1.0);
-        assert!(e.residents[0].x >= super::EDGE_X_PAD - 0.1);
-        assert!(e.residents[0].x <= 800.0 - super::EDGE_X_PAD + 0.1);
+        e.set_screen_origin(-1920.0, 0.0);
+        e.sync_residents(&[spec("me", "나")], 3840.0, 1080.0);
+        let start = e.residents[0].clone();
+        assert!(start.x >= -1920.0 + super::WALK_PAD_X - 0.1);
+        assert!(start.x <= -1920.0 + 3840.0 - super::WALK_PAD_X + 0.1);
+        assert!(start.y >= super::WALK_PAD_TOP - 0.1);
+        assert!(start.y <= 1080.0 - super::WALK_PAD_BOTTOM + 0.1);
+        let mut t = Instant::now();
+        for _ in 0..80 {
+            t += Duration::from_millis(50);
+            e.tick(t, 3840.0, 1080.0, None);
+        }
+        let moved = e.residents[0].clone();
+        let dx = moved.x - start.x;
+        let dy = moved.y - start.y;
+        assert!(
+            dx * dx + dy * dy > 8.0 * 8.0,
+            "resident should leave its start point"
+        );
+        assert!(moved.x >= -1920.0 + super::WALK_PAD_X - 1.0);
+        assert!(moved.x <= -1920.0 + 3840.0 - super::WALK_PAD_X + 1.0);
+        assert!(moved.y >= super::WALK_PAD_TOP - 1.0);
+        assert!(moved.y <= 1080.0 - super::WALK_PAD_BOTTOM + 1.0);
     }
 
     #[test]

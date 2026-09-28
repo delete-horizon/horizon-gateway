@@ -21,6 +21,9 @@ const GUI_ONLY_COMMANDS: &[&str] = &[
     "clear_comm_overlay",
     "sync_comm_residents",
     "show_comm_bubble",
+    "take_overlay_resident_click",
+    "open_resident_composer",
+    "install_comm_avatar_parts",
     "plugin:updater|check",
     "plugin:updater|download_and_install",
 ];

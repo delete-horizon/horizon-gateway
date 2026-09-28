@@ -20,8 +20,9 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTT
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetCursorPos,
     GetSystemMetrics, PeekMessageW, RegisterClassW, ShowWindow, TranslateMessage,
-    UpdateLayeredWindow, CS_HREDRAW, CS_VREDRAW, MSG, PM_REMOVE, SM_CXSCREEN, SM_CYSCREEN, SW_HIDE,
-    SW_SHOWNA, ULW_ALPHA, WM_DESTROY, WM_LBUTTONDOWN, WM_NCHITTEST, WNDCLASSW, WS_EX_LAYERED,
+    UpdateLayeredWindow, CS_HREDRAW, CS_VREDRAW, MSG, PM_REMOVE, SM_CXSCREEN, SM_CXVIRTUALSCREEN,
+    SM_CYSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, SW_HIDE, SW_SHOWNA,
+    ULW_ALPHA, WM_DESTROY, WM_LBUTTONDOWN, WM_NCHITTEST, WNDCLASSW, WS_EX_LAYERED,
     WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
 };
 
@@ -97,6 +98,28 @@ fn to_wide(s: &str) -> Vec<u16> {
 
 fn overlay_dims(screen_w: i32, screen_h: i32) -> (i32, i32) {
     (screen_w.max(1), screen_h.max(1))
+}
+
+/// Origin and size of every connected monitor. Left/above monitors use a negative origin.
+fn virtual_screen() -> (i32, i32, i32, i32) {
+    unsafe {
+        let w = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+        let h = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+        if w <= 0 || h <= 0 {
+            return (
+                0,
+                0,
+                GetSystemMetrics(SM_CXSCREEN).max(1),
+                GetSystemMetrics(SM_CYSCREEN).max(1),
+            );
+        }
+        (
+            GetSystemMetrics(SM_XVIRTUALSCREEN),
+            GetSystemMetrics(SM_YVIRTUALSCREEN),
+            w,
+            h,
+        )
+    }
 }
 
 fn register_class() -> Result<(), String> {
@@ -451,9 +474,10 @@ fn read_cursor_client() -> Option<(f32, f32)> {
 }
 
 fn overlay_thread_main(rx: mpsc::Receiver<OverlayCmd>) {
-    let screen_w = unsafe { GetSystemMetrics(SM_CXSCREEN) };
-    let screen_h = unsafe { GetSystemMetrics(SM_CYSCREEN) };
-    let (width, height) = overlay_dims(screen_w, screen_h);
+    let (origin_x, origin_y, screen_w, screen_h) = virtual_screen();
+    let (mut width, mut height) = overlay_dims(screen_w, screen_h);
+    let mut origin_x = origin_x;
+    let mut origin_y = origin_y;
 
     let mut pool = match unsafe { SpritePool::new() } {
         Ok(p) => p,
@@ -465,10 +489,18 @@ fn overlay_thread_main(rx: mpsc::Receiver<OverlayCmd>) {
         }
     };
     tracing::info!("comm overlay presenter: per-sprite layered windows");
+    let mut button_down = false;
 
     let mut engine = Engine::default();
 
     'outer: loop {
+        let (ox, oy, sw, sh) = virtual_screen();
+        origin_x = ox;
+        origin_y = oy;
+        width = sw.max(1);
+        height = sh.max(1);
+        engine.set_screen_origin(origin_x as f32, origin_y as f32);
+
         let idle = engine.is_empty();
         if idle {
             match rx.recv_timeout(Duration::from_millis(200)) {
@@ -494,13 +526,22 @@ fn overlay_thread_main(rx: mpsc::Receiver<OverlayCmd>) {
             continue;
         }
 
-        unsafe {
-            if GetAsyncKeyState(VK_LBUTTON as i32) as u16 & 0x8000 != 0 {
-                if let Some((x, y)) = read_cursor_client() {
+        let pressed = unsafe { GetAsyncKeyState(VK_LBUTTON as i32) as u16 & 0x8000 != 0 };
+        if pressed && !button_down {
+            if let Some((x, y)) = read_cursor_client() {
+                if let Some((id, label)) = engine.resident_at(x, y) {
+                    crate::comm_overlay::presence::store_resident_click(
+                        id,
+                        label,
+                        f64::from(x),
+                        f64::from(y),
+                    );
+                } else {
                     let _ = engine.on_click(x, y, width as f32, height as f32);
                 }
             }
         }
+        button_down = pressed;
 
         let now = Instant::now();
         let cursor = read_cursor_client();

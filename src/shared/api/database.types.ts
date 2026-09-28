@@ -389,6 +389,36 @@ export type Database = {
         };
         Relationships: [];
       };
+      avatar_worn: {
+        Row: {
+          profile_id: string;
+          body_ref: string;
+          head_ref: string;
+          outfit_ref: string;
+          back_ref: string;
+          held_ref: string;
+          updated_at: string;
+        };
+        Insert: {
+          profile_id: string;
+          body_ref: string;
+          head_ref: string;
+          outfit_ref: string;
+          back_ref: string;
+          held_ref: string;
+          updated_at?: string;
+        };
+        Update: {
+          profile_id?: string;
+          body_ref?: string;
+          head_ref?: string;
+          outfit_ref?: string;
+          back_ref?: string;
+          held_ref?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       avatar_owned: {
         Row: {
           id: string;

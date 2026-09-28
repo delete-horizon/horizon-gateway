@@ -1,5 +1,6 @@
 import { createRootRoute, Outlet, useRouterState } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import clsx from "clsx";
 import { AnimatePresence } from "framer-motion";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
@@ -25,6 +26,7 @@ import { UserProfileSetup } from "@/features/user-profile";
 import { useShortcut } from "@/shared/lib/keyboard";
 import { useIsChatWindow, useIsDetachedWindow, useIsPopupWindow } from "@/shared/lib/tauri/useEmbedMode";
 import { useIsDetached } from "@/shared/lib/tauri/useIsDetached";
+import { useWindowLabel } from "@/shared/lib/tauri/useWindowLabel";
 import { createMockModalAtom } from "@/shared/store/modals";
 import { ErrorBoundary } from "@/shared/ui/error-boundary";
 import { LoadingScreen } from "@/shared/ui/loader/LoadingScreen";
@@ -65,6 +67,14 @@ const RootLayout = () => {
   const isHubPage = pathname === "/";
   const isCommPage = pathname === "/comm" || pathname.startsWith("/comm/");
   const isCompactWindow = isPopupWindow || isChatWindow;
+  const windowLabel = useWindowLabel();
+  let shellLabel = windowLabel;
+  try {
+    shellLabel = getCurrentWindow().label;
+  } catch {
+    /* outside Tauri */
+  }
+  const showRouterDevtools = import.meta.env.DEV && shellLabel !== "chat-resident";
 
   useEffect(() => {
     if (activeTheme) {
@@ -200,6 +210,10 @@ const RootLayout = () => {
     </>
   );
 
+  if (shellLabel === "chat-resident") {
+    return <div className="h-screen w-full overflow-hidden bg-[#1b1424]">{content}</div>;
+  }
+
   if (isCompactWindow) {
     return (
       <ErrorBoundary fallbackTitle={isChatWindow ? "Chat window error" : "Popup window error"}>
@@ -217,7 +231,7 @@ const RootLayout = () => {
           )}
           {globalOverlays}
           <ChatLiveBridge />
-          {import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-right" /> : null}
+          {showRouterDevtools ? <TanStackRouterDevtools position="bottom-right" /> : null}
         </div>
       </ErrorBoundary>
     );
@@ -231,7 +245,7 @@ const RootLayout = () => {
           {content}
           {globalOverlays}
           <ChatLiveBridge />
-          {import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-right" /> : null}
+          {showRouterDevtools ? <TanStackRouterDevtools position="bottom-right" /> : null}
         </div>
       </ErrorBoundary>
     );
@@ -247,7 +261,7 @@ const RootLayout = () => {
           </DetachedWindowLayout>
           {globalOverlays}
           <ChatLiveBridge />
-          {import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-right" /> : null}
+          {showRouterDevtools ? <TanStackRouterDevtools position="bottom-right" /> : null}
         </div>
       </ErrorBoundary>
     );
@@ -265,7 +279,7 @@ const RootLayout = () => {
         {globalOverlays}
         <ChatLiveBridge />
         <TeamCommsRuntime />
-        {import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-right" /> : null}
+        {showRouterDevtools ? <TanStackRouterDevtools position="bottom-right" /> : null}
       </div>
     </ErrorBoundary>
   );

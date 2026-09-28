@@ -32,6 +32,140 @@ pub async fn open_window(
     Ok(())
 }
 
+const RESIDENT_COMPOSER_LABEL: &str = "chat-resident";
+
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ResidentComposerTarget {
+    profile_id: String,
+    label: String,
+}
+
+fn percent_encode(value: &str) -> String {
+    let mut out = String::new();
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(byte as char);
+            }
+            _ => out.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    out
+}
+
+/// One-line composer beside a monitor character. Reuses the same window and moves it.
+#[tauri::command]
+#[specta::specta]
+pub async fn open_resident_composer(
+    app: AppHandle,
+    profile_id: String,
+    label: String,
+    x: f64,
+    y: f64,
+) -> Result<(), String> {
+    let profile_id = profile_id.trim().to_string();
+    if profile_id.is_empty() {
+        return Err("profile id required".into());
+    }
+    let label = {
+        let trimmed = label.trim();
+        if trimmed.is_empty() {
+            profile_id.clone()
+        } else {
+            trimmed.to_string()
+        }
+    };
+    let url = format!(
+        "/chat/resident?profileId={}&name={}",
+        percent_encode(&profile_id),
+        percent_encode(&label),
+    );
+    let (px, py) = composer_origin(x, y);
+    let target = ResidentComposerTarget {
+        profile_id,
+        label: label.clone(),
+    };
+
+    if let Some(window) = app.get_webview_window(RESIDENT_COMPOSER_LABEL) {
+        let _ = window.set_size(tauri::LogicalSize::new(240.0, 36.0));
+        window
+            .set_position(tauri::PhysicalPosition::new(px, py))
+            .map_err(|e| e.to_string())?;
+        let _ = window.show();
+        let _ = window.emit("resident-composer-target", &target);
+        window.set_focus().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    let mut builder =
+        WebviewWindowBuilder::new(&app, RESIDENT_COMPOSER_LABEL, WebviewUrl::App(url.into()))
+            .title(label)
+            .inner_size(240.0, 36.0)
+            .decorations(false)
+            .resizable(false)
+            .always_on_top(true)
+            .skip_taskbar(true)
+            .focused(true);
+
+    #[cfg(windows)]
+    {
+        builder = builder.scroll_bar_style(ScrollBarStyle::FluentOverlay);
+    }
+
+    let window = builder.build().map_err(|e: tauri::Error| e.to_string())?;
+    window
+        .set_position(tauri::PhysicalPosition::new(px, py))
+        .map_err(|e| e.to_string())?;
+    let _ = window.emit("resident-composer-target", &target);
+    Ok(())
+}
+
+/// Place the one-line composer on the same monitor as the character, including displays left or above the primary.
+fn composer_origin(x: f64, y: f64) -> (i32, i32) {
+    const WIDTH: i32 = 400;
+    const HEIGHT: i32 = 56;
+    let mut px = x.round() as i32 + 36;
+    let mut py = y.round() as i32 - 84;
+
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::Foundation::POINT;
+        use windows_sys::Win32::Graphics::Gdi::{
+            GetMonitorInfoW, MonitorFromPoint, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+        };
+
+        let point = POINT {
+            x: x.round() as i32,
+            y: y.round() as i32,
+        };
+        unsafe {
+            let monitor = MonitorFromPoint(point, MONITOR_DEFAULTTONEAREST);
+            if !monitor.is_null() {
+                let mut info: MONITORINFO = std::mem::zeroed();
+                info.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+                if GetMonitorInfoW(monitor, &mut info) != 0 {
+                    let work = info.rcWork;
+                    if px + WIDTH > work.right - 8 {
+                        px = work.right - WIDTH - 8;
+                    }
+                    if px < work.left + 8 {
+                        px = work.left + 8;
+                    }
+                    if py + HEIGHT > work.bottom - 8 {
+                        py = work.bottom - HEIGHT - 8;
+                    }
+                    if py < work.top + 8 {
+                        py = work.top + 8;
+                    }
+                }
+            }
+        }
+    }
+
+    (px, py)
+}
+
 static SHELL_ROLE: std::sync::OnceLock<&'static str> = std::sync::OnceLock::new();
 
 pub fn set_shell_role(role: &'static str) {

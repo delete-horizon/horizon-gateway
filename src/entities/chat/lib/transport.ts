@@ -56,6 +56,12 @@ export async function showCommBubble(profileId: string, text: string, ttlMs?: nu
   unwrap(await commands.showCommBubble(profileId, text, ttlMs ?? null));
 }
 
+export async function installCommAvatarParts(
+  parts: Parameters<typeof commands.installCommAvatarParts>[0],
+): Promise<void> {
+  unwrap(await commands.installCommAvatarParts(parts));
+}
+
 export async function getCommAvatarCatalog() {
   return unwrap(await commands.getCommAvatarCatalog());
 }

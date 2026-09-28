@@ -15,19 +15,20 @@ mod command {
 }
 
 use comm_overlay::{
-    clear_comm_overlay, play_comm_action, set_comm_overlay_tool, show_comm_bubble,
-    sync_comm_residents,
+    clear_comm_overlay, install_comm_avatar_parts, play_comm_action, set_comm_overlay_tool,
+    show_comm_bubble, sync_comm_residents, take_overlay_resident_click,
 };
 use command::window_commands::{
     app_shell_role, capture_app_screenshot, ensure_serve_running, note_companion_open_from_args,
-    open_annotation_dialog, open_external_url, open_hub_app, open_inspector_window, open_window,
-    open_workspace_app, prepare_for_update, quit_app, set_pending_companion_open, set_shell_role,
-    take_companion_open, trigger_os_snip,
+    open_annotation_dialog, open_external_url, open_hub_app, open_inspector_window,
+    open_resident_composer, open_window, open_workspace_app, prepare_for_update, quit_app,
+    set_pending_companion_open, set_shell_role, take_companion_open, trigger_os_snip,
 };
 use command::windows_update::install_windows_update;
 
 pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
     tauri_specta::Builder::<tauri::Wry>::new().commands(tauri_specta::collect_commands![
+        open_resident_composer,
         open_window,
         open_workspace_app,
         open_hub_app,
@@ -47,6 +48,8 @@ pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         clear_comm_overlay,
         sync_comm_residents,
         show_comm_bubble,
+        take_overlay_resident_click,
+        install_comm_avatar_parts,
     ])
 }
 

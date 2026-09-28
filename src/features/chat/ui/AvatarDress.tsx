@@ -1,21 +1,28 @@
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { Pencil, User } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { languageAtom } from "@/entities/app";
+import { languageAtom, supabaseSessionAtom } from "@/entities/app";
 import {
   AVATAR_COMPOSE_H,
   AVATAR_GRID,
   type AvatarKit,
+  announceWorn,
   blitRgba,
   composeStudioRgba,
   copyOfficialKit,
   copyOwnedAvatar,
   DEFAULT_AVATAR_KIT,
+  kitToRefs,
   listMyAvatars,
   loadParts,
   type OwnedAvatar,
+  overlayCharactersEnabledAtom,
   ownedToKit,
+  publishWorn,
   pushAvatarUpdate,
+  readLocalWorn,
+  refreshPeers,
+  refsToKit,
   reloadCommAvatarCatalog,
   type StudioCatalog,
   setListedForSale,
@@ -23,6 +30,7 @@ import {
   type UserPart,
   userPartIds,
 } from "@/entities/chat";
+import { activeWorkspaceIdAtom } from "@/entities/team";
 import { openAvatarCatalogWindow, openAvatarStudioWindow } from "@/shared/lib/tauri/openChatWindow";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
@@ -41,13 +49,32 @@ function isPartSlot(slot: string): slot is PartSlot {
 export function AvatarDress() {
   const lang = useAtomValue(languageAtom);
   const ko = lang === "ko";
+  const session = useAtomValue(supabaseSessionAtom);
+  const workspaceId = useAtomValue(activeWorkspaceIdAtom);
+  const myId = session?.user?.id ?? null;
+  const [overlayOn, setOverlayOn] = useAtom(overlayCharactersEnabledAtom);
   const [catalog, setCatalog] = useState<StudioCatalog | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [kit, setKit] = useState<AvatarKit>(DEFAULT_AVATAR_KIT);
+  const [kit, setKit] = useState<AvatarKit>(() => refsToKit(readLocalWorn()));
   const [step, setStep] = useState(0);
   const [owned, setOwned] = useState<OwnedAvatar[]>([]);
   const [parts, setParts] = useState<UserPart[]>([]);
   const previewRef = useRef<HTMLCanvasElement>(null);
+
+  const wear = (next: AvatarKit) => {
+    setKit(next);
+    const minePartIds = new Set(parts.map((part) => part.id));
+    void (async () => {
+      try {
+        await publishWorn(kitToRefs(next, minePartIds));
+        if (myId && workspaceId) {
+          await announceWorn(myId, await refreshPeers(workspaceId), "announce");
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    })();
+  };
 
   const refreshOwned = useCallback(async () => {
     const mine = await listMyAvatars();
@@ -148,15 +175,27 @@ export function AvatarDress() {
                 className="rounded-md bg-base-300"
                 style={{ imageRendering: "pixelated" }}
               />
-              <label className="flex items-center gap-1.5 text-xs text-base-content/70">
-                <input
-                  type="checkbox"
-                  className="checkbox checkbox-xs"
-                  checked={step % 2 === 1}
-                  onChange={(e) => setStep(e.target.checked ? 1 : 0)}
-                />
-                {ko ? "걸음" : "Walk"}
-              </label>
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-1.5 text-xs text-base-content/70">
+                  <input
+                    type="checkbox"
+                    className="checkbox checkbox-xs"
+                    checked={step % 2 === 1}
+                    onChange={(e) => setStep(e.target.checked ? 1 : 0)}
+                  />
+                  {ko ? "걸음" : "Walk"}
+                </label>
+                <label className="flex items-center gap-2 text-xs text-base-content/80">
+                  <span>{ko ? "모니터에 팀 표시" : "Show team on the monitor"}</span>
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    className="toggle toggle-success toggle-sm"
+                    checked={overlayOn}
+                    onChange={(e) => setOverlayOn(e.target.checked)}
+                  />
+                </label>
+              </div>
             </div>
             {error ? <p className="text-[11px] text-error whitespace-pre-wrap">{error}</p> : null}
             {catalog?.warnings?.length ? (
@@ -183,7 +222,7 @@ export function AvatarDress() {
                       if (!isPartSlot(entry.slot)) {
                         return;
                       }
-                      setKit((prev) => ({ ...prev, [entry.slot]: entry.partId }));
+                      wear({ ...kit, [entry.slot]: entry.partId });
                     }}
                   >
                     {ko ? "착용" : "Wear"}
@@ -223,7 +262,7 @@ export function AvatarDress() {
                 }
                 return (
                   <>
-                    <Button size="xs" onClick={() => setKit(ownedToKit(avatar, parts))}>
+                    <Button size="xs" onClick={() => wear(ownedToKit(avatar, parts))}>
                       {ko ? "착용" : "Wear"}
                     </Button>
                     <Button

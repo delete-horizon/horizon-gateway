@@ -30,8 +30,15 @@ mod present_impl {
     pub fn show_bubble(_profile_id: &str, _text: &str, _ttl_ms: u64) {}
 }
 
+use avatar::AvatarStudioPart;
 use engine::{ActionKind, OverlayTool};
 use presence::CommResidentInput;
+
+#[tauri::command]
+#[specta::specta]
+pub fn install_comm_avatar_parts(parts: Vec<AvatarStudioPart>) -> Result<(), String> {
+    avatar::install_runtime_parts(parts)
+}
 
 #[tauri::command]
 #[specta::specta]
@@ -80,6 +87,12 @@ pub fn sync_comm_residents(residents: Vec<CommResidentInput>) -> Result<(), Stri
         Ok(()) => Ok(()),
         Err(_) => Err("comm overlay residents panicked".into()),
     }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn take_overlay_resident_click() -> Option<presence::OverlayResidentClick> {
+    presence::take_resident_click()
 }
 
 #[tauri::command]

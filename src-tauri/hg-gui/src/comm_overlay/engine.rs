@@ -248,6 +248,8 @@ pub struct Engine {
     next_id: u64,
     last_x: f32,
     last_y: f32,
+    pub(crate) bounds_x: f32,
+    pub(crate) bounds_y: f32,
     pub(crate) bounds_w: f32,
     pub(crate) bounds_h: f32,
     tool: OverlayTool,
@@ -519,6 +521,11 @@ impl Engine {
             dx * dx + dy * dy > r2
         });
         self.sprites.len() != before
+    }
+
+    pub fn set_screen_origin(&mut self, x: f32, y: f32) {
+        self.bounds_x = x;
+        self.bounds_y = y;
     }
 
     pub fn tick(
