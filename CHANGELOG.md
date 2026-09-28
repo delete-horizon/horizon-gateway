@@ -18,6 +18,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Avatar copies**: Official parts stay on disk. A personal copy forks edited slots into user parts. Shared and sold listings live on the platform catalog.
 - **Workspace companion**: The team window runs beside Hub on the shared serve.
 
+### Fixed
+
+- **Release bundle**: Stage serve and hgc before compiling the workspace app, and skip the bundle check until that app's own binary exists.
+
 ## [v2.8.8] - 2026-09-09
 
 ### Fixed

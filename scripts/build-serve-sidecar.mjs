@@ -83,6 +83,12 @@ function run() {
 		process.exit(build.status ?? 1);
 	}
 
+	fs.mkdirSync(binariesDir, { recursive: true });
+	// The workspace GUI's release build.rs embeds externalBin. serve and hgc must
+	// already be staged. The workspace binary itself cannot exist yet, so that
+	// cargo build skips the bundle check and the copy below fills it in.
+	copySidecars(SIDECARS, ext, triple);
+
 	const workspaceArgs = [
 		"build",
 		"-p",
@@ -99,13 +105,17 @@ function run() {
 		cwd: tauriDir,
 		stdio: "inherit",
 		shell: process.platform === "win32",
+		env: { ...process.env, HG_SKIP_BUNDLE_SIDECARS: "1" },
 	});
 	if (workspaceBuild.status !== 0) {
 		process.exit(workspaceBuild.status ?? 1);
 	}
 
-	fs.mkdirSync(binariesDir, { recursive: true });
-	for (const bin of [...SIDECARS, "horizon-gateway-workspace"]) {
+	copySidecars(["horizon-gateway-workspace"], ext, triple);
+}
+
+function copySidecars(bins, ext, triple) {
+	for (const bin of bins) {
 		const src = findBuiltBinary(bin, ext, triple);
 		const dest = path.join(binariesDir, `${bin}-${triple}${ext}`);
 		if (!fs.existsSync(src)) {

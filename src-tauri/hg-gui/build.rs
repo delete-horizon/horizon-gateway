@@ -73,7 +73,7 @@ fn json_merge_keep_nulls(base: &mut serde_json::Value, patch: &serde_json::Value
 fn patch_bundle_resources() {
     let mut bundle = serde_json::Map::new();
 
-    if !is_release_profile() {
+    if !is_release_profile() || env::var("HG_SKIP_BUNDLE_SIDECARS").ok().as_deref() == Some("1") {
         bundle.insert("externalBin".into(), serde_json::Value::Null);
     }
     if cfg!(not(windows)) || !is_release_profile() {
