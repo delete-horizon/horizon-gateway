@@ -20,7 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- **Release bundle**: Stage serve and hgc before compiling the workspace app, and skip the bundle check until that app's own binary exists.
+- **Release bundle**: Stage serve and hgc before compiling the workspace app. The Hub release build no longer embeds the workspace frontend path, which pointed `dist` at the wrong directory.
 
 ## [v2.8.8] - 2026-09-09
 

@@ -85,6 +85,11 @@ pub fn run() {
 }
 
 /// Companion Comm shell. Attaches to Hub's serve and opens `/comm`.
+///
+/// Not compiled into the Hub release build. Hub's `tauri build` injects `TAURI_CONFIG`
+/// with frontend paths relative to `tauri.conf.json`, which would make this context
+/// look for `dist` in the wrong directory.
+#[cfg(feature = "workspace-shell")]
 pub fn run_workspace() {
     std::env::set_var("HG_SERVE_ATTACH_ONLY", "1");
     std::env::set_var("HG_GUI_ROLE", "workspace");

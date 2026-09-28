@@ -95,17 +95,21 @@ function run() {
 		"horizon-gateway",
 		"--bin",
 		"horizon-gateway-workspace",
+		"--features",
+		"workspace-shell",
 		"--profile",
 		profile,
 		"--target",
 		triple,
 	];
 	console.log(`[build-serve-sidecar] cargo ${workspaceArgs.join(" ")}…`);
+	const env = { ...process.env, HG_SKIP_BUNDLE_SIDECARS: "1" };
+	delete env.TAURI_CONFIG;
 	const workspaceBuild = spawnSync("cargo", workspaceArgs, {
 		cwd: tauriDir,
 		stdio: "inherit",
 		shell: process.platform === "win32",
-		env: { ...process.env, HG_SKIP_BUNDLE_SIDECARS: "1" },
+		env,
 	});
 	if (workspaceBuild.status !== 0) {
 		process.exit(workspaceBuild.status ?? 1);

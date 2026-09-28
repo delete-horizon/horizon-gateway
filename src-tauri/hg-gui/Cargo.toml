@@ -9,6 +9,10 @@ authors = ["you"]
 edition = "2021"
 default-run = "horizon-gateway"
 
+[features]
+default = []
+workspace-shell = []
+
 [[bin]]
 name = "horizon-gateway"
 path = "src/main.rs"
@@ -16,6 +20,7 @@ path = "src/main.rs"
 [[bin]]
 name = "horizon-gateway-workspace"
 path = "src/workspace_main.rs"
+required-features = ["workspace-shell"]
 
 [lib]
 name = "horizon_gateway_lib"
