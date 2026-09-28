@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.8.9] - 2026-09-28
+
+### Added
+
+- **Team monitor**: Logged-in workspace members walk every connected display. Offline teammates stay, dimmed. Turn characters off per device from the dress window; chat history stays.
+- **Worn outfit**: The wearer publishes the equipped slots. Teammates fetch only missing or newer user parts, and a handshake on connect catches outfits changed while someone was offline.
+- **Beside-character chat**: Click a character for a one-line composer on that monitor. Send writes the existing DM and a short bubble. History opens the side chat.
+
+### Changed
+
+- **Avatar color**: Compose uses part and set chroma only. Named palettes are gone.
+- **Avatar copies**: Official parts stay on disk. A personal copy forks edited slots into user parts. Shared and sold listings live on the platform catalog.
+- **Workspace companion**: The team window runs beside Hub on the shared serve.
+
 ## [v2.8.8] - 2026-09-09
 
 ### Fixed
