@@ -2,7 +2,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { useSetAtom } from "jotai";
 import { useCallback, useState } from "react";
-import { commands } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { toastError, toastInfo } from "@/shared/ui/toast";
 import { pendingUpdateAtom } from "./store";
 
@@ -30,8 +30,11 @@ export function useInstallUpdate() {
 
         if (isWindows()) {
           // Download first; kill serve only inside installWindowsUpdate before UAC.
-          await commands.installWindowsUpdate();
+          // Do not relaunch here: NSIS preinstall stops this process after setup is up.
+          unwrap(await commands.installWindowsUpdate());
           setPendingUpdate(null);
+          toastInfo("Installer opened. Approve UAC and finish the setup window.");
+          setIsInstalling(false);
           return;
         }
 

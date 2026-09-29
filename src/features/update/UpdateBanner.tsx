@@ -3,7 +3,7 @@ import type { Update } from "@tauri-apps/plugin-updater";
 import { useSetAtom } from "jotai";
 import { Download, Loader2Icon, X } from "lucide-react";
 import { useCallback, useState } from "react";
-import { commands } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
 import { pendingUpdateAtom } from "./store";
 
@@ -34,8 +34,9 @@ export function UpdateBanner({ update, onDismiss }: UpdateBannerProps) {
     setInstallError(null);
     try {
       if (isWindows()) {
-        await commands.installWindowsUpdate();
+        unwrap(await commands.installWindowsUpdate());
         setPendingUpdate(null);
+        setIsInstalling(false);
         return;
       }
       try {

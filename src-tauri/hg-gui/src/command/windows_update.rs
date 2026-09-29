@@ -1,22 +1,16 @@
 //! Windows perMachine NSIS updates need an elevated installer that outlives this process.
 //!
 //! Stock tauri-plugin-updater uses ShellExecute("open") and always `process::exit(0)`.
-//! The previous custom path used ShellExecuteW("runas") with `/P /UPDATE /R`, slept 2s,
-//! then exited whenever the API returned > 32.
-//!
-//! That still closes the app without installing:
-//! - ShellExecuteW returns as soon as the launch is accepted. A same-token installer is a
-//!   child of this process, so it sits in our job (KILL_ON_JOB_CLOSE) and in our process
-//!   tree. `process::exit` or the NSIS hook `taskkill /IM horizon-gateway.exe /F /T` then
-//!   kills the installer before its window is shown.
-//! - `/P` is NSIS passive mode: the wizard pages are skipped, so a fast death looks like
-//!   "no installer UI".
+//! Exiting this process while the installer still shares our job (KILL_ON_JOB_CLOSE) kills
+//! the setup before its window stays up — the user only sees a brief console flash from
+//! the NSIS preinstall `taskkill` and no UAC / wizard.
 //!
 //! This command downloads via the updater plugin, stops companions that hold install
 //! files, then asks Explorer (Shell.Application) to `ShellExecute` the setup with `runas`
-//! and `/UPDATE` only (tauri basicUi: no `/P`, no `/S`). The installer is parented by
-//! Explorer, so it is outside this job and this process tree. We exit only after that
-//! process is still alive. UAC cancel or a dead installer returns an error and restarts serve.
+//! and `/UPDATE` (tauri basicUi). We do **not** call `process::exit`: the NSIS
+//! preinstall hook kills `horizon-gateway.exe` once setup is really running. UAC cancel
+//! or a dead installer returns an error and restarts serve. A file log is always written
+//! under `%LOCALAPPDATA%\com.lurain.horizon-gateway\update.log`.
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -28,6 +22,8 @@ use tauri::AppHandle;
 /// `/R` is ignored unless the installer is passive or silent.
 const VISIBLE_NSIS_ARGS: &str = "/UPDATE";
 
+/// How long the elevated setup must stay alive outside our tree before we trust it.
+const INSTALLER_STABLE: Duration = Duration::from_secs(3);
 const INSTALLER_WAIT: Duration = Duration::from_secs(180);
 
 #[tauri::command]
@@ -70,6 +66,10 @@ async fn install_windows_update_inner(app: AppHandle) -> Result<(), String> {
         update.version,
         update.download_url
     );
+    update_log(&format!(
+        "[gui] install_windows_update: downloading v{} from {}",
+        update.version, update.download_url
+    ));
 
     let bytes = update
         .download(
@@ -101,6 +101,11 @@ async fn install_windows_update_inner(app: AppHandle) -> Result<(), String> {
         setup_path.display(),
         bytes.len()
     );
+    update_log(&format!(
+        "[gui] install_windows_update: wrote {} ({} bytes)",
+        setup_path.display(),
+        bytes.len()
+    ));
 
     // Stop companions only after a good download, so a UAC cancel can bring serve back.
     stop_companions_for_update();
@@ -113,15 +118,51 @@ async fn install_windows_update_inner(app: AppHandle) -> Result<(), String> {
 
     match launched {
         Ok(()) => {
-            tracing::info!(
-                "[gui] install_windows_update: detached installer is running, exiting so it can replace files"
+            update_log(
+                "[gui] install_windows_update: detached installer is running; waiting for NSIS to stop this process",
             );
-            std::process::exit(0);
+            tracing::info!(
+                "[gui] install_windows_update: detached installer is running; waiting for NSIS to stop this process"
+            );
+            // Do not process::exit. Exiting tears down the job and can kill a setup that
+            // still shares our lifetime. NSIS PREINSTALL taskkill's this image instead.
+            Ok(())
         }
         Err(message) => {
+            update_log(&format!("[gui] install_windows_update: failed: {message}"));
             restart_serve_best_effort();
             Err(message)
         }
+    }
+}
+
+#[cfg(windows)]
+fn update_log_path() -> Option<PathBuf> {
+    Some(
+        dirs::data_local_dir()?
+            .join("com.lurain.horizon-gateway")
+            .join("update.log"),
+    )
+}
+
+#[cfg(windows)]
+fn update_log(message: &str) {
+    use std::fs::OpenOptions;
+    use std::io::Write;
+
+    tracing::info!("{message}");
+    let Some(path) = update_log_path() else {
+        return;
+    };
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&path) {
+        let _ = writeln!(
+            file,
+            "{} {message}",
+            chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f")
+        );
     }
 }
 
@@ -197,6 +238,12 @@ fn ensure_detached_installer(setup: &Path) -> Result<(), String> {
     let consent_baseline = list_processes("consent.exe");
     let script = explorer_launch_script(setup);
     let helper = run_powershell(&script, true).map_err(|e| fail(setup, &e))?;
+    update_log(&format!(
+        "[gui] install_windows_update: explorer helper pid={} exit={} stderr={}",
+        helper.pid,
+        helper.code,
+        helper.stderr.trim()
+    ));
     tracing::info!(
         "[gui] install_windows_update: explorer helper pid={} exit={}",
         helper.pid,
@@ -220,6 +267,7 @@ fn ensure_detached_installer(setup: &Path) -> Result<(), String> {
 
     let started = std::time::Instant::now();
     let mut saw_consent = false;
+    let mut stable_since: Option<std::time::Instant> = None;
     loop {
         if started.elapsed() > INSTALLER_WAIT {
             kill_installers_parented_by_us(image, our_pid);
@@ -235,21 +283,19 @@ fn ensure_detached_installer(setup: &Path) -> Result<(), String> {
             .copied()
             .find(|(_, ppid)| is_outside_our_tree(our_pid, *ppid))
         {
-            std::thread::sleep(Duration::from_millis(800));
-            let still = list_processes(image);
-            if still
-                .iter()
-                .any(|(p, parent)| *p == pid && is_outside_our_tree(our_pid, *parent))
-            {
+            let since = stable_since.get_or_insert_with(std::time::Instant::now);
+            if since.elapsed() >= INSTALLER_STABLE {
+                update_log(&format!(
+                    "[gui] install_windows_update: installer pid={pid} parent={ppid} stable for {}ms",
+                    since.elapsed().as_millis()
+                ));
                 tracing::info!(
                     "[gui] install_windows_update: installer pid={pid} parent={ppid} is outside this process"
                 );
                 return Ok(());
             }
-            return Err(fail(
-                setup,
-                "The installer process exited immediately, so Horizon Gateway was left open.",
-            ));
+        } else {
+            stable_since = None;
         }
 
         let fresh_consent = list_processes("consent.exe").into_iter().any(|(pid, _)| {
@@ -390,7 +436,7 @@ fn explorer_launch_script(setup: &Path) -> String {
     let file = ps_literal(&setup.to_string_lossy());
     let dir = ps_literal(&setup.parent().unwrap_or(Path::new(".")).to_string_lossy());
     format!(
-        "$ErrorActionPreference='Stop'; $shell=New-Object -ComObject Shell.Application; $shell.ShellExecute({file}, '{VISIBLE_NSIS_ARGS}', {dir}, 'runas', 1)"
+        "$ErrorActionPreference='Stop'; $shell=New-Object -ComObject Shell.Application; $code=$shell.ShellExecute({file}, '{VISIBLE_NSIS_ARGS}', {dir}, 'runas', 1); if ($code -le 32) {{ throw \"ShellExecute failed: $code\" }}"
     )
 }
 
@@ -443,6 +489,7 @@ mod tests {
         ));
         assert!(script.contains("Shell.Application"));
         assert!(script.contains("'runas'"));
+        assert!(script.contains("ShellExecute failed"));
         assert!(script.contains("'/UPDATE'"));
         assert!(!script.contains("/P"));
         assert!(!script.contains("/S"));

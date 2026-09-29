@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - **Dock height**: The floating chat window sizes to the search row, visible name rows, and message row so leftover empty space does not sit under the send line.
+- **Windows update**: The app no longer `process::exit`s as soon as setup appears. NSIS stops the app, and the launcher waits until the elevated installer has stayed alive for a few seconds. Progress is appended to `%LOCALAPPDATA%\com.lurain.horizon-gateway\update.log`.
 
 ## [v2.8.9] - 2026-09-28
 
