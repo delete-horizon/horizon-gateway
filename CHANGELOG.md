@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.8.10] - 2026-09-29
+
+### Changed
+
+- **Primary-monitor walk**: Overlay characters stay on the primary work area only. FX still use the full virtual screen.
+- **Team chat dock**: Click a character to open a compact bottom-center composer. Search names, toggle who receives the line, select all or clear, then send. One person and the whole team share the same UI; delivery is still 1:1 DMs with a bubble on the sender after someone receives it.
+- **Inbox**: Group-room create is gone. The inbox lists DMs only and reuses the same recipient composer.
+
+### Fixed
+
+- **Dock height**: The floating chat window sizes to the search row, visible name rows, and message row so leftover empty space does not sit under the send line.
+
 ## [v2.8.9] - 2026-09-28
 
 ### Added

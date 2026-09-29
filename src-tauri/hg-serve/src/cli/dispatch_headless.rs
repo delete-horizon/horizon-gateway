@@ -1056,6 +1056,31 @@ pub fn dispatch_headless(
             let result = command::avatar_commands::write_comm_avatar_part(parsed)?;
             Ok(serde_json::to_value(result).unwrap())
         }
+        "broadcast_comm_bubble" => {
+            let profile_id = payload
+                .get("profileId")
+                .and_then(|value| value.as_str())
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            let text = payload
+                .get("text")
+                .and_then(|value| value.as_str())
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            if profile_id.is_empty() || text.is_empty() {
+                return Err("empty bubble".into());
+            }
+            crate::serve::events::publish_event(
+                "comm-bubble",
+                serde_json::json!({
+                    "profileId": profile_id,
+                    "text": text.chars().take(80).collect::<String>(),
+                }),
+            );
+            Ok(serde_json::json!({ "ok": true }))
+        }
         "push_comm_avatar_draft" => {
             let parsed: command::avatar_commands::PartPayload = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;

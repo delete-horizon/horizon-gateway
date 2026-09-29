@@ -252,6 +252,12 @@ pub struct Engine {
     pub(crate) bounds_y: f32,
     pub(crate) bounds_w: f32,
     pub(crate) bounds_h: f32,
+    /// Primary monitor, in the same virtual-screen pixels as `bounds_*`.
+    /// Residents walk here. FX sprites still use the full virtual desktop.
+    pub(crate) walk_x: f32,
+    pub(crate) walk_y: f32,
+    pub(crate) walk_w: f32,
+    pub(crate) walk_h: f32,
     tool: OverlayTool,
     pub(crate) residents: Vec<super::presence::Resident>,
     pub(crate) bubbles: Vec<super::presence::Bubble>,
@@ -526,6 +532,27 @@ impl Engine {
     pub fn set_screen_origin(&mut self, x: f32, y: f32) {
         self.bounds_x = x;
         self.bounds_y = y;
+    }
+
+    /// Confine resident wandering to one monitor. `w`/`h` below 64 keep the fallback
+    /// (the whole screen passed to `tick`), which tests and non-Windows presenters use.
+    pub fn set_walk_bounds(&mut self, x: f32, y: f32, w: f32, h: f32) {
+        self.walk_x = x;
+        self.walk_y = y;
+        self.walk_w = w;
+        self.walk_h = h;
+    }
+
+    pub(crate) fn resident_walk_span(&self) -> (f32, f32, f32, f32) {
+        if self.walk_w >= 64.0 && self.walk_h >= 64.0 {
+            return (self.walk_x, self.walk_y, self.walk_w, self.walk_h);
+        }
+        (
+            self.bounds_x,
+            self.bounds_y,
+            self.bounds_w.max(1.0),
+            self.bounds_h.max(1.0),
+        )
     }
 
     pub fn tick(

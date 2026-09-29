@@ -211,7 +211,7 @@ const RootLayout = () => {
   );
 
   if (shellLabel === "chat-resident") {
-    return <div className="h-screen w-full overflow-hidden bg-[#1b1424]">{content}</div>;
+    return <div className="bg-base-100 text-base-content">{content}</div>;
   }
 
   if (isCompactWindow) {
@@ -275,7 +275,6 @@ const RootLayout = () => {
           <AnimatePresence>{isLoading && <LoadingScreen key="global-loader" />}</AnimatePresence>
           {content}
         </div>
-
         {globalOverlays}
         <ChatLiveBridge />
         <TeamCommsRuntime />

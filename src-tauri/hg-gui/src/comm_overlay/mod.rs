@@ -97,6 +97,24 @@ pub fn take_overlay_resident_click() -> Option<presence::OverlayResidentClick> {
 
 #[tauri::command]
 #[specta::specta]
+pub fn broadcast_comm_bubble(profile_id: String, text: String) -> Result<(), String> {
+    let profile_id = profile_id.trim().to_string();
+    let text = text.trim().to_string();
+    if profile_id.is_empty() || text.is_empty() {
+        return Err("empty bubble".into());
+    }
+    crate::serve::call_command(
+        "broadcast_comm_bubble",
+        serde_json::json!({
+            "profileId": profile_id,
+            "text": text,
+        }),
+    )?;
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn show_comm_bubble(
     profile_id: String,
     text: String,

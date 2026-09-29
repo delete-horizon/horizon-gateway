@@ -1,4 +1,4 @@
-//! Residents wander the virtual desktop. Speech bubbles stay with them, separate from TTL'd FX sprites.
+//! Residents wander the primary monitor. Speech bubbles stay with them, separate from TTL'd FX sprites.
 
 use std::collections::HashSet;
 use std::sync::Mutex;
@@ -115,12 +115,13 @@ impl Engine {
                 existing.online = spec.online;
                 continue;
             }
+            let (ox, oy, w, h) = self.resident_walk_span();
             self.residents.push(spawn_resident(
                 spec,
-                self.bounds_x,
-                self.bounds_y,
-                width,
-                height,
+                ox,
+                oy,
+                w,
+                h,
                 self.residents.len(),
             ));
         }
@@ -156,20 +157,17 @@ impl Engine {
                 online: true,
                 kit: AvatarKit::default(),
             };
-            let w = if self.bounds_w < 64.0 {
-                1280.0
-            } else {
-                self.bounds_w
-            };
-            let h = if self.bounds_h < 64.0 {
-                720.0
-            } else {
-                self.bounds_h
-            };
+            let (ox, oy, mut w, mut h) = self.resident_walk_span();
+            if w < 64.0 {
+                w = 1280.0;
+            }
+            if h < 64.0 {
+                h = 720.0;
+            }
             self.residents.push(spawn_resident(
                 &spec,
-                self.bounds_x,
-                self.bounds_y,
+                ox,
+                oy,
                 w,
                 h,
                 self.residents.len(),
@@ -193,7 +191,8 @@ impl Engine {
         cmds: &mut Vec<DrawCmd>,
         banners: &mut Vec<Banner>,
     ) {
-        let rect = walk_rect(self.bounds_x, self.bounds_y, width, height);
+        let (ox, oy, w, h) = self.resident_walk_span();
+        let rect = walk_rect(ox, oy, w, h);
 
         for r in &mut self.residents {
             r.phase += dt * 5.2;
@@ -464,10 +463,11 @@ mod tests {
     fn residents_wander_inside_the_screen() {
         let mut e = Engine::default();
         e.set_screen_origin(-1920.0, 0.0);
+        e.set_walk_bounds(0.0, 0.0, 1920.0, 1080.0);
         e.sync_residents(&[spec("me", "나")], 3840.0, 1080.0);
         let start = e.residents[0].clone();
-        assert!(start.x >= -1920.0 + super::WALK_PAD_X - 0.1);
-        assert!(start.x <= -1920.0 + 3840.0 - super::WALK_PAD_X + 0.1);
+        assert!(start.x >= super::WALK_PAD_X - 0.1);
+        assert!(start.x <= 1920.0 - super::WALK_PAD_X + 0.1);
         assert!(start.y >= super::WALK_PAD_TOP - 0.1);
         assert!(start.y <= 1080.0 - super::WALK_PAD_BOTTOM + 0.1);
         let mut t = Instant::now();
@@ -482,10 +482,11 @@ mod tests {
             dx * dx + dy * dy > 8.0 * 8.0,
             "resident should leave its start point"
         );
-        assert!(moved.x >= -1920.0 + super::WALK_PAD_X - 1.0);
-        assert!(moved.x <= -1920.0 + 3840.0 - super::WALK_PAD_X + 1.0);
+        assert!(moved.x >= super::WALK_PAD_X - 1.0);
+        assert!(moved.x <= 1920.0 - super::WALK_PAD_X + 1.0);
         assert!(moved.y >= super::WALK_PAD_TOP - 1.0);
         assert!(moved.y <= 1080.0 - super::WALK_PAD_BOTTOM + 1.0);
+        assert!(moved.x >= 0.0, "resident stays on the primary monitor");
     }
 
     #[test]

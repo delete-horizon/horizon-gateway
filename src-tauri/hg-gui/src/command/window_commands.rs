@@ -54,7 +54,18 @@ fn percent_encode(value: &str) -> String {
     out
 }
 
-/// One-line composer beside a monitor character. Reuses the same window and moves it.
+const DOCK_WIDTH: f64 = 240.0;
+/// Fixed pixel chrome: search 28 + border 1 + message 30.
+const DOCK_CHROME: f64 = 59.0;
+const DOCK_ROW: f64 = 22.0;
+
+fn dock_height(rows: u32) -> f64 {
+    let rows = rows.clamp(1, 4);
+    DOCK_CHROME + f64::from(rows) * DOCK_ROW
+}
+
+/// Shared chat dock at the bottom center of the primary monitor.
+/// The click coordinates stay in the command so existing callers keep working.
 #[tauri::command]
 #[specta::specta]
 pub async fn open_resident_composer(
@@ -64,6 +75,7 @@ pub async fn open_resident_composer(
     x: f64,
     y: f64,
 ) -> Result<(), String> {
+    let _ = (x, y);
     let profile_id = profile_id.trim().to_string();
     if profile_id.is_empty() {
         return Err("profile id required".into());
@@ -81,14 +93,14 @@ pub async fn open_resident_composer(
         percent_encode(&profile_id),
         percent_encode(&label),
     );
-    let (px, py) = composer_origin(x, y);
+    let (px, py) = dock_origin(&app, dock_height(3));
     let target = ResidentComposerTarget {
         profile_id,
         label: label.clone(),
     };
 
     if let Some(window) = app.get_webview_window(RESIDENT_COMPOSER_LABEL) {
-        let _ = window.set_size(tauri::LogicalSize::new(240.0, 36.0));
+        let _ = window.set_size(tauri::LogicalSize::new(DOCK_WIDTH, dock_height(3)));
         window
             .set_position(tauri::PhysicalPosition::new(px, py))
             .map_err(|e| e.to_string())?;
@@ -101,12 +113,14 @@ pub async fn open_resident_composer(
     let mut builder =
         WebviewWindowBuilder::new(&app, RESIDENT_COMPOSER_LABEL, WebviewUrl::App(url.into()))
             .title(label)
-            .inner_size(240.0, 36.0)
+            .inner_size(DOCK_WIDTH, dock_height(3))
+            .background_color(tauri::webview::Color(15, 23, 42, 255))
             .decorations(false)
             .resizable(false)
             .always_on_top(true)
             .skip_taskbar(true)
-            .focused(true);
+            .focused(true)
+            .shadow(false);
 
     #[cfg(windows)]
     {
@@ -121,49 +135,37 @@ pub async fn open_resident_composer(
     Ok(())
 }
 
-/// Place the one-line composer on the same monitor as the character, including displays left or above the primary.
-fn composer_origin(x: f64, y: f64) -> (i32, i32) {
-    const WIDTH: i32 = 400;
-    const HEIGHT: i32 = 56;
-    let mut px = x.round() as i32 + 36;
-    let mut py = y.round() as i32 - 84;
+/// Resize the dock to an exact logical height and pin it to the bottom center.
+#[tauri::command]
+#[specta::specta]
+pub async fn fit_resident_composer(app: AppHandle, height: f64) -> Result<(), String> {
+    let Some(window) = app.get_webview_window(RESIDENT_COMPOSER_LABEL) else {
+        return Ok(());
+    };
+    let height = height.clamp(dock_height(1), dock_height(4));
+    window
+        .set_size(tauri::LogicalSize::new(DOCK_WIDTH, height))
+        .map_err(|e| e.to_string())?;
+    let (px, py) = dock_origin(&app, height);
+    window
+        .set_position(tauri::PhysicalPosition::new(px, py))
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
 
-    #[cfg(windows)]
-    {
-        use windows_sys::Win32::Foundation::POINT;
-        use windows_sys::Win32::Graphics::Gdi::{
-            GetMonitorInfoW, MonitorFromPoint, MONITORINFO, MONITOR_DEFAULTTONEAREST,
-        };
-
-        let point = POINT {
-            x: x.round() as i32,
-            y: y.round() as i32,
-        };
-        unsafe {
-            let monitor = MonitorFromPoint(point, MONITOR_DEFAULTTONEAREST);
-            if !monitor.is_null() {
-                let mut info: MONITORINFO = std::mem::zeroed();
-                info.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
-                if GetMonitorInfoW(monitor, &mut info) != 0 {
-                    let work = info.rcWork;
-                    if px + WIDTH > work.right - 8 {
-                        px = work.right - WIDTH - 8;
-                    }
-                    if px < work.left + 8 {
-                        px = work.left + 8;
-                    }
-                    if py + HEIGHT > work.bottom - 8 {
-                        py = work.bottom - HEIGHT - 8;
-                    }
-                    if py < work.top + 8 {
-                        py = work.top + 8;
-                    }
-                }
-            }
-        }
-    }
-
-    (px, py)
+/// Bottom center of the primary monitor work area, in physical pixels.
+fn dock_origin(app: &AppHandle, height: f64) -> (i32, i32) {
+    let Ok(Some(monitor)) = app.primary_monitor() else {
+        return (80, 80);
+    };
+    let scale = monitor.scale_factor().max(1.0);
+    let work = monitor.work_area();
+    let width = (DOCK_WIDTH * scale).round() as i32;
+    let height = (height * scale).round() as i32;
+    let margin = (8.0 * scale).round() as i32;
+    let x = work.position.x + (work.size.width as i32 - width) / 2;
+    let y = work.position.y + work.size.height as i32 - height - margin;
+    (x.max(work.position.x), y.max(work.position.y))
 }
 
 static SHELL_ROLE: std::sync::OnceLock<&'static str> = std::sync::OnceLock::new();

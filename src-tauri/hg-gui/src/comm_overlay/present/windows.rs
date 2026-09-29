@@ -10,9 +10,10 @@ use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
 use windows_sys::Win32::Foundation::{GetLastError, HWND, LPARAM, LRESULT, POINT, SIZE, WPARAM};
 use windows_sys::Win32::Graphics::Gdi::{
-    CreateCompatibleDC, CreateDIBSection, CreateFontW, DeleteDC, DeleteObject, GetDC, ReleaseDC,
-    SelectObject, SetBkMode, SetTextAlign, SetTextColor, TextOutW, BITMAPINFO, BITMAPINFOHEADER,
-    BI_RGB, BLENDFUNCTION, DIB_RGB_COLORS, FW_SEMIBOLD, HBITMAP, HDC, HGDIOBJ, TA_CENTER, TA_TOP,
+    CreateCompatibleDC, CreateDIBSection, CreateFontW, DeleteDC, DeleteObject, GetDC,
+    GetMonitorInfoW, MonitorFromPoint, ReleaseDC, SelectObject, SetBkMode, SetTextAlign,
+    SetTextColor, TextOutW, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, BLENDFUNCTION, DIB_RGB_COLORS,
+    FW_SEMIBOLD, HBITMAP, HDC, HGDIOBJ, MONITORINFO, MONITOR_DEFAULTTOPRIMARY, TA_CENTER, TA_TOP,
     TRANSPARENT,
 };
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
@@ -98,6 +99,31 @@ fn to_wide(s: &str) -> Vec<u16> {
 
 fn overlay_dims(screen_w: i32, screen_h: i32) -> (i32, i32) {
     (screen_w.max(1), screen_h.max(1))
+}
+
+/// Primary monitor work area in virtual-screen pixels, above the taskbar.
+fn primary_screen() -> (i32, i32, i32, i32) {
+    unsafe {
+        let monitor = MonitorFromPoint(POINT { x: 0, y: 0 }, MONITOR_DEFAULTTOPRIMARY);
+        let mut info = MONITORINFO {
+            cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+            rcMonitor: std::mem::zeroed(),
+            rcWork: std::mem::zeroed(),
+            dwFlags: 0,
+        };
+        if GetMonitorInfoW(monitor, &mut info) != 0 {
+            let work = info.rcWork;
+            let width = (work.right - work.left).max(1);
+            let height = (work.bottom - work.top).max(1);
+            return (work.left, work.top, width, height);
+        }
+        (
+            0,
+            0,
+            GetSystemMetrics(SM_CXSCREEN).max(1),
+            GetSystemMetrics(SM_CYSCREEN).max(1),
+        )
+    }
 }
 
 /// Origin and size of every connected monitor. Left/above monitors use a negative origin.
@@ -500,6 +526,8 @@ fn overlay_thread_main(rx: mpsc::Receiver<OverlayCmd>) {
         width = sw.max(1);
         height = sh.max(1);
         engine.set_screen_origin(origin_x as f32, origin_y as f32);
+        let (px, py, pw, ph) = primary_screen();
+        engine.set_walk_bounds(px as f32, py as f32, pw as f32, ph as f32);
 
         let idle = engine.is_empty();
         if idle {

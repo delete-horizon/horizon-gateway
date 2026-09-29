@@ -56,6 +56,11 @@ export async function showCommBubble(profileId: string, text: string, ttlMs?: nu
   unwrap(await commands.showCommBubble(profileId, text, ttlMs ?? null));
 }
 
+/** Ask every open shell to draw this line on `profileId`. The workspace shell owns the sprites. */
+export async function broadcastOwnBubble(profileId: string, text: string): Promise<void> {
+  unwrap(await commands.broadcastCommBubble(profileId, text));
+}
+
 export async function installCommAvatarParts(
   parts: Parameters<typeof commands.installCommAvatarParts>[0],
 ): Promise<void> {

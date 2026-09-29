@@ -18,11 +18,13 @@ import {
   refreshPeers,
   refsToKit,
   setWornHandshakeHandler,
+  showCommBubble,
   syncCommResidents,
   WORN_STORAGE_KEY,
 } from "@/entities/chat";
 import { activeWorkspaceIdAtom, listMembers } from "@/entities/team";
 import { commands, unwrap } from "@/shared/api";
+import { localDummies } from "../lib/localDummies";
 
 function peerOnline(peers: ChatPeerEndpoint[], profileId: string): boolean {
   const peer = peers.find((item) => item.profileId === profileId);
@@ -74,6 +76,7 @@ export function TeamCommsRuntime() {
       return;
     }
     let unlisten: (() => void) | undefined;
+    let unlistenBubble: (() => void) | undefined;
     let timer: number | undefined;
     let cancelled = false;
 
@@ -101,6 +104,21 @@ export function TeamCommsRuntime() {
         console.warn("chat frame listen failed", e);
       }
 
+      try {
+        unlistenBubble = await listen<{ profileId: string; text: string }>("comm-bubble", (event) => {
+          if (!ownsOverlayRef.current || !overlayOnRef.current) {
+            return;
+          }
+          const { profileId, text } = event.payload ?? {};
+          if (!profileId || !text) {
+            return;
+          }
+          void showCommBubble(profileId, text).catch(() => {});
+        });
+      } catch (e) {
+        console.warn("comm bubble listen failed", e);
+      }
+
       const tick = () => {
         if (cancelled) {
           return;
@@ -118,6 +136,7 @@ export function TeamCommsRuntime() {
         window.clearTimeout(timer);
       }
       unlisten?.();
+      unlistenBubble?.();
     };
   }, [myId, workspaceId]);
 
@@ -156,6 +175,12 @@ export function TeamCommsRuntime() {
             online: peerOnline(peers, member.profile_id),
             kit: kitOf(member.profile_id),
           })),
+        ...localDummies().map((dummy) => ({
+          profileId: dummy.id,
+          label: dummy.label,
+          online: true,
+          kit: dummy.kit,
+        })),
       ]).catch((e: unknown) => console.warn("sync residents", e));
     };
 
