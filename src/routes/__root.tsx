@@ -214,6 +214,10 @@ const RootLayout = () => {
     return <div className="bg-base-100 text-base-content">{content}</div>;
   }
 
+  if (shellLabel === "chat-incoming") {
+    return <div className="h-screen w-full overflow-hidden bg-transparent text-base-content">{content}</div>;
+  }
+
   if (isCompactWindow) {
     return (
       <ErrorBoundary fallbackTitle={isChatWindow ? "Chat window error" : "Popup window error"}>

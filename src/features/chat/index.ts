@@ -5,6 +5,7 @@ export { ChatInboxView } from "./ui/ChatInboxView";
 export { ChatLiveBridge } from "./ui/ChatLiveBridge";
 export { ChatRoomView } from "./ui/ChatRoomView";
 export { ChatShell } from "./ui/ChatShell";
+export { IncomingMessageStack } from "./ui/IncomingMessageStack";
 export { OverlayPlayground } from "./ui/OverlayPlayground";
 export { ResidentComposer } from "./ui/ResidentComposer";
 export { TeamCommsRuntime } from "./ui/TeamCommsRuntime";

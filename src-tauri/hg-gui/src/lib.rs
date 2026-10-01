@@ -21,7 +21,9 @@ use comm_overlay::{
 use command::window_commands::{
     app_shell_role, capture_app_screenshot, ensure_serve_running, note_companion_open_from_args,
     open_annotation_dialog, open_external_url, open_hub_app, open_inspector_window,
-    fit_resident_composer, open_resident_composer, open_window, open_workspace_app, prepare_for_update,
+    clear_incoming_cards, dismiss_incoming_card, fit_resident_composer, list_incoming_cards,
+    open_resident_composer, open_window, open_workspace_app, prepare_for_update,
+    prepare_incoming_cards, push_incoming_card,
     quit_app,
     set_pending_companion_open, set_shell_role, take_companion_open, trigger_os_snip,
 };
@@ -29,8 +31,13 @@ use command::windows_update::install_windows_update;
 
 pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
     tauri_specta::Builder::<tauri::Wry>::new().commands(tauri_specta::collect_commands![
+        clear_incoming_cards,
+        dismiss_incoming_card,
         fit_resident_composer,
+        list_incoming_cards,
+        prepare_incoming_cards,
         open_resident_composer,
+        push_incoming_card,
         open_window,
         open_workspace_app,
         open_hub_app,

@@ -25,6 +25,11 @@ const GUI_ONLY_COMMANDS: &[&str] = &[
     "take_overlay_resident_click",
     "open_resident_composer",
     "fit_resident_composer",
+    "push_incoming_card",
+    "list_incoming_cards",
+    "dismiss_incoming_card",
+    "clear_incoming_cards",
+    "prepare_incoming_cards",
     "install_comm_avatar_parts",
     "plugin:updater|check",
     "plugin:updater|download_and_install",
@@ -92,5 +97,19 @@ mod tests {
         }
         assert!(should_forward("session_handoff_put"));
         assert!(should_forward("session_handoff_take"));
+    }
+
+    #[test]
+    fn incoming_cards_stay_in_gui() {
+        for cmd in [
+            "push_incoming_card",
+            "list_incoming_cards",
+            "dismiss_incoming_card",
+            "clear_incoming_cards",
+            "prepare_incoming_cards",
+        ] {
+            assert!(is_gui_only(cmd), "{cmd} must stay in the GUI");
+            assert!(!should_forward(cmd), "{cmd} must not forward");
+        }
     }
 }

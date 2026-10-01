@@ -1,6 +1,6 @@
-import { broadcastOwnBubble, ensureDmRoom, sendTextMessage } from "@/entities/chat";
+import { broadcastOwnBubble, emitIncomingMessageCard, ensureDmRoom, sendTextMessage } from "@/entities/chat";
 import { listMembers } from "@/entities/team";
-import { isLocalDummy } from "./localDummies";
+import { isLocalDummy, localDummies } from "./localDummies";
 
 export interface TeamLineResult {
   delivered: number;
@@ -40,8 +40,18 @@ export async function sendTeamLine(opts: {
     throw new Error(ko ? "팀원이 없습니다." : "No teammates.");
   }
 
+  const roster = [
+    ...members
+      .filter((member) => member.profile_id !== opts.myId)
+      .map((member) => ({ id: member.profile_id, label: memberLabel(member.profile, member.profile_id) })),
+    ...localDummies().map((dummy) => ({ id: dummy.id, label: dummy.label })),
+  ];
+  const sendingToEveryone = roster.length > 0 && roster.every((person) => picked.has(person.id));
+
   let delivered = 0;
   const missed: string[] = [];
+  const sentNames: string[] = [];
+  let singlePeerId = "";
   for (const member of others) {
     const label = memberLabel(member.profile, member.profile_id);
     try {
@@ -57,12 +67,25 @@ export async function sendTeamLine(opts: {
         workspaceId: opts.workspaceId,
         body: opts.body,
       });
+      sentNames.push(label);
+      if (!singlePeerId) {
+        singlePeerId = member.profile_id;
+      }
       delivered += 1;
     } catch {
       missed.push(label);
     }
   }
 
+  for (const dummy of localDummies()) {
+    if (!picked.has(dummy.id)) {
+      continue;
+    }
+    sentNames.push(dummy.label);
+    if (!singlePeerId) {
+      singlePeerId = dummy.id;
+    }
+  }
   delivered += dummyCount;
 
   if (delivered === 0) {
@@ -73,6 +96,22 @@ export async function sendTeamLine(opts: {
     );
   }
 
+  const label = sendingToEveryone ? (ko ? "전체" : "Everyone") : sentNames.join(", ");
+  const onePeer = !sendingToEveryone && sentNames.length === 1;
+  showSentCard(onePeer ? singlePeerId : "", label, opts.body);
+
   await broadcastOwnBubble(opts.myId, opts.body);
   return { delivered, missed, localOnly: others.length === 0 };
+}
+
+function showSentCard(profileId: string, name: string, body: string) {
+  emitIncomingMessageCard({
+    id: `out-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    roomId: profileId,
+    senderId: profileId,
+    senderName: name,
+    body,
+    createdAt: new Date().toISOString(),
+    direction: "out",
+  });
 }

@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useAtomValue } from "jotai";
 import { useEffect, useRef, useState } from "react";
@@ -149,8 +150,10 @@ export function TeamCommsRuntime() {
     const sync = async () => {
       if (!overlayOn || !myId || !workspaceId) {
         await syncCommResidents([]).catch(() => {});
+        await invoke("clear_incoming_cards").catch(() => {});
         return;
       }
+      await invoke("prepare_incoming_cards").catch(() => {});
       const [members, peers] = await Promise.all([
         listMembers(workspaceId).catch(() => []),
         refreshPeers(workspaceId).catch(() => []),

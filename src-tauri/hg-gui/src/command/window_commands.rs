@@ -168,6 +168,152 @@ fn dock_origin(app: &AppHandle, height: f64) -> (i32, i32) {
     (x.max(work.position.x), y.max(work.position.y))
 }
 
+const INCOMING_CARDS_LABEL: &str = "chat-incoming";
+const CARD_WIDTH: f64 = 280.0;
+const CARD_ROW: f64 = 76.0;
+
+#[derive(Clone, serde::Serialize, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct IncomingCard {
+    pub id: String,
+    pub room_id: String,
+    pub sender_id: String,
+    pub sender_name: String,
+    pub body: String,
+    pub created_at: String,
+    /// `in` for a received line, `out` for one this machine sent.
+    #[serde(default = "default_card_direction")]
+    pub direction: String,
+}
+
+fn default_card_direction() -> String {
+    "in".into()
+}
+
+static INCOMING_CARDS: std::sync::Mutex<Vec<IncomingCard>> = std::sync::Mutex::new(Vec::new());
+
+fn cards_origin(app: &AppHandle, height: f64) -> (i32, i32) {
+    let Ok(Some(monitor)) = app.primary_monitor() else {
+        return (80, 80);
+    };
+    let scale = monitor.scale_factor().max(1.0);
+    let work = monitor.work_area();
+    let width = (CARD_WIDTH * scale).round() as i32;
+    let height = (height * scale).round() as i32;
+    let margin = (12.0 * scale).round() as i32;
+    let x = work.position.x + work.size.width as i32 - width - margin;
+    let y = work.position.y + work.size.height as i32 - height - margin;
+    (x.max(work.position.x), y.max(work.position.y))
+}
+
+fn ensure_incoming_window(app: &AppHandle) -> Result<(), String> {
+    if app.get_webview_window(INCOMING_CARDS_LABEL).is_some() {
+        return Ok(());
+    }
+    let height = CARD_ROW;
+    let (px, py) = cards_origin(app, height);
+    let mut builder = WebviewWindowBuilder::new(
+        app,
+        INCOMING_CARDS_LABEL,
+        WebviewUrl::App("/chat/incoming".into()),
+    )
+    .title("Messages")
+    .inner_size(CARD_WIDTH, height)
+    .transparent(true)
+    .background_color(tauri::webview::Color(0, 0, 0, 0))
+    .decorations(false)
+    .resizable(false)
+    .always_on_top(true)
+    .skip_taskbar(true)
+    .focused(false)
+    .visible(false)
+    .shadow(false);
+
+    #[cfg(windows)]
+    {
+        builder = builder.scroll_bar_style(ScrollBarStyle::FluentOverlay);
+    }
+
+    let window = builder.build().map_err(|e: tauri::Error| e.to_string())?;
+    window
+        .set_position(tauri::PhysicalPosition::new(px, py))
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn place_incoming_cards(app: &AppHandle, count: usize) -> Result<(), String> {
+    ensure_incoming_window(app)?;
+    let Some(window) = app.get_webview_window(INCOMING_CARDS_LABEL) else {
+        return Ok(());
+    };
+    if count == 0 {
+        let _ = window.hide();
+        return Ok(());
+    }
+    let height = f64::from(count.clamp(1, 4) as u32) * CARD_ROW;
+    let (px, py) = cards_origin(app, height);
+    let _ = window.set_size(tauri::LogicalSize::new(CARD_WIDTH, height));
+    window
+        .set_position(tauri::PhysicalPosition::new(px, py))
+        .map_err(|e| e.to_string())?;
+    let _ = window.show();
+    Ok(())
+}
+
+/// Create the card window ahead of the first message so it can show without a cold start.
+#[tauri::command]
+#[specta::specta]
+pub async fn prepare_incoming_cards(app: AppHandle) -> Result<(), String> {
+    ensure_incoming_window(&app)
+}
+
+/// Show one incoming chat card on the right edge. The card window reads the list on mount.
+#[tauri::command]
+#[specta::specta]
+pub async fn push_incoming_card(app: AppHandle, card: IncomingCard) -> Result<(), String> {
+    let count = {
+        let mut cards = INCOMING_CARDS.lock().map_err(|e| e.to_string())?;
+        cards.retain(|item| item.id != card.id);
+        cards.push(card.clone());
+        if cards.len() > 4 {
+            let extra = cards.len() - 4;
+            cards.drain(0..extra);
+        }
+        cards.len()
+    };
+    place_incoming_cards(&app, count)?;
+    if let Some(window) = app.get_webview_window(INCOMING_CARDS_LABEL) {
+        let _ = window.emit("hg-chat-incoming-card", &card);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn list_incoming_cards() -> Vec<IncomingCard> {
+    INCOMING_CARDS.lock().map(|cards| cards.clone()).unwrap_or_default()
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn dismiss_incoming_card(app: AppHandle, id: String) -> Result<(), String> {
+    let count = {
+        let mut cards = INCOMING_CARDS.lock().map_err(|e| e.to_string())?;
+        cards.retain(|item| item.id != id);
+        cards.len()
+    };
+    place_incoming_cards(&app, count)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn clear_incoming_cards(app: AppHandle) -> Result<(), String> {
+    if let Ok(mut cards) = INCOMING_CARDS.lock() {
+        cards.clear();
+    }
+    place_incoming_cards(&app, 0)
+}
+
 static SHELL_ROLE: std::sync::OnceLock<&'static str> = std::sync::OnceLock::new();
 
 pub fn set_shell_role(role: &'static str) {

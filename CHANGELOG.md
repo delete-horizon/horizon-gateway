@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.8.11] - 2026-10-01
+
+### Changed
+
+- **Foot-line walk**: Overlay characters pace a single strip just above the taskbar on the primary monitor. Feet stay on that line; they no longer wander the full screen.
+- **Chat cards**: Sent and received lines stack on the right edge (name, message, time, 발신/수신). Sending to everyone shows 전체; a few people share one card with comma-separated names. The composer stays bottom-center.
+
 ## [v2.8.10] - 2026-09-29
 
 ### Changed

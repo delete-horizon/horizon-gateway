@@ -17,6 +17,7 @@ import {
   wrapRoomKey,
 } from "./crypto";
 import { emitChatTyping, emitChatUpdated } from "./events";
+import { emitIncomingMessageCard } from "./incomingMessageCard";
 import {
   appendLocalMessage,
   bumpUnread,
@@ -1021,6 +1022,15 @@ export async function handleIncomingFrame(
 
   if (opts?.overlayBubble && frame.senderId !== myId) {
     void showCommBubble(frame.senderId, body).catch(() => {});
+    emitIncomingMessageCard({
+      id: frame.id,
+      roomId: frame.roomId,
+      senderId: frame.senderId,
+      senderName: frame.senderLabel?.trim() || room?.name?.trim() || frame.senderId.slice(0, 8),
+      body,
+      createdAt: frame.createdAt || new Date().toISOString(),
+      direction: "in",
+    });
   }
 
   if (room?.workspaceId) {

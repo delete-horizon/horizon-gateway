@@ -1,4 +1,5 @@
-//! Residents wander the primary monitor. Speech bubbles stay with them, separate from TTL'd FX sprites.
+//! Residents pace a foot-line strip above the taskbar on the primary monitor.
+//! Speech bubbles stay with them; incoming chat also gets a right-side toast stack in the UI.
 
 use std::collections::HashSet;
 use std::sync::Mutex;
@@ -13,8 +14,8 @@ use super::engine::{hash_u64, Banner, DrawCmd, Engine};
 pub const BUBBLE_TTL_MS: u64 = 5000;
 pub const BUBBLE_MAX_CHARS: usize = 50;
 const WALK_PAD_X: f32 = 48.0;
-const WALK_PAD_TOP: f32 = 72.0;
-const WALK_PAD_BOTTOM: f32 = 88.0;
+/// Feet sit this many pixels above the primary work-area bottom (already above the taskbar).
+const FOOT_CLEARANCE: f32 = 8.0;
 const WALK_SPEED: f32 = 54.0;
 const ARRIVE_DIST: f32 = 12.0;
 
@@ -101,6 +102,9 @@ impl Engine {
         self.bubbles
             .retain(|b| keep.contains(b.profile_id.as_str()));
 
+        let (ox, oy, w, h) = self.resident_walk_span();
+        let rect = walk_rect(ox, oy, w, h);
+
         for spec in wanted {
             if let Some(existing) = self
                 .residents
@@ -113,9 +117,12 @@ impl Engine {
                 }
                 existing.kit = spec.kit.normalized();
                 existing.online = spec.online;
+                // Keep survivors on the foot strip if walk bounds changed (or after upgrade).
+                existing.x = existing.x.clamp(rect.min_x, rect.max_x);
+                existing.y = rect.min_y;
+                existing.ty = rect.min_y;
                 continue;
             }
-            let (ox, oy, w, h) = self.resident_walk_span();
             self.residents.push(spawn_resident(
                 spec,
                 ox,
@@ -127,16 +134,19 @@ impl Engine {
         }
     }
 
-    /// Body-sized hit, closest resident wins. `y` is above the feet anchor.
+    /// Sprite-box hit, closest resident wins. `resident.y` is the foot line.
     pub fn resident_at(&self, x: f32, y: f32) -> Option<(String, String)> {
         let mut best: Option<(f32, &Resident)> = None;
         for resident in &self.residents {
-            let dx = resident.x - x;
-            let dy = (resident.y - 36.0) - y;
-            let dist = dx * dx + dy * dy;
-            if dist > 52.0 * 52.0 {
+            let ps = crate::comm_overlay::avatar::display_pixel_size(&resident.kit, resident.scale);
+            let (hx, hy) = crate::comm_overlay::avatar::bounds(ps);
+            let half_h = (crate::comm_overlay::avatar::COMPOSE_H as f32) * 0.5 * ps;
+            let cx = resident.x;
+            let cy = resident.y - half_h;
+            if (x - cx).abs() > hx || y < cy - hy || y > resident.y + 18.0 {
                 continue;
             }
+            let dist = (x - cx) * (x - cx) + (y - cy) * (y - cy);
             if best.as_ref().is_none_or(|found| dist < found.0) {
                 best = Some((dist, resident));
             }
@@ -193,66 +203,60 @@ impl Engine {
     ) {
         let (ox, oy, w, h) = self.resident_walk_span();
         let rect = walk_rect(ox, oy, w, h);
+        let foot_y = rect.min_y;
 
         for r in &mut self.residents {
             r.phase += dt * 5.2;
-            if r.x < rect.min_x || r.x > rect.max_x || r.y < rect.min_y || r.y > rect.max_y {
-                r.x = r.x.clamp(rect.min_x, rect.max_x);
-                r.y = r.y.clamp(rect.min_y, rect.max_y);
-                let (tx, ty) = pick_target(rect, r.seed ^ r.x.to_bits() as u64);
-                r.tx = tx;
-                r.ty = ty;
-            }
+            // Horizontal pace only — feet never leave the taskbar strip.
+            r.y = foot_y;
+            r.ty = foot_y;
+            r.x = r.x.clamp(rect.min_x, rect.max_x);
+            r.tx = r.tx.clamp(rect.min_x, rect.max_x);
             if r.pause > 0.0 {
                 r.pause = (r.pause - dt).max(0.0);
                 continue;
             }
             let dx = r.tx - r.x;
-            let dy = r.ty - r.y;
-            let dist = (dx * dx + dy * dy).sqrt();
             let speed = resident_speed(r.seed);
-            if dist <= ARRIVE_DIST {
+            if dx.abs() <= ARRIVE_DIST {
                 r.x = r.tx;
-                r.y = r.ty;
                 let roll = hash_u64(r.seed ^ r.tx.to_bits() as u64 ^ r.ty.to_bits() as u64);
                 r.pause = if roll % 3 == 0 {
                     0.8 + (roll % 140) as f32 / 100.0
                 } else {
                     0.12
                 };
-                let (tx, ty) = pick_target(rect, roll);
+                let (tx, _) = pick_target(rect, roll);
                 r.tx = tx;
-                r.ty = ty;
                 continue;
             }
             let step = speed * dt;
-            r.x += dx / dist * step;
-            r.y += dy / dist * step;
-            if dx.abs() > 0.5 {
-                r.vx = dx.signum() * speed;
-            }
+            r.x += dx.signum() * step.min(dx.abs());
+            r.vx = dx.signum() * speed;
         }
 
         self.bubbles
             .retain(|b| now.saturating_duration_since(b.born) < b.ttl);
 
         for r in &self.residents {
-            let bob = r.phase.sin() * 3.5;
-            let draw_y = r.y + bob;
+            let bob = r.phase.sin() * 2.0;
+            let ps = crate::comm_overlay::avatar::display_pixel_size(&r.kit, r.scale);
+            let half_h = (crate::comm_overlay::avatar::COMPOSE_H as f32) * 0.5 * ps;
+            // paint() treats y as sprite center; pin feet to resident.y.
+            let foot_y = r.y + bob;
+            let center_y = foot_y - half_h;
             let facing = if r.vx < 0.0 { -1 } else { 1 };
             let step = ((r.phase * 3.0).floor() as i32).rem_euclid(2) as u8;
             cmds.push(DrawCmd::Avatar {
                 x: r.x,
-                y: draw_y,
-                pixel_size: crate::comm_overlay::avatar::display_pixel_size(&r.kit, r.scale),
+                y: center_y,
+                pixel_size: ps,
                 facing,
                 alpha: if r.online { 255 } else { 110 },
                 step,
                 ids: r.kit.ids(),
             });
-            let label_dy =
-                22.0 * crate::comm_overlay::avatar::body_scale(&r.kit) * r.scale.max(0.8) + 28.0;
-            banners.push(Banner::label(r.label.clone(), r.x, draw_y + label_dy));
+            banners.push(Banner::label(r.label.clone(), r.x, foot_y + 14.0));
         }
 
         for b in &self.bubbles {
@@ -268,10 +272,12 @@ impl Engine {
             let char_w = 12.0;
             let w = (b.text.chars().count() as f32 * char_w + 28.0).clamp(52.0, 300.0);
             let h = 28.0;
-            let bob = r.phase.sin() * 3.5;
-            let bx = r.x;
+            let bob = r.phase.sin() * 2.0;
+            let ps = crate::comm_overlay::avatar::display_pixel_size(&r.kit, r.scale);
+            let half_h = (crate::comm_overlay::avatar::COMPOSE_H as f32) * 0.5 * ps;
             let body_s = crate::comm_overlay::avatar::body_scale(&r.kit) * r.scale.max(0.8);
-            let by = r.y + bob - (42.0 * body_s + 16.0);
+            let bx = r.x;
+            let by = r.y + bob - half_h - (24.0 * body_s + 10.0);
             cmds.push(DrawCmd::SpeechBubble {
                 x: bx,
                 y: by,
@@ -295,13 +301,13 @@ struct WalkRect {
 fn walk_rect(origin_x: f32, origin_y: f32, width: f32, height: f32) -> WalkRect {
     let min_x = origin_x + WALK_PAD_X;
     let max_x = (origin_x + width - WALK_PAD_X).max(min_x);
-    let min_y = origin_y + WALK_PAD_TOP;
-    let max_y = (origin_y + height - WALK_PAD_BOTTOM).max(min_y);
+    // Resident.y is the foot line. Keep everyone on one strip above the taskbar.
+    let foot_y = origin_y + height - FOOT_CLEARANCE;
     WalkRect {
         min_x,
         max_x,
-        min_y,
-        max_y,
+        min_y: foot_y,
+        max_y: foot_y,
     }
 }
 
@@ -466,10 +472,10 @@ mod tests {
         e.set_walk_bounds(0.0, 0.0, 1920.0, 1080.0);
         e.sync_residents(&[spec("me", "나")], 3840.0, 1080.0);
         let start = e.residents[0].clone();
+        let foot_line = 1080.0 - super::FOOT_CLEARANCE;
         assert!(start.x >= super::WALK_PAD_X - 0.1);
         assert!(start.x <= 1920.0 - super::WALK_PAD_X + 0.1);
-        assert!(start.y >= super::WALK_PAD_TOP - 0.1);
-        assert!(start.y <= 1080.0 - super::WALK_PAD_BOTTOM + 0.1);
+        assert!((start.y - foot_line).abs() < 1.0);
         let mut t = Instant::now();
         for _ in 0..80 {
             t += Duration::from_millis(50);
@@ -477,15 +483,10 @@ mod tests {
         }
         let moved = e.residents[0].clone();
         let dx = moved.x - start.x;
-        let dy = moved.y - start.y;
-        assert!(
-            dx * dx + dy * dy > 8.0 * 8.0,
-            "resident should leave its start point"
-        );
+        assert!(dx.abs() > 8.0, "resident should pace horizontally");
         assert!(moved.x >= super::WALK_PAD_X - 1.0);
         assert!(moved.x <= 1920.0 - super::WALK_PAD_X + 1.0);
-        assert!(moved.y >= super::WALK_PAD_TOP - 1.0);
-        assert!(moved.y <= 1080.0 - super::WALK_PAD_BOTTOM + 1.0);
+        assert!((moved.y - foot_line).abs() < 1.0, "feet stay on the strip");
         assert!(moved.x >= 0.0, "resident stays on the primary monitor");
     }
 
