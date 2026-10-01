@@ -219,7 +219,6 @@ fn ensure_incoming_window(app: &AppHandle) -> Result<(), String> {
     )
     .title("Messages")
     .inner_size(CARD_WIDTH, height)
-    .transparent(true)
     .background_color(tauri::webview::Color(0, 0, 0, 0))
     .decorations(false)
     .resizable(false)
@@ -228,6 +227,11 @@ fn ensure_incoming_window(app: &AppHandle) -> Result<(), String> {
     .focused(false)
     .visible(false)
     .shadow(false);
+    // macOS only exposes this behind `macos-private-api`, which the release build does not enable.
+    #[cfg(not(target_os = "macos"))]
+    {
+        builder = builder.transparent(true);
+    }
 
     #[cfg(windows)]
     {
