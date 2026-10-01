@@ -11,6 +11,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Foot-line walk**: Overlay characters pace a single strip just above the taskbar on the primary monitor. Feet stay on that line; they no longer wander the full screen.
 - **Chat cards**: Sent and received lines stack on the right edge (name, message, time, 발신/수신). Sending to everyone shows 전체; a few people share one card with comma-separated names. The composer stays bottom-center.
 
+### Fixed
+
+- **Windows update**: The setup starts from a scheduled task, outside the app job, so closing the app no longer closes the installer.
+
 ## [v2.8.10] - 2026-09-29
 
 ### Changed

@@ -6,11 +6,14 @@
 //! the NSIS preinstall `taskkill` and no UAC / wizard.
 //!
 //! This command downloads via the updater plugin, stops companions that hold install
-//! files, then asks Explorer (Shell.Application) to `ShellExecute` the setup with `runas`
-//! and `/UPDATE` (tauri basicUi). We do **not** call `process::exit`: the NSIS
-//! preinstall hook kills `horizon-gateway.exe` once setup is really running. UAC cancel
-//! or a dead installer returns an error and restarts serve. A file log is always written
-//! under `%LOCALAPPDATA%\com.lurain.horizon-gateway\update.log`.
+//! files, then starts the setup from an interactive scheduled task with `/UPDATE`
+//! (tauri basicUi). `Shell.Application.ShellExecute` cannot be used here: it is in-proc,
+//! returns void (so a `<= 32` check always fails), and the setup stays in this job.
+//! NSIS then `taskkill`s this process and the job takes the installer with it.
+//! A perMachine NSIS manifest raises UAC from the task, so the setup is neither our
+//! child nor in our job. We do **not** call `process::exit`. UAC cancel or a dead
+//! installer returns an error and restarts serve. A file log is always written under
+//! `%LOCALAPPDATA%\com.lurain.horizon-gateway\update.log`.
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -108,6 +111,7 @@ async fn install_windows_update_inner(app: AppHandle) -> Result<(), String> {
     ));
 
     // Stop companions only after a good download, so a UAC cancel can bring serve back.
+    update_log("[gui] install_windows_update: stopping companions before installer launch");
     stop_companions_for_update();
 
     let setup_for_launch = setup_path.clone();
@@ -226,7 +230,7 @@ fn tasklist_contains(needle: &str) -> bool {
     text.contains(&needle.to_ascii_lowercase())
 }
 
-/// Ask Explorer to start the setup elevated. Returns after the installer has
+/// Start setup outside this process and its job. Returns after the installer has
 /// stayed alive outside this process tree, or an error that must keep the app open.
 #[cfg(windows)]
 fn ensure_detached_installer(setup: &Path) -> Result<(), String> {
@@ -236,29 +240,30 @@ fn ensure_detached_installer(setup: &Path) -> Result<(), String> {
         .ok_or_else(|| fail(setup, "Setup path has no file name."))?;
     let our_pid = std::process::id();
     let consent_baseline = list_processes("consent.exe");
-    let script = explorer_launch_script(setup);
+    let script = installer_launch_script(setup);
+    update_log(&format!(
+        "[gui] install_windows_update: launching {} via scheduled task",
+        setup.display()
+    ));
     let helper = run_powershell(&script, true).map_err(|e| fail(setup, &e))?;
     update_log(&format!(
-        "[gui] install_windows_update: explorer helper pid={} exit={} stderr={}",
+        "[gui] install_windows_update: task helper pid={} exit={} stderr={}",
         helper.pid,
         helper.code,
         helper.stderr.trim()
     ));
     tracing::info!(
-        "[gui] install_windows_update: explorer helper pid={} exit={}",
+        "[gui] install_windows_update: task helper pid={} exit={}",
         helper.pid,
         helper.code
     );
     if helper.code != 0 {
         let detail = helper.stderr.trim();
         let message = if detail.is_empty() {
-            format!(
-                "Explorer could not start the installer (exit {}).",
-                helper.code
-            )
+            format!("Could not start the installer task (exit {}).", helper.code)
         } else {
             format!(
-                "Explorer could not start the installer (exit {}): {detail}",
+                "Could not start the installer task (exit {}): {detail}",
                 helper.code
             )
         };
@@ -432,11 +437,19 @@ fn ps_literal(value: &str) -> String {
     format!("'{}'", value.replace('\'', "''"))
 }
 
-fn explorer_launch_script(setup: &Path) -> String {
+/// Task name reused across attempts. No trigger, so it runs only when we start it.
+const UPDATE_TASK_NAME: &str = "HorizonGatewayUpdate";
+
+fn installer_launch_script(setup: &Path) -> String {
+    let task = ps_literal(UPDATE_TASK_NAME);
     let file = ps_literal(&setup.to_string_lossy());
     let dir = ps_literal(&setup.parent().unwrap_or(Path::new(".")).to_string_lossy());
+    let args = ps_literal(VISIBLE_NSIS_ARGS);
+    // RunLevel Highest is access-denied for a standard user. Limited still shows UI,
+    // and the perMachine installer manifest requests elevation, which breaks out of
+    // this job. Unregister after Start; the task engine keeps the launch.
     format!(
-        "$ErrorActionPreference='Stop'; $shell=New-Object -ComObject Shell.Application; $code=$shell.ShellExecute({file}, '{VISIBLE_NSIS_ARGS}', {dir}, 'runas', 1); if ($code -le 32) {{ throw \"ShellExecute failed: $code\" }}"
+        "$ErrorActionPreference='Stop'; $task={task}; Unregister-ScheduledTask -TaskName $task -Confirm:$false -ErrorAction SilentlyContinue; $action=New-ScheduledTaskAction -Execute {file} -Argument {args} -WorkingDirectory {dir}; $principal=New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited; Register-ScheduledTask -TaskName $task -Action $action -Principal $principal -Force | Out-Null; Start-ScheduledTask -TaskName $task; Unregister-ScheduledTask -TaskName $task -Confirm:$false"
     )
 }
 
@@ -449,10 +462,9 @@ fn process_rows_script(image: &str) -> String {
 
 /// True when the installer is not a direct child of this process.
 ///
-/// `Shell.Application.ShellExecute` runs in Explorer. On Windows the resulting
-/// process survives `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` on the caller even if
-/// Toolhelp still names the short-lived helper as the parent. A parent of this
-/// process itself is still inside the tree and must not be followed by exit.
+/// The scheduled task parents setup under the task host, then UAC re-parents the
+/// elevated process. Either parent is outside this job. A parent of this process
+/// itself is still inside the tree and must not be treated as detached.
 fn is_outside_our_tree(our_pid: u32, parent_pid: u32) -> bool {
     parent_pid != 0 && parent_pid != our_pid
 }
@@ -470,8 +482,8 @@ fn parse_pid_pairs(stdout: &str) -> Vec<(u32, u32)> {
 #[cfg(test)]
 mod tests {
     use super::{
-        explorer_launch_script, is_outside_our_tree, parse_pid_pairs, process_rows_script,
-        VISIBLE_NSIS_ARGS,
+        installer_launch_script, is_outside_our_tree, parse_pid_pairs, process_rows_script,
+        UPDATE_TASK_NAME, VISIBLE_NSIS_ARGS,
     };
     use std::path::Path;
 
@@ -483,14 +495,17 @@ mod tests {
     }
 
     #[test]
-    fn explorer_script_requests_uac_and_visible_update() {
-        let script = explorer_launch_script(Path::new(
+    fn scheduled_task_script_launches_visible_update_outside_this_process() {
+        let script = installer_launch_script(Path::new(
             r"C:\Users\me\AppData\Local\com.lurain.horizon-gateway\pending-update\horizon-gateway_2.8.9_x64-setup.exe",
         ));
-        assert!(script.contains("Shell.Application"));
-        assert!(script.contains("'runas'"));
-        assert!(script.contains("ShellExecute failed"));
+        assert!(script.contains("Register-ScheduledTask"));
+        assert!(script.contains("Start-ScheduledTask"));
+        assert!(script.contains("RunLevel Limited"));
+        assert!(script.contains(UPDATE_TASK_NAME));
         assert!(script.contains("'/UPDATE'"));
+        assert!(!script.contains("Shell.Application"));
+        assert!(!script.contains("ShellExecute"));
         assert!(!script.contains("/P"));
         assert!(!script.contains("/S"));
         assert!(script.contains("horizon-gateway_2.8.9_x64-setup.exe"));
