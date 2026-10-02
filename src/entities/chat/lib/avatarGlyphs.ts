@@ -22,6 +22,8 @@ export type AvatarRig = {
   face: [number, number];
   torso: [number, number];
   hand: [number, number];
+  hip: [number, number];
+  shoulder: [number, number];
 };
 
 const HUMAN_RIG: AvatarRig = {
@@ -29,6 +31,8 @@ const HUMAN_RIG: AvatarRig = {
   face: [12, 7],
   torso: [12, 14],
   hand: [16, 15],
+  hip: [12, 17],
+  shoulder: [15, 14],
 };
 
 export type PartChroma = {
@@ -197,16 +201,24 @@ function paintGlyphs(
   dy: number,
   width: number,
   height: number,
+  shift?: { hipX: number; hipY: number; side: number; lock: boolean; lift: number; out: number },
 ) {
   for (let y = 0; y < glyphs.length; y++) {
-    const row = glyphs[y];
+    const row = glyphs[y] ?? "";
     for (let x = 0; x < row.length; x++) {
       const rgb = chRgb(pal, row[x] ?? ".");
       if (!rgb) {
         continue;
       }
-      const px = x + dx;
-      const py = y + dy;
+      let px = x + dx;
+      let py = y + dy;
+      if (shift && !shift.lock && shift.side !== 0 && py > shift.hipY) {
+        const onSide = shift.side > 0 ? px > shift.hipX : px < shift.hipX;
+        if (onSide) {
+          py -= shift.lift;
+          px += shift.side * shift.out;
+        }
+      }
       if (px < 0 || py < 0 || px >= width || py >= height) {
         continue;
       }
@@ -217,6 +229,21 @@ function paintGlyphs(
       buf[i + 3] = 255;
     }
   }
+}
+
+function garmentBridges(glyphs: string[], dx: number, dy: number, hipX: number, hipY: number): boolean {
+  for (let y = 0; y < glyphs.length; y++) {
+    const row = glyphs[y] ?? "";
+    for (let x = 0; x < row.length; x++) {
+      if ((row[x] ?? ".") === ".") {
+        continue;
+      }
+      if (y + dy > hipY && x + dx === hipX) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 function inferSeat(glyphs: string[]): [number, number] {
@@ -275,7 +302,6 @@ export function composeStudioRgba(
   const { group, rig } = bodyMeta(catalog, kit.body);
   const reference = refRig(catalog, group);
   const base = AVATAR_PAD_TOP;
-  const foot = step % 2 === 1 ? -1 : 0;
   const torsoDx = rig.torso[0] - reference.torso[0];
   const torsoDy = rig.torso[1] - reference.torso[1];
   const faceDx = rig.face[0] - reference.face[0];
@@ -305,17 +331,25 @@ export function composeStudioRgba(
     return partOf(catalog, slot, kit[slot as keyof typeof kit] as string);
   };
 
+  const hip = rig.hip ?? HUMAN_RIG.hip;
+  const hipX = hip[0];
+  const hipY = base + hip[1];
+  const liftSide = step === 1 ? 1 : step === 2 ? -1 : 0;
+  const outfit = layer("outfit");
+  const outfitOk = Boolean(outfit && fitsGroup(outfit, group));
+  const lock = outfitOk && outfit ? garmentBridges(outfit.glyphs, torsoDx, base + torsoDy, hipX, hipY) : false;
+  const shift = liftSide === 0 ? undefined : { hipX, hipY, side: liftSide, lock, lift: 2, out: 1 };
+
   const back = layer("back");
   if (back && fitsGroup(back, group)) {
     paintGlyphs(buf, back.glyphs, layerPalette(catalog, back), torsoDx, base + torsoDy, width, height);
   }
   const body = layer("body");
   if (body) {
-    paintGlyphs(buf, body.glyphs, layerPalette(catalog, body), 0, base + foot, width, height);
+    paintGlyphs(buf, body.glyphs, layerPalette(catalog, body), 0, base, width, height, shift);
   }
-  const outfit = layer("outfit");
-  if (outfit && fitsGroup(outfit, group)) {
-    paintGlyphs(buf, outfit.glyphs, layerPalette(catalog, outfit), torsoDx, base + torsoDy + foot, width, height);
+  if (outfit && outfitOk) {
+    paintGlyphs(buf, outfit.glyphs, layerPalette(catalog, outfit), torsoDx, base + torsoDy, width, height, shift);
   }
   const head = layer("head");
   if (head && fitsGroup(head, group)) {

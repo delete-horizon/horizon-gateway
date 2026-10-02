@@ -64,6 +64,16 @@ export function AvatarStudio({
   const [glyphs, setGlyphs] = useState<string[]>(emptyGlyphs);
   const [brush, setBrush] = useState<GlyphCh>("O");
   const [step, setStep] = useState(0);
+  const walking = step !== 0;
+  useEffect(() => {
+    if (!walking) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setStep((current) => (current === 2 ? 1 : 2));
+    }, 280);
+    return () => window.clearInterval(timer);
+  }, [walking]);
   const [ownedId, setOwnedId] = useState(initialOwnedId);
   useEffect(() => {
     if (initialOwnedId) {
@@ -403,7 +413,7 @@ export function AvatarStudio({
                 <input
                   type="checkbox"
                   className="checkbox checkbox-xs"
-                  checked={step % 2 === 1}
+                  checked={walking}
                   onChange={(e) => setStep(e.target.checked ? 1 : 0)}
                 />
                 {ko ? "걸음" : "Walk"}

@@ -30,6 +30,20 @@ pub struct AvatarRig {
     pub face: [i32; 2],
     pub torso: [i32; 2],
     pub hand: [i32; 2],
+    /// Column and row of the pelvis. Pixels below this row step during a walk.
+    #[serde(default = "human_hip")]
+    pub hip: [i32; 2],
+    /// Inboard of `hand`. Held parts swing from this joint.
+    #[serde(default = "human_shoulder")]
+    pub shoulder: [i32; 2],
+}
+
+fn human_hip() -> [i32; 2] {
+    [12, 17]
+}
+
+fn human_shoulder() -> [i32; 2] {
+    [15, 14]
 }
 
 impl AvatarRig {
@@ -38,6 +52,8 @@ impl AvatarRig {
         face: [12, 7],
         torso: [12, 14],
         hand: [16, 15],
+        hip: [12, 17],
+        shoulder: [15, 14],
     };
 }
 
@@ -952,11 +968,41 @@ impl GridBuf {
     }
 
     fn paint(&mut self, glyphs: &[String], pal: &Palette, a: u8, dx: i32, dy: i32) {
+        self.paint_posed(glyphs, pal, a, dx, dy, None, (0, 0));
+    }
+
+    /// `shift` lifts one leg by a cell. `nudge` moves the whole layer (weapon grip).
+    fn paint_posed(
+        &mut self,
+        glyphs: &[String],
+        pal: &Palette,
+        a: u8,
+        dx: i32,
+        dy: i32,
+        shift: Option<LimbShift>,
+        nudge: (i32, i32),
+    ) {
         for (y, row) in glyphs.iter().enumerate() {
             for (x, c) in row.chars().enumerate() {
-                if let Some(ch) = channel(c) {
-                    self.put(x as i32 + dx, y as i32 + dy, rgb(pal, ch), a);
+                let Some(ch) = channel(c) else {
+                    continue;
+                };
+                let mut px = x as i32 + dx + nudge.0;
+                let mut py = y as i32 + dy + nudge.1;
+                if let Some(shift) = shift {
+                    if !shift.lock && (shift.dy != 0 || shift.out != 0) && py > shift.hip_y {
+                        let on_side = match shift.side.signum() {
+                            1 => px > shift.hip_x,
+                            -1 => px < shift.hip_x,
+                            _ => false,
+                        };
+                        if on_side {
+                            py += shift.dy;
+                            px += shift.side.signum() * shift.out;
+                        }
+                    }
                 }
+                self.put(px, py, rgb(pal, ch), a);
             }
         }
     }
@@ -1096,6 +1142,61 @@ impl FaceMood {
     }
 }
 
+/// One-cell leg lift. `side` is -1 (left of the hip) or 1 (right). `lock` keeps a bridged garment still.
+#[derive(Clone, Copy)]
+struct LimbShift {
+    hip_x: i32,
+    hip_y: i32,
+    side: i32,
+    dy: i32,
+    /// Cells away from the hip, in the direction of `side`.
+    out: i32,
+    lock: bool,
+}
+
+/// Step 0 is the rest pose (identical pixels). Step 1 steps the weapon-side foot. Step 2 steps the other.
+fn walk_lift(step: u8) -> (i32, i32, i32) {
+    match step {
+        1 => (1, -2, 1),
+        2 => (-1, -2, 1),
+        _ => (0, 0, 0),
+    }
+}
+
+fn garment_bridges(glyphs: &[String], dx: i32, dy: i32, hip_x: i32, hip_y: i32) -> bool {
+    for (y, row) in glyphs.iter().enumerate() {
+        for (x, c) in row.chars().enumerate() {
+            if channel(c).is_none() {
+                continue;
+            }
+            let px = x as i32 + dx;
+            let py = y as i32 + dy;
+            if py > hip_y && px == hip_x {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Grip travel in cells for one strike frame. Frame 0 is the start of the swing.
+/// The held glyph itself is not rotated, so thin blades stay solid.
+pub fn strike_grip(overlay: &str, frame: u8) -> (i32, i32) {
+    let frame = (frame as usize) % 4;
+    let frames: [(i32, i32); 4] = match overlay {
+        "slash" => [(-1, -5), (4, -3), (6, 3), (2, 5)],
+        "thrust" => [(2, 0), (5, 0), (7, 0), (2, 0)],
+        "blunt" => [(0, -5), (1, -2), (2, 5), (0, 2)],
+        "shot" | "bow" => [(-3, 0), (-5, 1), (5, -2), (0, 0)],
+        "cast" => [(0, -3), (0, -5), (0, -7), (0, -3)],
+        "poke" => [(2, 0), (5, 0), (2, 0), (0, 0)],
+        "guard" => [(3, -2), (4, -2), (4, -2), (3, -2)],
+        "light" => [(0, -2), (0, -5), (0, -2), (0, -2)],
+        _ => [(0, 0); 4],
+    };
+    frames[frame]
+}
+
 /// Colors: default chroma → set chroma (if part.`set`) → part chroma.
 /// Layer colors come from part chroma, then set chroma.
 pub fn compose(kit: &AvatarKit, alpha: u8, step: u8) -> Vec<u8> {
@@ -1103,14 +1204,26 @@ pub fn compose(kit: &AvatarKit, alpha: u8, step: u8) -> Vec<u8> {
 }
 
 pub fn compose_mood(kit: &AvatarKit, alpha: u8, step: u8, mood: FaceMood) -> Vec<u8> {
+    compose_posed(kit, alpha, step, mood, 0, 0)
+}
+
+/// `grip_dx` / `grip_dy` shift the held layer. `(0, 0)` leaves it on the hand anchor.
+pub fn compose_posed(
+    kit: &AvatarKit,
+    alpha: u8,
+    step: u8,
+    mood: FaceMood,
+    grip_dx: i32,
+    grip_dy: i32,
+) -> Vec<u8> {
     let kit = kit.normalized();
     let cat = current_catalog();
     let (group, _scale, rig) = cat.body_meta(&kit.body);
     let ref_rig = cat.ref_rig(&group);
     let mut g = GridBuf::new(GRID, COMPOSE_H);
     let a = alpha.max(1);
-    let foot = if step % 2 == 1 { -1 } else { 0 };
     let base = PAD_TOP;
+    let (side, lift, out) = walk_lift(step);
 
     let torso_dx = rig.torso[0] - ref_rig.torso[0];
     let torso_dy = rig.torso[1] - ref_rig.torso[1];
@@ -1118,6 +1231,22 @@ pub fn compose_mood(kit: &AvatarKit, alpha: u8, step: u8, mood: FaceMood) -> Vec
     let face_dy = rig.face[1] - ref_rig.face[1];
     let hand_dx = rig.hand[0] - ref_rig.hand[0];
     let hand_dy = rig.hand[1] - ref_rig.hand[1];
+    let hip_x = rig.hip[0];
+    let hip_y = base + rig.hip[1];
+    let outfit_dy = base + torso_dy;
+    let lock = cat
+        .part("outfit", &kit.outfit)
+        .filter(|p| layer_ok_for_group(p, &group))
+        .is_some_and(|p| garment_bridges(&p.glyphs, torso_dx, outfit_dy, hip_x, hip_y));
+    let shift = LimbShift {
+        hip_x,
+        hip_y,
+        side,
+        dy: lift,
+        out,
+        lock,
+    };
+    let shift = if side == 0 { None } else { Some(shift) };
 
     if let Some(p) = cat.part("back", &kit.back) {
         if layer_ok_for_group(p, &group) {
@@ -1131,16 +1260,26 @@ pub fn compose_mood(kit: &AvatarKit, alpha: u8, step: u8, mood: FaceMood) -> Vec
         }
     }
     if let Some(p) = cat.part("body", &kit.body) {
-        g.paint(&p.glyphs, &layer_palette(&cat, p), a, 0, base + foot);
+        g.paint_posed(
+            &p.glyphs,
+            &layer_palette(&cat, p),
+            a,
+            0,
+            base,
+            shift,
+            (0, 0),
+        );
     }
     if let Some(p) = cat.part("outfit", &kit.outfit) {
         if layer_ok_for_group(p, &group) {
-            g.paint(
+            g.paint_posed(
                 &p.glyphs,
                 &layer_palette(&cat, p),
                 a,
                 torso_dx,
-                base + torso_dy + foot,
+                outfit_dy,
+                shift,
+                (0, 0),
             );
         }
     }
@@ -1159,12 +1298,14 @@ pub fn compose_mood(kit: &AvatarKit, alpha: u8, step: u8, mood: FaceMood) -> Vec
     }
     if let Some(p) = cat.part("held", &kit.held) {
         if layer_ok_for_group(p, &group) {
-            g.paint(
+            g.paint_posed(
                 &p.glyphs,
                 &layer_palette(&cat, p),
                 a,
                 hand_dx,
                 base + hand_dy,
+                None,
+                (grip_dx, grip_dy),
             );
         }
     }
@@ -1173,7 +1314,7 @@ pub fn compose_mood(kit: &AvatarKit, alpha: u8, step: u8, mood: FaceMood) -> Vec
             .part("body", &kit.body)
             .map(|p| layer_palette(&cat, p))
             .unwrap_or_else(default_chroma_palette);
-        g.stamp_face(rig.face[0], base + foot + rig.face[1], &pal, a, mood);
+        g.stamp_face(rig.face[0], base + rig.face[1], &pal, a, mood);
     }
     g.px
 }
@@ -1198,6 +1339,8 @@ pub fn paint(
         step,
         kit,
         FaceMood::Neutral,
+        0,
+        0,
     )
 }
 
@@ -1211,9 +1354,11 @@ pub fn paint_mood(
     step: u8,
     kit: &AvatarKit,
     mood: FaceMood,
+    grip_dx: i32,
+    grip_dy: i32,
 ) {
     let ps = pixel_size.max(MIN_PIXEL_SIZE).round().max(MIN_PIXEL_SIZE);
-    let buf = compose_mood(kit, alpha, step, mood);
+    let buf = compose_posed(kit, alpha, step, mood, grip_dx, grip_dy);
     let flip = facing < 0;
     let w = GRID;
     let h = COMPOSE_H;
@@ -1575,5 +1720,62 @@ mod tests {
         let mut part = current_catalog().part("body", "sprite").unwrap().clone();
         part.glyphs[0] = "X".repeat(GRID as usize);
         assert!(validate_part(&part).is_err());
+    }
+
+    fn bare(body: &str, outfit: &str) -> AvatarKit {
+        AvatarKit {
+            body: body.into(),
+            head: "none".into(),
+            outfit: outfit.into(),
+            back: "none".into(),
+            held: "none".into(),
+        }
+    }
+
+    #[test]
+    fn bodies_carry_hip_and_shoulder() {
+        let cat = current_catalog();
+        for part in cat.parts.iter().filter(|part| part.slot == "body") {
+            let rig = part.rig.expect(&part.id);
+            assert!(rig.hip[1] > rig.torso[1], "{} hip", part.id);
+            assert!(rig.shoulder[0] > 0, "{} shoulder", part.id);
+        }
+    }
+
+    #[test]
+    fn rest_pose_matches_step_zero_and_walk_lifts_a_foot() {
+        let kit = bare("human", "none");
+        let rest = compose(&kit, 255, 0);
+        let again = compose_posed(&kit, 255, 0, FaceMood::Neutral, 0, 0);
+        assert_eq!(rest, again);
+        let step = compose(&kit, 255, 1);
+        assert_ne!(rest, step);
+        let other = compose(&kit, 255, 2);
+        assert_ne!(rest, other);
+        assert_ne!(step, other);
+    }
+
+    #[test]
+    fn robe_keeps_legs_still() {
+        let kit = bare("human", "robe");
+        assert_eq!(compose(&kit, 255, 0), compose(&kit, 255, 1));
+    }
+
+    #[test]
+    fn strike_shifts_the_held_part() {
+        let kit = AvatarKit {
+            body: "human".into(),
+            head: "none".into(),
+            outfit: "none".into(),
+            back: "none".into(),
+            held: "blade".into(),
+        };
+        let rest = compose(&kit, 255, 0);
+        let (dx, dy) = strike_grip("slash", 0);
+        assert_eq!((dx, dy), (-1, -5));
+        let swung = compose_posed(&kit, 255, 0, FaceMood::Neutral, dx, dy);
+        assert_ne!(rest, swung);
+        assert_eq!(strike_grip("thrust", 2).0, 7);
+        assert_eq!(strike_grip("shot", 1).0, -5);
     }
 }

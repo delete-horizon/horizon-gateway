@@ -80,6 +80,21 @@ impl ActionKind {
         matches!(self, Self::Fly)
     }
 
+    /// Overlay name shared with `held-actions.json` and [`hg_avatar::strike_grip`].
+    pub fn overlay_name(self) -> &'static str {
+        match self {
+            Self::Slash => "slash",
+            Self::Thrust => "thrust",
+            Self::Blunt => "blunt",
+            Self::Shot => "shot",
+            Self::Cast => "cast",
+            Self::Guard => "guard",
+            Self::Light => "light",
+            Self::Poke => "poke",
+            _ => "poke",
+        }
+    }
+
     /// Weapon and unarmed hits land on a body instead of a random screen point.
     pub fn hits_body(self) -> bool {
         matches!(
@@ -164,6 +179,9 @@ pub enum DrawCmd {
         step: u8,
         /// 0 neutral, 1 hurt, 2 angry. Set while the resident is flinching.
         face: u8,
+        /// Held-layer shift in cells. Zero keeps the weapon on the hand anchor.
+        grip_dx: i8,
+        grip_dy: i8,
         ids: crate::comm_overlay::avatar::AvatarIds,
     },
     Glow {

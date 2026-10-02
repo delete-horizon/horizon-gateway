@@ -37,7 +37,7 @@ Rules:
 - Optional `"set": "crusader"` groups the part under a bundle
 - Transparent = `.` (most pixels). Keep the silhouette inside the grid; feet near row 21
 - Head/outfit/back/held: prefer set-level `chroma` in `sets.json`; omit part `chroma` to inherit, or override one channel
-- Body parts may set `group`, `scale` (1.0 = human height), `rig`, and `chroma.skin` / `chroma.skinD`
+- Body parts may set `group`, `scale` (1.0 = human height), `rig` (`crown` / `face` / `torso` / `hand` / `hip` / `shoulder`), and `chroma.skin` / `chroma.skinD`
 - Head parts may set `attach`: `perch` (wizard hat) or `cover` (hood), plus optional `seat`
 - Skins set `fits: ["humanoid"]` so they follow the silhouette group
 - Held parts set `weaponKind` to an id in `held-actions.json`. One kind shares one action. Add a kind as a new row there, not a new handler per part

@@ -21,6 +21,7 @@ const WALK_SPEED: f32 = 54.0;
 const LUNGE_SPEED: f32 = 340.0;
 const LUNGE_GAP: f32 = 52.0;
 const ARRIVE_DIST: f32 = 12.0;
+const STRIKE_HOLD: f32 = 0.9;
 /// How long the target slides away and settles back after a hit.
 const RECOIL_TIME: f32 = 0.36;
 const RECOIL_KICK: f32 = 34.0;
@@ -340,7 +341,7 @@ impl Engine {
                     strike.face = if target_x >= r.x { 1.0 } else { -1.0 };
                     r.vx = strike.face;
                     strike.hit = true;
-                    strike.hold = 0.45;
+                    strike.hold = STRIKE_HOLD;
                     landed.push((strike.kind, strike.target_id.clone()));
                     recoils.push((strike.target_id.clone(), -side));
                     r.strike = Some(strike);
@@ -405,7 +406,14 @@ impl Engine {
             let foot_y = r.y + bob + kick_y;
             let center_y = foot_y - half_h;
             let facing = if r.vx < 0.0 { -1 } else { 1 };
-            let step = ((r.phase * 3.0).floor() as i32).rem_euclid(2) as u8;
+            let swinging = r.strike.as_ref().is_some_and(|strike| strike.hit);
+            let step = if r.moving && !swinging {
+                // phase climbs ~5/s for the window bob. Scale it down so a step holds long enough to read.
+                1 + ((r.phase * 0.45).floor() as i32).rem_euclid(2) as u8
+            } else {
+                0
+            };
+            let (grip_dx, grip_dy) = strike_grip(r);
             let face = if r.recoil > 0.0 {
                 if r.seed % 2 == 0 { 1 } else { 2 }
             } else {
@@ -419,6 +427,8 @@ impl Engine {
                 alpha: if r.online { 255 } else { 110 },
                 step,
                 face,
+                grip_dx,
+                grip_dy,
                 ids: r.kit.ids(),
             });
             banners.push(Banner::label(r.label.clone(), r.x + kick_x, foot_y + 14.0));
@@ -489,6 +499,20 @@ fn pick_target(rect: WalkRect, seed: u64) -> (f32, f32) {
 
 fn resident_speed(seed: u64) -> f32 {
     WALK_SPEED * (0.82 + ((seed >> 3) % 30) as f32 * 0.012)
+}
+
+/// Held-part shift for the strike frame. Zero until the hit lands.
+fn strike_grip(r: &Resident) -> (i8, i8) {
+    let Some(strike) = &r.strike else {
+        return (0, 0);
+    };
+    if !strike.hit || STRIKE_HOLD <= 0.0 {
+        return (0, 0);
+    }
+    let t = (1.0 - strike.hold / STRIKE_HOLD).clamp(0.0, 1.0);
+    let frame = ((t * 4.0).floor() as u8).min(3);
+    let (dx, dy) = crate::comm_overlay::avatar::strike_grip(strike.kind.overlay_name(), frame);
+    (dx as i8, dy as i8)
 }
 
 /// Standing residents stay on the foot line. A bob while idle would move the
@@ -813,5 +837,21 @@ mod tests {
             assert_eq!(y.to_bits(), y0.to_bits());
             assert_eq!(step, step0);
         }
+    }
+
+    #[test]
+    fn landed_strike_shifts_the_weapon() {
+        let mut e = Engine::default();
+        e.set_walk_bounds(0.0, 0.0, 800.0, 600.0);
+        e.sync_residents(&[spec("me", "나"), spec("them", "상대")], 800.0, 600.0);
+        e.residents.iter_mut().find(|r| r.profile_id == "me").unwrap().x = 400.0;
+        e.residents.iter_mut().find(|r| r.profile_id == "them").unwrap().x = 450.0;
+        assert!(e.begin_strike("me", "them", crate::comm_overlay::engine::ActionKind::Slash));
+        let frame = e.tick(Instant::now(), 800.0, 600.0, None);
+        let grip = frame.cmds.iter().find_map(|cmd| match cmd {
+            DrawCmd::Avatar { grip_dx, grip_dy, .. } if *grip_dy != 0 => Some((*grip_dx, *grip_dy)),
+            _ => None,
+        });
+        assert_eq!(grip, Some((-1, -5)));
     }
 }

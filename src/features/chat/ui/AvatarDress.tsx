@@ -57,6 +57,16 @@ export function AvatarDress() {
   const [error, setError] = useState<string | null>(null);
   const [kit, setKit] = useState<AvatarKit>(() => refsToKit(readLocalWorn()));
   const [step, setStep] = useState(0);
+  const walking = step !== 0;
+  useEffect(() => {
+    if (!walking) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setStep((current) => (current === 2 ? 1 : 2));
+    }, 280);
+    return () => window.clearInterval(timer);
+  }, [walking]);
   const [owned, setOwned] = useState<OwnedAvatar[]>([]);
   const [parts, setParts] = useState<UserPart[]>([]);
   const previewRef = useRef<HTMLCanvasElement>(null);
@@ -180,7 +190,7 @@ export function AvatarDress() {
                   <input
                     type="checkbox"
                     className="checkbox checkbox-xs"
-                    checked={step % 2 === 1}
+                    checked={walking}
                     onChange={(e) => setStep(e.target.checked ? 1 : 0)}
                   />
                   {ko ? "걸음" : "Walk"}

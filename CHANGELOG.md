@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.8.14] - 2026-10-02
+
+### Added
+
+- **Footsteps**: Walking lifts one foot below the hip and steps it outward. A robe that fills the hip column keeps the legs still. The rest pose is unchanged.
+- **Weapon swing**: A landed hit moves the held part along that action — slash, thrust, blunt, shot, cast, guard, light, or poke.
+
 ## [v2.8.13] - 2026-10-02
 
 ### Changed

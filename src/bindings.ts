@@ -1126,7 +1126,7 @@ export type CommResidentInput = { profileId: string, label: string, online: bool
 
 export type AvatarKit = { body: string, head: string, outfit: string, back: string, held: string }
 
-export type AvatarRig = { crown: [number, number], face: [number, number], torso: [number, number], hand: [number, number] }
+export type AvatarRig = { crown: [number, number], face: [number, number], torso: [number, number], hand: [number, number], hip: [number, number], shoulder: [number, number] }
 export type AvatarGroup = { id: string, grid: number, referenceBody: string, ko: string, en: string }
 export type HeldAction = { id: string, role: string, ko: string, en: string, overlay: string }
 export type AvatarStudioPart = { id: string, slot: string, set: string, shop: boolean, ko: string, en: string, glyphs: string[], group?: string, scale?: number, rig?: AvatarRig | null, attach?: string, seat?: [number, number] | null, fits?: string[], chroma?: PartChroma | null, weaponKind?: string }

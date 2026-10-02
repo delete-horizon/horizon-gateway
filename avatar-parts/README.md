@@ -95,7 +95,7 @@ Colors come from each part's `chroma`, with set `chroma` filling any channel the
 
 Back → body → outfit → head → held. Later slots overwrite overlapping pixels. Optional slots may be `none`. Body cannot be `none`.
 
-Walk bob shifts the **body** (and outfit) one pixel up on odd steps; keep feet near `y=21`.
+A walk lifts one foot below the hip by two cells and steps it one cell outward, alternating sides (`step` 1, then 2). Step 0 is the rest pose and does not move pixels. A garment that fills the hip column (a robe) keeps both legs still. A strike shifts the held part several cells along that kind's arc; the glyph itself is not rotated. Keep feet near `y=21`.
 
 ## Silhouette groups, scale, and rigs
 
@@ -105,7 +105,7 @@ Parts belong to a **silhouette group** (`groups.json`). Today everything is `hum
 | --- | --- | --- |
 | `group` | body | Silhouette family id |
 | `scale` | body | Height within the group (`human` = 1.0). Display only — does not change glyph grid |
-| `rig` | body | `crown` / `face` / `torso` / `hand` anchor points `[x,y]` |
+| `rig` | body | `crown` / `face` / `torso` / `hand` / `hip` / `shoulder` anchor points `[x,y]` |
 | `fits` | skins | Groups that may wear this part |
 | `attach` | head | `perch` (hat on crown) or `cover` (hood/helm on face) |
 | `seat` | head perch | Brim / sit point `[x,y]` mapped onto body `crown` |

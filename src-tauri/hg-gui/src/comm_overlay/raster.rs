@@ -75,6 +75,8 @@ fn draw_cmd(pixmap: &mut Pixmap, cmd: &DrawCmd) {
             alpha,
             step,
             face,
+            grip_dx,
+            grip_dy,
             ids,
         } => crate::comm_overlay::avatar::paint_mood(
             pixmap,
@@ -86,6 +88,8 @@ fn draw_cmd(pixmap: &mut Pixmap, cmd: &DrawCmd) {
             step,
             &ids.kit(),
             crate::comm_overlay::avatar::FaceMood::from_code(face),
+            grip_dx as i32,
+            grip_dy as i32,
         ),
         DrawCmd::Glow {
             x,
@@ -945,6 +949,8 @@ struct AvatarStamp {
     alpha: u8,
     step: u8,
     face: u8,
+    grip_dx: i8,
+    grip_dy: i8,
     width: u32,
     height: u32,
     rgba: Vec<u8>,
@@ -962,6 +968,8 @@ fn take_avatar_stamp(cmd: &DrawCmd, width: u32, height: u32) -> Option<Vec<u8>> 
         alpha,
         step,
         face,
+        grip_dx,
+        grip_dy,
         ids,
         ..
     } = *cmd
@@ -969,16 +977,21 @@ fn take_avatar_stamp(cmd: &DrawCmd, width: u32, height: u32) -> Option<Vec<u8>> 
         return None;
     };
     let stamps = avatar_stamps().lock().unwrap_or_else(|e| e.into_inner());
-    stamps.iter().find(|stamp| {
-        stamp.ids == ids
-            && stamp.pixel_bits == pixel_size.to_bits()
-            && stamp.facing == facing
-            && stamp.alpha == alpha
-            && stamp.step == step
-            && stamp.face == face
-            && stamp.width == width
-            && stamp.height == height
-    }).map(|stamp| stamp.rgba.clone())
+    stamps
+        .iter()
+        .find(|stamp| {
+            stamp.ids == ids
+                && stamp.pixel_bits == pixel_size.to_bits()
+                && stamp.facing == facing
+                && stamp.alpha == alpha
+                && stamp.step == step
+                && stamp.face == face
+                && stamp.grip_dx == grip_dx
+                && stamp.grip_dy == grip_dy
+                && stamp.width == width
+                && stamp.height == height
+        })
+        .map(|stamp| stamp.rgba.clone())
 }
 
 fn store_avatar_stamp(cmd: &DrawCmd, width: u32, height: u32, rgba: &[u8]) {
@@ -988,6 +1001,8 @@ fn store_avatar_stamp(cmd: &DrawCmd, width: u32, height: u32, rgba: &[u8]) {
         alpha,
         step,
         face,
+        grip_dx,
+        grip_dy,
         ids,
         ..
     } = *cmd
@@ -1005,6 +1020,8 @@ fn store_avatar_stamp(cmd: &DrawCmd, width: u32, height: u32, rgba: &[u8]) {
         alpha,
         step,
         face,
+        grip_dx,
+        grip_dy,
         width,
         height,
         rgba: rgba.to_vec(),
@@ -1182,6 +1199,8 @@ fn translate_cmd(cmd: &DrawCmd, dx: f32, dy: f32) -> DrawCmd {
             alpha,
             step,
             face,
+            grip_dx,
+            grip_dy,
             ids,
         } => DrawCmd::Avatar {
             x: x + dx,
@@ -1191,6 +1210,8 @@ fn translate_cmd(cmd: &DrawCmd, dx: f32, dy: f32) -> DrawCmd {
             alpha,
             step,
             face,
+            grip_dx,
+            grip_dy,
             ids,
         },
         DrawCmd::Glow {
@@ -1340,6 +1361,8 @@ mod tests {
                 alpha: 255,
                 step: 0,
                 face: 0,
+                grip_dx: 0,
+                grip_dy: 0,
                 ids: crate::comm_overlay::avatar::AvatarKit::default().ids(),
             }],
             banners: Vec::new(),
