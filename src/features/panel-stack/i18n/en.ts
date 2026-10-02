@@ -262,7 +262,6 @@ export const en = {
   toolsPipeline: "Data Pipeline",
   toolsCrypto: "Crypto Utils",
   toolsPreview: "UI Preview",
-  toolsOverlayLab: "Overlay lab",
   toolsApiClient: "API Client",
   toolsApiLogs: "API Logs",
   toolsApiMocking: "API Mocking",

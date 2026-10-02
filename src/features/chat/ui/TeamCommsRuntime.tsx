@@ -13,6 +13,7 @@ import {
   flushOutbox,
   handleIncomingFrame,
   kitsForWorn,
+  localDummies,
   overlayCharactersEnabledAtom,
   publishWorn,
   readLocalWorn,
@@ -25,7 +26,6 @@ import {
 } from "@/entities/chat";
 import { activeWorkspaceIdAtom, listMembers } from "@/entities/team";
 import { commands, unwrap } from "@/shared/api";
-import { localDummies } from "../lib/localDummies";
 
 function peerOnline(peers: ChatPeerEndpoint[], profileId: string): boolean {
   const peer = peers.find((item) => item.profileId === profileId);
@@ -225,10 +225,14 @@ export function TeamCommsRuntime() {
       void (async () => {
         try {
           const hit = unwrap(await commands.takeOverlayResidentClick());
-          if (!hit || cancelled) {
+          if (hit && !cancelled) {
+            unwrap(await commands.openResidentComposer(hit.profileId, hit.label, hit.x, hit.y));
+          }
+          const context = unwrap(await commands.takeOverlayResidentContext());
+          if (!context || cancelled || context.profileId === myId) {
             return;
           }
-          unwrap(await commands.openResidentComposer(hit.profileId, hit.label, hit.x, hit.y));
+          unwrap(await commands.openResidentActionMenu(context.profileId, context.label, context.x, context.y));
         } catch (e) {
           console.warn("resident composer", e);
         }

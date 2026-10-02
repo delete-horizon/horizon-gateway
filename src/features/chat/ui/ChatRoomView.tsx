@@ -9,28 +9,29 @@ import {
   getLocalRoom,
   getPeerPresence,
   inviteMembersToGroupRoom,
+  isLocalDummy,
   loadMessages,
   markRoomRead,
+  type ResolvedHeldAction,
+  readLocalWorn,
+  refsToKit,
+  reloadCommAvatarCatalog,
+  resolveHeldAction,
   sendAction,
   sendReaction,
   sendTextMessage,
   sendTypingSignal,
   setCommOverlayTool,
+  WORN_STORAGE_KEY,
 } from "@/entities/chat";
 import { listMembers } from "@/entities/team";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
 import { ChatShell } from "./ChatShell";
 
-const ACTIONS: { kind: CommActionKind; label: { ko: string; en: string } }[] = [
-  { kind: "poke", label: { ko: "냥", en: "Cat" } },
-  { kind: "sparkle", label: { ko: "반짝", en: "Sparkle" } },
-  { kind: "ping", label: { ko: "오로라", en: "Aurora" } },
-  { kind: "float", label: { ko: "둥둥", en: "Float" } },
-  { kind: "burst", label: { ko: "팡", en: "Burst" } },
-  { kind: "wave", label: { ko: "흔들", en: "Wave" } },
-  { kind: "coffee_ask", label: { ko: "커피 사주세요", en: "Buy me coffee" } },
-  { kind: "coffee_give", label: { ko: "커피 사줄게요", en: "Coffee on me" } },
+const COFFEE: { kind: CommActionKind; ko: string; en: string }[] = [
+  { kind: "coffee_ask", ko: "커피 사주세요", en: "Buy me coffee" },
+  { kind: "coffee_give", ko: "커피 사줄게요", en: "Coffee on me" },
 ];
 
 const FLY_COUNTS = [1, 5, 10, 20] as const;
@@ -55,6 +56,7 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
   const [sprayOn, setSprayOn] = useState(false);
   const [typingPeer, setTypingPeer] = useState<{ senderId: string; senderLabel?: string } | null>(null);
   const [activeReactionId, setActiveReactionId] = useState<string | null>(null);
+  const [heldAction, setHeldAction] = useState<ResolvedHeldAction>(() => resolveHeldAction(null, "none"));
 
   const [workspaceMembers, setWorkspaceMembers] = useState<{ id: string; label: string }[]>([]);
   const [showMembersModal, setShowMembersModal] = useState(false);
@@ -73,6 +75,34 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
     setRoom(getLocalRoom(roomId));
     markRoomRead(roomId);
   }, [roomId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const apply = (heldId: string) => {
+      void reloadCommAvatarCatalog()
+        .then((catalog) => {
+          if (!cancelled) {
+            setHeldAction(resolveHeldAction(catalog, heldId));
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setHeldAction(resolveHeldAction(null, heldId));
+          }
+        });
+    };
+    apply(refsToKit(readLocalWorn()).held);
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === WORN_STORAGE_KEY) {
+        apply(refsToKit(readLocalWorn()).held);
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
 
   useEffect(() => {
     if (workspaceId) {
@@ -137,6 +167,14 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
     const peerId = room?.memberIds.find((memberId) => memberId !== myId);
     if (!peerId || room?.kind !== "dm") {
       setPeerStatus(null);
+      return;
+    }
+    if (isLocalDummy(peerId)) {
+      setPeerStatus(
+        lang === "ko"
+          ? "로컬 테스트 친구 · 찌르기, 무기, 커피, 파리는 이 PC 오버레이에 재생됩니다."
+          : "Local test friend · poke, weapon, coffee, and flies play on this overlay.",
+      );
       return;
     }
     let cancelled = false;
@@ -553,15 +591,23 @@ export function ChatRoomView({ roomId, myId, workspaceId }: ChatRoomViewProps) {
         >
           {lang === "ko" ? (sprayOn ? "스프레이 ON" : "스프레이") : sprayOn ? "Spray ON" : "Spray"}
         </button>
-        {ACTIONS.map((a) => (
+        <button
+          type="button"
+          disabled={busy}
+          className="text-[10px] px-2 py-1 rounded-full border border-base-300 bg-base-100 hover:bg-base-300/40 disabled:opacity-40"
+          onClick={() => void runAction(heldAction.overlay)}
+        >
+          {lang === "ko" ? heldAction.ko : heldAction.en}
+        </button>
+        {COFFEE.map((action) => (
           <button
-            key={a.kind}
+            key={action.kind}
             type="button"
             disabled={busy}
             className="text-[10px] px-2 py-1 rounded-full border border-base-300 bg-base-100 hover:bg-base-300/40 disabled:opacity-40"
-            onClick={() => void runAction(a.kind)}
+            onClick={() => void runAction(action.kind)}
           >
-            {lang === "ko" ? a.label.ko : a.label.en}
+            {lang === "ko" ? action.ko : action.en}
           </button>
         ))}
       </div>

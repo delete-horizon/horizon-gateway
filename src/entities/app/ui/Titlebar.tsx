@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from "@tanstack/react-router";
+import { useLocation } from "@tanstack/react-router";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import clsx from "clsx";
 import { useAtomValue } from "jotai";
@@ -14,31 +14,12 @@ import { WindowControls } from "./WindowControls";
 
 const appWindow = getCurrentWindow();
 
-type CommMenu = "lab";
-
-function commMenuFromSearch(search: unknown): CommMenu | null {
-  if (!search || typeof search !== "object" || !("menu" in search)) {
-    return null;
-  }
-  const menu = (search as { menu?: unknown }).menu;
-  if (menu === "lab" && import.meta.env.DEV) {
-    return "lab";
-  }
-  return null;
-}
-
 function CommTitleMenus({
-  menu,
-  showLab,
   ko,
-  onMenu,
   onOpenAvatar,
   onOpenHub,
 }: {
-  menu: CommMenu | null;
-  showLab: boolean;
   ko: boolean;
-  onMenu: (next: CommMenu | null) => void;
   onOpenAvatar: () => void;
   onOpenHub: () => void;
 }) {
@@ -47,11 +28,6 @@ function CommTitleMenus({
       <TitleMenuButton active={false} onClick={onOpenAvatar}>
         {ko ? "아바타" : "Avatar"}
       </TitleMenuButton>
-      {showLab ? (
-        <TitleMenuButton active={menu === "lab"} onClick={() => onMenu(menu === "lab" ? null : "lab")}>
-          {ko ? "실험실" : "Lab"}
-        </TitleMenuButton>
-      ) : null}
       <TitleMenuButton active={false} onClick={onOpenHub}>
         {ko ? "Hub 열기" : "Open Hub"}
       </TitleMenuButton>
@@ -66,7 +42,7 @@ function TitleMenuButton({ active, onClick, children }: { active: boolean; onCli
       aria-pressed={active}
       className={clsx(
         "h-full px-2.5 text-xs font-semibold",
-        active ? "text-slate-100 bg-slate-800" : "text-slate-400 hover:text-slate-100 hover:bg-slate-800",
+        active ? "text-base-content bg-base-300" : "text-base-content/55 hover:text-base-content hover:bg-base-300",
       )}
       onClick={onClick}
     >
@@ -82,13 +58,11 @@ interface TitlebarProps {
 
 export function Titlebar({ trailing }: TitlebarProps) {
   const location = useLocation();
-  const navigate = useNavigate();
   const isDetached = useIsDetached();
   const lang = useAtomValue(languageAtom);
   const [shellRole, setShellRole] = useState<"hub" | "workspace">("hub");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const isComm = location.pathname === "/comm" || location.pathname.startsWith("/comm/");
-  const commMenu = commMenuFromSearch(location.search);
 
   const updateState = useCallback(async () => {
     setIsFullscreen(await appWindow.isFullscreen());
@@ -159,12 +133,16 @@ export function Titlebar({ trailing }: TitlebarProps) {
     <div
       data-tauri-drag-region
       onDoubleClick={() => appWindow.toggleMaximize()}
-      className="bg-slate-950 flex items-center justify-between select-none z-110 border-b border-slate-800/50 h-10 shrink-0 backdrop-blur-md bg-opacity-80 cursor-default"
+      className="bg-base-200 flex items-center justify-between select-none z-110 border-b border-base-300/50 h-10 shrink-0 backdrop-blur-md bg-opacity-80 cursor-default"
     >
       <div className="flex items-center gap-2 px-3 pointer-events-none">
-        <img src="/logo-text.svg" alt="Horizon Gateway" className="h-4 w-auto object-contain shrink-0" />
+        <img
+          src="/logo-text.svg"
+          alt="Horizon Gateway"
+          className="chrome-brand-logo h-4 w-auto object-contain shrink-0"
+        />
         {isDetached && (
-          <span className="text-[8px] font-bold text-blue-400/80 uppercase tracking-wider ml-1">
+          <span className="text-[8px] font-bold text-primary/80 uppercase tracking-wider ml-1">
             {location.pathname.replace(/\//g, " ").trim() || "Dashboard"}
           </span>
         )}
@@ -177,7 +155,7 @@ export function Titlebar({ trailing }: TitlebarProps) {
             type="button"
             onClick={openOtherApp}
             title={otherAppLabel}
-            className="w-12 h-full flex items-center justify-center hover:bg-slate-800 text-slate-500 transition-colors"
+            className="w-12 h-full flex items-center justify-center hover:bg-base-300 text-base-content/40 transition-colors"
           >
             <AppWindow className="w-3.5 h-3.5" />
           </button>
@@ -186,18 +164,13 @@ export function Titlebar({ trailing }: TitlebarProps) {
           type="button"
           onClick={() => toggleFullscreen()}
           title="Toggle Fullscreen (F11)"
-          className="w-12 h-full flex items-center justify-center hover:bg-slate-800 text-slate-500 transition-colors"
+          className="w-12 h-full flex items-center justify-center hover:bg-base-300 text-base-content/40 transition-colors"
         >
-          <Monitor className={clsx("w-3.5 h-3.5", isFullscreen && "text-blue-400")} />
+          <Monitor className={clsx("w-3.5 h-3.5", isFullscreen && "text-primary")} />
         </button>
         {isComm ? (
           <CommTitleMenus
-            menu={commMenu}
-            showLab={import.meta.env.DEV}
             ko={lang === "ko"}
-            onMenu={(next) => {
-              void navigate({ to: "/comm", search: next ? { menu: next } : {} });
-            }}
             onOpenAvatar={() => {
               void openAvatarDressWindow().catch((error: unknown) => {
                 toastError(error instanceof Error ? error.message : String(error));

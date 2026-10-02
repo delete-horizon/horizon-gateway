@@ -171,6 +171,8 @@ fn dock_origin(app: &AppHandle, height: f64) -> (i32, i32) {
 const INCOMING_CARDS_LABEL: &str = "chat-incoming";
 const CARD_WIDTH: f64 = 280.0;
 const CARD_ROW: f64 = 76.0;
+const CARD_ROW_COUNTER: f64 = 112.0;
+const CARD_ROW_ECHO: f64 = 128.0;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -184,6 +186,12 @@ pub struct IncomingCard {
     /// `in` for a received line, `out` for one this machine sent.
     #[serde(default = "default_card_direction")]
     pub direction: String,
+    /// Hit notice with a counter button. Taller than a text card.
+    #[serde(default)]
+    pub counter: bool,
+    /// Local dummy whose inbox this card mirrors. Empty for a real notice.
+    #[serde(default)]
+    pub echo_from_id: String,
 }
 
 fn default_card_direction() -> String {
@@ -254,7 +262,24 @@ fn place_incoming_cards(app: &AppHandle, count: usize) -> Result<(), String> {
         let _ = window.hide();
         return Ok(());
     }
-    let height = f64::from(count.clamp(1, 4) as u32) * CARD_ROW;
+    let height = INCOMING_CARDS
+        .lock()
+        .map(|cards| {
+            cards
+                .iter()
+                .map(|card| {
+                    if !card.echo_from_id.is_empty() {
+                        CARD_ROW_ECHO
+                    } else if card.counter {
+                        CARD_ROW_COUNTER
+                    } else {
+                        CARD_ROW
+                    }
+                })
+                .sum::<f64>()
+        })
+        .unwrap_or(CARD_ROW)
+        .max(CARD_ROW);
     let (px, py) = cards_origin(app, height);
     let _ = window.set_size(tauri::LogicalSize::new(CARD_WIDTH, height));
     window
@@ -295,7 +320,10 @@ pub async fn push_incoming_card(app: AppHandle, card: IncomingCard) -> Result<()
 #[tauri::command]
 #[specta::specta]
 pub fn list_incoming_cards() -> Vec<IncomingCard> {
-    INCOMING_CARDS.lock().map(|cards| cards.clone()).unwrap_or_default()
+    INCOMING_CARDS
+        .lock()
+        .map(|cards| cards.clone())
+        .unwrap_or_default()
 }
 
 #[tauri::command]
@@ -360,7 +388,7 @@ fn workspace_open_arg(tab: Option<String>) -> Vec<String> {
     };
     if !matches!(
         tab.as_str(),
-        "workspaces" | "resources" | "chat" | "character" | "avatar" | "lab"
+        "workspaces" | "resources" | "chat" | "character" | "avatar"
     ) {
         return Vec::new();
     }
@@ -593,4 +621,133 @@ pub async fn trigger_os_snip() -> Result<(), String> {
     {
         Err("OS native snipping tool not supported on this platform".to_string())
     }
+}
+
+const ACTION_MENU_LABEL: &str = "chat-action-menu";
+const ACTION_MENU_WIDTH: f64 = 220.0;
+const ACTION_MENU_HEIGHT: f64 = 212.0;
+
+/// Compact menu aimed at the resident under the cursor. Opens above the avatar.
+#[tauri::command]
+#[specta::specta]
+pub async fn open_resident_action_menu(
+    app: AppHandle,
+    profile_id: String,
+    label: String,
+    x: f64,
+    y: f64,
+) -> Result<(), String> {
+    let profile_id = profile_id.trim().to_string();
+    if profile_id.is_empty() {
+        return Err("profile id required".into());
+    }
+    let label = {
+        let trimmed = label.trim();
+        if trimmed.is_empty() {
+            profile_id.clone()
+        } else {
+            trimmed.to_string()
+        }
+    };
+    let url = format!(
+        "/chat/resident?profileId={}&name={}&menu=1",
+        percent_encode(&profile_id),
+        percent_encode(&label),
+    );
+    let (px, py) = action_menu_origin(&app, x, y);
+    let target = ResidentComposerTarget {
+        profile_id,
+        label: label.clone(),
+    };
+
+    if let Some(window) = app.get_webview_window(ACTION_MENU_LABEL) {
+        pin_action_menu(&window, px, py)?;
+        let _ = window.set_title(&label);
+        let _ = window.show();
+        let _ = window.emit("resident-action-target", &target);
+        remember_action_menu(&window);
+        window.set_focus().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    let mut builder =
+        WebviewWindowBuilder::new(&app, ACTION_MENU_LABEL, WebviewUrl::App(url.into()))
+            .title(label)
+            .inner_size(ACTION_MENU_WIDTH, ACTION_MENU_HEIGHT)
+            .background_color(tauri::webview::Color(15, 23, 42, 255))
+            .decorations(false)
+            .resizable(false)
+            .always_on_top(true)
+            .skip_taskbar(true)
+            .focused(true)
+            .shadow(false);
+
+    #[cfg(windows)]
+    {
+        builder = builder.scroll_bar_style(ScrollBarStyle::FluentOverlay);
+    }
+
+    let window = builder.build().map_err(|e: tauri::Error| e.to_string())?;
+    window.on_window_event(|event| {
+        if matches!(event, tauri::WindowEvent::Destroyed) {
+            crate::comm_overlay::presence::set_resident_hit_suppressed(false);
+            crate::comm_overlay::presence::set_action_menu_hwnd(0);
+        }
+    });
+    remember_action_menu(&window);
+    pin_action_menu(&window, px, py)?;
+    let _ = window.emit("resident-action-target", &target);
+    Ok(())
+}
+
+fn pin_action_menu(window: &tauri::WebviewWindow, x: i32, y: i32) -> Result<(), String> {
+    window
+        .set_size(tauri::LogicalSize::new(
+            ACTION_MENU_WIDTH,
+            ACTION_MENU_HEIGHT,
+        ))
+        .map_err(|e| e.to_string())?;
+    window
+        .set_position(tauri::PhysicalPosition::new(x, y))
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn remember_action_menu(window: &tauri::WebviewWindow) {
+    crate::comm_overlay::presence::set_resident_hit_suppressed(true);
+    #[cfg(windows)]
+    if let Ok(hwnd) = window.hwnd() {
+        crate::comm_overlay::presence::set_action_menu_hwnd(hwnd.0 as isize);
+    }
+}
+
+/// Physical origin just above the cursor, clamped to the primary work area.
+fn action_menu_origin(app: &AppHandle, x: f64, y: f64) -> (i32, i32) {
+    let Ok(Some(monitor)) = app.primary_monitor() else {
+        return (x.round() as i32, (y - ACTION_MENU_HEIGHT).round() as i32);
+    };
+    let scale = monitor.scale_factor().max(1.0);
+    let work = monitor.work_area();
+    let width = (ACTION_MENU_WIDTH * scale).round() as i32;
+    let height = (ACTION_MENU_HEIGHT * scale).round() as i32;
+    let margin = (6.0 * scale).round() as i32;
+    let work_left = work.position.x;
+    let work_top = work.position.y;
+    let work_right = work_left + work.size.width.cast_signed();
+    let work_bottom = work_top + work.size.height.cast_signed();
+    let mut left = x.round() as i32;
+    let mut top = y.round() as i32 - height - margin;
+    if top < work_top + margin {
+        top = y.round() as i32 + margin;
+    }
+    if left + width > work_right - margin {
+        left = work_right - width - margin;
+    }
+    if left < work_left + margin {
+        left = work_left + margin;
+    }
+    if top + height > work_bottom - margin {
+        top = (work_bottom - height - margin).max(work_top);
+    }
+    (left, top)
 }

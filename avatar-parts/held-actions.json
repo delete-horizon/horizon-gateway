@@ -1,0 +1,12 @@
+{
+  "actions": [
+    { "id": "slash", "role": "weapon", "ko": "베기", "en": "Slash", "overlay": "slash" },
+    { "id": "thrust", "role": "weapon", "ko": "찌르기", "en": "Thrust", "overlay": "thrust" },
+    { "id": "blunt", "role": "weapon", "ko": "타격", "en": "Blunt", "overlay": "blunt" },
+    { "id": "bow", "role": "weapon", "ko": "쏘기", "en": "Shoot", "overlay": "shot" },
+    { "id": "cast", "role": "weapon", "ko": "시전", "en": "Cast", "overlay": "cast" },
+    { "id": "guard", "role": "weapon", "ko": "막기", "en": "Guard", "overlay": "guard" },
+    { "id": "light", "role": "prop", "ko": "비추기", "en": "Light", "overlay": "light" },
+    { "id": "poke", "role": "unarmed", "ko": "찌르기", "en": "Poke", "overlay": "poke" }
+  ]
+}

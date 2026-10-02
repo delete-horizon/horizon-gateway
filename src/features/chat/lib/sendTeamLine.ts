@@ -1,6 +1,12 @@
-import { broadcastOwnBubble, emitIncomingMessageCard, ensureDmRoom, sendTextMessage } from "@/entities/chat";
+import {
+  broadcastOwnBubble,
+  emitIncomingMessageCard,
+  ensureDmRoom,
+  isLocalDummy,
+  localDummies,
+  sendTextMessage,
+} from "@/entities/chat";
 import { listMembers } from "@/entities/team";
-import { isLocalDummy, localDummies } from "./localDummies";
 
 export interface TeamLineResult {
   delivered: number;
@@ -81,12 +87,28 @@ export async function sendTeamLine(opts: {
     if (!picked.has(dummy.id)) {
       continue;
     }
-    sentNames.push(dummy.label);
-    if (!singlePeerId) {
-      singlePeerId = dummy.id;
+    try {
+      const room = await ensureDmRoom({
+        workspaceId: opts.workspaceId,
+        myId: opts.myId,
+        peerId: dummy.id,
+        peerName: dummy.label,
+      });
+      await sendTextMessage({
+        roomId: room.id,
+        myId: opts.myId,
+        workspaceId: opts.workspaceId,
+        body: opts.body,
+      });
+      sentNames.push(dummy.label);
+      if (!singlePeerId) {
+        singlePeerId = dummy.id;
+      }
+      delivered += 1;
+    } catch {
+      missed.push(dummy.label);
     }
   }
-  delivered += dummyCount;
 
   if (delivered === 0) {
     throw new Error(

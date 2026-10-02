@@ -15,16 +15,16 @@ mod command {
 }
 
 use comm_overlay::{
-    clear_comm_overlay, install_comm_avatar_parts, play_comm_action, set_comm_overlay_tool,
-    broadcast_comm_bubble, show_comm_bubble, sync_comm_residents, take_overlay_resident_click,
+    broadcast_comm_bubble, clear_comm_overlay, install_comm_avatar_parts, play_comm_action,
+    set_comm_overlay_tool, show_comm_bubble, sync_comm_residents, take_overlay_resident_click,
+    take_overlay_resident_context,
 };
 use command::window_commands::{
-    app_shell_role, capture_app_screenshot, ensure_serve_running, note_companion_open_from_args,
-    open_annotation_dialog, open_external_url, open_hub_app, open_inspector_window,
-    clear_incoming_cards, dismiss_incoming_card, fit_resident_composer, list_incoming_cards,
-    open_resident_composer, open_window, open_workspace_app, prepare_for_update,
-    prepare_incoming_cards, push_incoming_card,
-    quit_app,
+    app_shell_role, capture_app_screenshot, clear_incoming_cards, dismiss_incoming_card,
+    ensure_serve_running, fit_resident_composer, list_incoming_cards,
+    note_companion_open_from_args, open_annotation_dialog, open_external_url, open_hub_app,
+    open_inspector_window, open_resident_action_menu, open_resident_composer, open_window,
+    open_workspace_app, prepare_for_update, prepare_incoming_cards, push_incoming_card, quit_app,
     set_pending_companion_open, set_shell_role, take_companion_open, trigger_os_snip,
 };
 use command::windows_update::install_windows_update;
@@ -36,6 +36,7 @@ pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         fit_resident_composer,
         list_incoming_cards,
         prepare_incoming_cards,
+        open_resident_action_menu,
         open_resident_composer,
         push_incoming_card,
         open_window,
@@ -59,6 +60,7 @@ pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         broadcast_comm_bubble,
         show_comm_bubble,
         take_overlay_resident_click,
+        take_overlay_resident_context,
         install_comm_avatar_parts,
     ])
 }

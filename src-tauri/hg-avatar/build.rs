@@ -35,6 +35,21 @@ fn main() {
         serde_json::json!([])
     };
 
+    let actions_path = dir.join("held-actions.json");
+    println!("cargo:rerun-if-changed={}", actions_path.display());
+    let held_actions = if actions_path.is_file() {
+        let actions_val: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(&actions_path).unwrap_or_else(|e| panic!("held-actions.json: {e}")),
+        )
+        .unwrap_or_else(|e| panic!("held-actions.json: {e}"));
+        actions_val
+            .get("actions")
+            .cloned()
+            .unwrap_or(serde_json::json!([]))
+    } else {
+        serde_json::json!([])
+    };
+
     let mut parts = Vec::new();
     let mut entries: Vec<_> = fs::read_dir(&dir)
         .unwrap_or_else(|e| panic!("{}: {e}", dir.display()))
@@ -48,7 +63,7 @@ fn main() {
             continue;
         }
         let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
-        if name == "sets.json" || name == "groups.json" {
+        if name == "sets.json" || name == "groups.json" || name == "held-actions.json" {
             continue;
         }
         let raw = fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
@@ -61,6 +76,7 @@ fn main() {
         "parts": parts,
         "sets": sets,
         "groups": groups,
+        "heldActions": held_actions,
         "warnings": []
     });
     let out = PathBuf::from(env::var("OUT_DIR").unwrap()).join("avatar_catalog.json");

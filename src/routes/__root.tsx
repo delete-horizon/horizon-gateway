@@ -74,7 +74,7 @@ const RootLayout = () => {
   } catch {
     /* outside Tauri */
   }
-  const showRouterDevtools = import.meta.env.DEV && shellLabel !== "chat-resident";
+  const showRouterDevtools = import.meta.env.DEV && shellLabel !== "chat-resident" && shellLabel !== "chat-action-menu";
 
   useEffect(() => {
     if (activeTheme) {
@@ -212,6 +212,10 @@ const RootLayout = () => {
 
   if (shellLabel === "chat-resident") {
     return <div className="bg-base-100 text-base-content">{content}</div>;
+  }
+
+  if (shellLabel === "chat-action-menu") {
+    return <div className="h-screen w-full overflow-hidden bg-base-100 text-base-content">{content}</div>;
   }
 
   if (shellLabel === "chat-incoming") {

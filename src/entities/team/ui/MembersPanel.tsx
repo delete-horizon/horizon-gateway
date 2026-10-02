@@ -1,6 +1,19 @@
-import { Check, Copy, Crown, Link, Loader2, Lock, MessageCircle, Shield, ShieldOff, Trash2, UserPlus, Users } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Crown,
+  Link,
+  Loader2,
+  Lock,
+  MessageCircle,
+  Shield,
+  ShieldOff,
+  Trash2,
+  UserPlus,
+  Users,
+} from "lucide-react";
 import { useState } from "react";
-import { ensureDmRoom } from "@/entities/chat";
+import { ensureDmRoom, localDummies } from "@/entities/chat";
 import { openChatRoomWindow } from "@/shared/lib/tauri/openChatWindow";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
@@ -102,7 +115,7 @@ export function MembersPanel({ ctrl, onClose }: MembersPanelProps) {
             <span className="text-[10px] font-bold uppercase tracking-wider text-base-content/45">
               {lang === "ko" ? "멤버" : "Members"}
             </span>
-            <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
+            <div className="flex flex-col gap-1 max-h-72 overflow-y-auto">
               {members.map((m) => {
                 const email = m.profile?.email?.trim() || null;
                 const displayName = m.profile?.display_name?.trim() || null;
@@ -233,6 +246,44 @@ export function MembersPanel({ ctrl, onClose }: MembersPanelProps) {
                   </div>
                 );
               })}
+              {localDummies()
+                .filter((dummy) => !members.some((member) => member.profile_id === dummy.id))
+                .map((dummy) => (
+                  <div
+                    key={dummy.id}
+                    className="flex items-center justify-between px-2.5 py-2 rounded-lg border border-base-200 bg-base-200/40 text-sm gap-2"
+                  >
+                    <div className="min-w-0 flex flex-col flex-1">
+                      <span className="text-xs font-medium truncate" title={dummy.label}>
+                        {dummy.label}
+                        <span className="text-[10px] text-base-content/40 font-bold ml-1">
+                          {lang === "ko" ? "(로컬)" : "(local)"}
+                        </span>
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!userId || !activeWorkspace) {
+                          return;
+                        }
+                        void (async () => {
+                          const room = await ensureDmRoom({
+                            workspaceId: activeWorkspace.id,
+                            myId: userId,
+                            peerId: dummy.id,
+                            peerName: dummy.label,
+                          });
+                          await openChatRoomWindow(room.id, dummy.label);
+                        })();
+                      }}
+                      className="p-1 rounded-md text-emerald-500/80 hover:text-emerald-500 hover:bg-emerald-500/10"
+                      title={lang === "ko" ? "DM 열기" : "Open DM"}
+                    >
+                      <MessageCircle className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
             </div>
           </section>
 

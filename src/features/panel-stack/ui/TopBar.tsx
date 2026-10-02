@@ -6,7 +6,6 @@ import { useState } from "react";
 import {
   getInitials,
   languageAtom,
-  openWorkspaceCompanion,
   proxyRunningAtom,
   supabaseProfileAtom,
   supabaseSessionAtom,
@@ -96,12 +95,12 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
   };
 
   return (
-    <div className="flex items-center h-10 border-b border-slate-800/50 bg-slate-950 shrink-0 select-none">
+    <div className="flex items-center h-10 border-b border-base-300/50 bg-base-200 shrink-0 select-none">
       <div className="flex items-center gap-3 px-3 min-w-0 shrink-0">
         <img
           src="/logo-text.svg"
           alt="Horizon Gateway"
-          className="h-4 w-auto object-contain shrink-0 pointer-events-none"
+          className="chrome-brand-logo h-4 w-auto object-contain shrink-0 pointer-events-none"
         />
         <button
           type="button"
@@ -111,7 +110,7 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
             "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors",
             proxyRunning
               ? "bg-success/10 text-success border border-success/20"
-              : "bg-slate-800 text-slate-400 border border-slate-700",
+              : "bg-base-300 text-base-content/55 border border-base-300",
           )}
         >
           <Server className="w-3 h-3" />
@@ -128,13 +127,13 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
           type="button"
           data-tauri-drag-region={false}
           onClick={() => setPaletteOpen(true)}
-          className="flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 transition-all text-xs w-full max-w-md"
+          className="flex items-center gap-2 px-3 py-1 rounded-lg bg-base-100/90 border border-base-300 text-base-content/55 hover:text-base-content hover:bg-base-300/80 transition-all text-xs w-full max-w-md"
         >
-          <Search className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+          <Search className="w-3.5 h-3.5 text-base-content/40 shrink-0" />
           <span className="flex-1 text-left truncate text-[11px]">
             {lang === "ko" ? "명령어 및 도메인 검색..." : "Type a command or search..."}
           </span>
-          <kbd className="hidden sm:inline-block px-1.5 py-0.2 rounded bg-slate-800 text-[10px] font-mono text-slate-400 border border-slate-700">
+          <kbd className="hidden sm:inline-block px-1.5 py-0.2 rounded bg-base-300 text-[10px] font-mono text-base-content/55 border border-base-300">
             Ctrl+P
           </kbd>
         </button>
@@ -144,33 +143,16 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
         <UpdateToolbarBadge />
         <ToolsMenu onOpenTool={onOpenGlobalTool} />
 
-        {import.meta.env.DEV ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1.5 h-8 text-xs text-slate-300 hover:text-white hover:bg-slate-800"
-            onClick={() => {
-              void openWorkspaceCompanion("lab").then((error) => {
-                if (error) {
-                  toastError(error);
-                }
-              });
-            }}
-          >
-            <span className="hidden sm:inline">{lang === "ko" ? "실험실" : "Lab"}</span>
-          </Button>
-        ) : null}
-
         <Button
           variant="ghost"
           size="sm"
           className={clsx(
             "gap-1.5 h-8 text-xs",
             teamLocked
-              ? "text-slate-500 cursor-not-allowed opacity-60"
+              ? "text-base-content/40 cursor-not-allowed opacity-60"
               : teamOpen
-                ? "text-white bg-slate-800"
-                : "text-slate-300 hover:text-white hover:bg-slate-800",
+                ? "text-base-content bg-base-300"
+                : "text-base-content/80 hover:text-base-content hover:bg-base-300",
           )}
           title={teamLocked ? t.teamLocked : t.team}
           aria-disabled={teamLocked}
@@ -191,7 +173,7 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
           <Button
             variant="ghost"
             size="sm"
-            className="gap-1.5 h-8 text-xs text-slate-300 hover:text-white hover:bg-slate-800"
+            className="gap-1.5 h-8 text-xs text-base-content/80 hover:text-base-content hover:bg-base-300"
             onClick={() => setSettingsMenuOpen((v) => !v)}
           >
             <Settings className="w-3.5 h-3.5" />
@@ -205,14 +187,14 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
                 className="fixed inset-0 z-40 cursor-default"
                 onClick={() => setSettingsMenuOpen(false)}
               />
-              <div className="absolute right-0 top-9 w-44 bg-slate-900 border border-slate-800 rounded-lg shadow-lg py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+              <div className="absolute right-0 top-9 w-44 bg-base-100 border border-base-300 rounded-lg shadow-lg py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
                 <button
                   type="button"
                   onClick={() => {
                     onOpenSettings();
                     setSettingsMenuOpen(false);
                   }}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-slate-200 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-base-content hover:bg-base-300 flex items-center gap-2 cursor-pointer"
                 >
                   <Settings className="w-3.5 h-3.5 text-primary" />
                   {t.settings}
@@ -223,7 +205,7 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
                     onOpenGlobalTool("chrome/theme");
                     setSettingsMenuOpen(false);
                   }}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-slate-200 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-base-content hover:bg-base-300 flex items-center gap-2 cursor-pointer"
                 >
                   <Palette className="w-3.5 h-3.5 text-accent" />
                   {lang === "ko" ? "테마 & 폰트 에디터" : "Theme & Font Editor"}
@@ -234,7 +216,7 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
                     setChangelogOpen(true);
                     setSettingsMenuOpen(false);
                   }}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-slate-200 hover:bg-slate-800 flex items-center gap-2 border-t border-slate-800/40 cursor-pointer"
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-base-content hover:bg-base-300 flex items-center gap-2 border-t border-base-300/40 cursor-pointer"
                 >
                   <Gift className="w-3.5 h-3.5 text-primary" />
                   {lang === "ko" ? "업데이트 내역" : "Changelog"}
@@ -245,7 +227,7 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
                     setBugReportOpen(true);
                     setSettingsMenuOpen(false);
                   }}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-slate-200 hover:bg-slate-800 flex items-center gap-2 border-t border-slate-800/40 cursor-pointer"
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-base-content hover:bg-base-300 flex items-center gap-2 border-t border-base-300/40 cursor-pointer"
                 >
                   <Bug className="w-3.5 h-3.5 text-error" />
                   {lang === "ko" ? "버그 리포트 & 피드백" : "Bug Report & Feedback"}
@@ -258,7 +240,7 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
         <Button
           variant="ghost"
           size="sm"
-          className="gap-1.5 h-8 text-xs text-slate-300 hover:text-white hover:bg-slate-800"
+          className="gap-1.5 h-8 text-xs text-base-content/80 hover:text-base-content hover:bg-base-300"
           onClick={() => setBugReportOpen(true)}
           title={lang === "ko" ? "버그 리포트 & 피드백 (Ctrl+Shift+B)" : "Bug Report & Feedback (Ctrl+Shift+B)"}
         >
@@ -270,13 +252,13 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
           <Button
             variant="ghost"
             size="sm"
-            className="gap-1.5 h-8 text-xs text-slate-300 hover:text-white hover:bg-slate-800"
+            className="gap-1.5 h-8 text-xs text-base-content/80 hover:text-base-content hover:bg-base-300"
             onClick={() => setProfileMenuOpen((v) => !v)}
           >
             {session ? (
               <div
                 className={clsx(
-                  "w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold bg-slate-700 text-white overflow-hidden border border-slate-650",
+                  "w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold bg-base-300 text-base-content overflow-hidden border border-base-300",
                   profile?.is_sponsor && "sponsor-glow",
                 )}
               >
@@ -299,7 +281,7 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
                 className="fixed inset-0 z-40 cursor-default"
                 onClick={() => setProfileMenuOpen(false)}
               />
-              <div className="absolute right-0 top-9 w-44 bg-slate-900 border border-slate-800 rounded-lg shadow-lg py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+              <div className="absolute right-0 top-9 w-44 bg-base-100 border border-base-300 rounded-lg shadow-lg py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
                 {!session ? (
                   <>
                     <button
@@ -308,7 +290,7 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
                         handleLogin();
                         setProfileMenuOpen(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-[10px] font-bold text-slate-200 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                      className="w-full text-left px-3 py-2 text-[10px] font-bold text-base-content hover:bg-base-300 flex items-center gap-2 cursor-pointer"
                     >
                       <LogIn className="w-3.5 h-3.5 text-primary" />
                       {lang === "ko" ? "로그인" : "Login"}
@@ -319,7 +301,7 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
                         onOpenProfile();
                         setProfileMenuOpen(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-[10px] font-bold text-slate-300 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer border-t border-slate-800/40"
+                      className="w-full text-left px-3 py-2 text-[10px] font-bold text-base-content/80 hover:bg-base-300 hover:text-base-content transition-colors cursor-pointer border-t border-base-300/40"
                     >
                       {lang === "ko" ? "프로필 설정" : "Profile Settings"}
                     </button>
@@ -332,7 +314,7 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
                         onOpenProfile();
                         setProfileMenuOpen(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-[10px] font-bold text-slate-300 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer"
+                      className="w-full text-left px-3 py-2 text-[10px] font-bold text-base-content/80 hover:bg-base-300 hover:text-base-content transition-colors cursor-pointer"
                     >
                       {lang === "ko" ? "프로필 설정" : "Profile Settings"}
                     </button>
@@ -342,7 +324,7 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
                         handleLogout();
                         setProfileMenuOpen(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-[10px] font-semibold text-red-400 hover:bg-slate-800 transition-colors cursor-pointer border-t border-slate-800/40"
+                      className="w-full text-left px-3 py-2 text-[10px] font-semibold text-error hover:bg-base-300 transition-colors cursor-pointer border-t border-base-300/40"
                     >
                       Logout
                     </button>

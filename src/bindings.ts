@@ -112,14 +112,16 @@ export const commands = {
 	chatSendFrame: (lanHosts: string[], lanPort: number, tunnelUrl: string | null, frameJson: string) => typedError<{ state: string, via: string }, string>(__TAURI_INVOKE("chat_send_frame", { lanHosts, lanPort, tunnelUrl, frameJson })),
 	sessionHandoffPut: (accessToken: string, refreshToken: string) => typedError<{ ready: boolean }, string>(__TAURI_INVOKE("session_handoff_put", { accessToken, refreshToken })),
 	sessionHandoffTake: () => typedError<{ accessToken: string, refreshToken: string } | null, string>(__TAURI_INVOKE("session_handoff_take")),
-	playCommAction: (kind: string, seed: number | null, count: number | null, fromLabel: string | null) => typedError<null, string>(__TAURI_INVOKE("play_comm_action", { kind, seed, count, fromLabel })),
+	playCommAction: (kind: string, seed: number | null, count: number | null, fromLabel: string | null, anchorId: string | null, attackerId: string | null) => typedError<null, string>(__TAURI_INVOKE("play_comm_action", { kind, seed, count, fromLabel, anchorId, attackerId })),
 	setCommOverlayTool: (tool: string) => typedError<null, string>(__TAURI_INVOKE("set_comm_overlay_tool", { tool })),
 	clearCommOverlay: () => typedError<null, string>(__TAURI_INVOKE("clear_comm_overlay")),
 	syncCommResidents: (residents: CommResidentInput[]) => typedError<null, string>(__TAURI_INVOKE("sync_comm_residents", { residents })),
 	broadcastCommBubble: (profileId: string, text: string) => typedError<null, string>(__TAURI_INVOKE("broadcast_comm_bubble", { profileId, text })),
 	showCommBubble: (profileId: string, text: string, ttlMs: number | null) => typedError<null, string>(__TAURI_INVOKE("show_comm_bubble", { profileId, text, ttlMs })),
 	takeOverlayResidentClick: () => typedError<{ profileId: string, label: string, x: number, y: number } | null, string>(__TAURI_INVOKE("take_overlay_resident_click")),
+	takeOverlayResidentContext: () => typedError<{ profileId: string, label: string, x: number, y: number } | null, string>(__TAURI_INVOKE("take_overlay_resident_context")),
 	openResidentComposer: (profileId: string, label: string, x: number, y: number) => typedError<null, string>(__TAURI_INVOKE("open_resident_composer", { profileId, label, x, y })),
+	openResidentActionMenu: (profileId: string, label: string, x: number, y: number) => typedError<null, string>(__TAURI_INVOKE("open_resident_action_menu", { profileId, label, x, y })),
 	fitResidentComposer: (height: number) => typedError<null, string>(__TAURI_INVOKE("fit_resident_composer", { height })),
 	installCommAvatarParts: (parts: AvatarStudioPart[]) => typedError<null, string>(__TAURI_INVOKE("install_comm_avatar_parts", { parts })),
 	getCommAvatarCatalog: () => typedError<AvatarStudioCatalog, string>(__TAURI_INVOKE("get_comm_avatar_catalog")),
@@ -1126,10 +1128,11 @@ export type AvatarKit = { body: string, head: string, outfit: string, back: stri
 
 export type AvatarRig = { crown: [number, number], face: [number, number], torso: [number, number], hand: [number, number] }
 export type AvatarGroup = { id: string, grid: number, referenceBody: string, ko: string, en: string }
-export type AvatarStudioPart = { id: string, slot: string, set: string, shop: boolean, ko: string, en: string, glyphs: string[], group?: string, scale?: number, rig?: AvatarRig | null, attach?: string, seat?: [number, number] | null, fits?: string[], chroma?: PartChroma | null }
+export type HeldAction = { id: string, role: string, ko: string, en: string, overlay: string }
+export type AvatarStudioPart = { id: string, slot: string, set: string, shop: boolean, ko: string, en: string, glyphs: string[], group?: string, scale?: number, rig?: AvatarRig | null, attach?: string, seat?: [number, number] | null, fits?: string[], chroma?: PartChroma | null, weaponKind?: string }
 export type PartChroma = { outline?: number[], skin?: number[], skinD?: number[], cloth?: number[], clothD?: number[], accent?: number[], metal?: number[], eye?: number[], white?: number[] }
 export type AvatarStudioSet = { id: string, ko: string, en: string, shop: boolean, kit: AvatarKit, chroma?: PartChroma | null }
-export type AvatarStudioCatalog = { parts: AvatarStudioPart[], sets: AvatarStudioSet[], groups?: AvatarGroup[], warnings: string[] }
+export type AvatarStudioCatalog = { parts: AvatarStudioPart[], sets: AvatarStudioSet[], groups?: AvatarGroup[], heldActions?: HeldAction[], warnings: string[] }
 
 export type AvatarStudioPalette = {
 	id: string,

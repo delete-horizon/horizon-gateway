@@ -37,6 +37,13 @@ impl OverlayTool {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ActionKind {
     Poke,
+    Slash,
+    Thrust,
+    Blunt,
+    Shot,
+    Cast,
+    Guard,
+    Light,
     Sparkle,
     Ping,
     Float,
@@ -50,6 +57,13 @@ pub enum ActionKind {
 impl ActionKind {
     pub fn parse(s: &str) -> Self {
         match s.to_ascii_lowercase().as_str() {
+            "slash" | "swing" => Self::Slash,
+            "thrust" => Self::Thrust,
+            "blunt" | "bonk" => Self::Blunt,
+            "shot" | "arrow" | "bow" => Self::Shot,
+            "cast" => Self::Cast,
+            "guard" | "block" => Self::Guard,
+            "light" | "lantern" => Self::Light,
             "sparkle" => Self::Sparkle,
             "ping" => Self::Ping,
             "float" => Self::Float,
@@ -64,6 +78,21 @@ impl ActionKind {
 
     pub fn is_fly(self) -> bool {
         matches!(self, Self::Fly)
+    }
+
+    /// Weapon and unarmed hits land on a body instead of a random screen point.
+    pub fn hits_body(self) -> bool {
+        matches!(
+            self,
+            Self::Poke
+                | Self::Slash
+                | Self::Thrust
+                | Self::Blunt
+                | Self::Shot
+                | Self::Cast
+                | Self::Guard
+                | Self::Light
+        )
     }
 }
 
@@ -133,6 +162,8 @@ pub enum DrawCmd {
         facing: i8,
         alpha: u8,
         step: u8,
+        /// 0 neutral, 1 hurt, 2 angry. Set while the resident is flinching.
+        face: u8,
         ids: crate::comm_overlay::avatar::AvatarIds,
     },
     Glow {
@@ -307,6 +338,7 @@ impl Engine {
         height: f32,
         count: u32,
         from_label: Option<String>,
+        anchor: Option<String>,
     ) {
         let n = if kind.is_fly() {
             count.clamp(1, MAX_FLY_BURST)
@@ -318,7 +350,7 @@ impl Engine {
             .filter(|s| !s.is_empty());
         for i in 0..n {
             let s = seed.map(|base| base ^ ((i as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15)));
-            self.spawn(kind, s, width, height, label.clone());
+            self.spawn(kind, s, width, height, label.clone(), anchor.clone());
         }
     }
 
@@ -329,6 +361,7 @@ impl Engine {
         width: f32,
         height: f32,
         from_label: Option<String>,
+        anchor: Option<String>,
     ) {
         self.bounds_w = width.max(1.0);
         self.bounds_h = height.max(1.0);
@@ -342,27 +375,45 @@ impl Engine {
         let usable_w = (width - margin * 2.0).max(1.0);
         let usable_h = (height - margin * 2.0).max(1.0);
 
-        let mut x = margin + rng.gen::<f32>() * usable_w;
-        let mut y = margin + rng.gen::<f32>() * usable_h;
-        // Nudge away from the previous spawn so stacks feel scattered.
-        for _ in 0..6 {
-            let dx = x - self.last_x;
-            let dy = y - self.last_y;
-            if dx * dx + dy * dy > 12_000.0 {
-                break;
+        let anchored = kind.hits_body().then(|| self.hit_point(anchor.as_deref()));
+        let (x, y) = if let Some((ax, ay)) = anchored.flatten() {
+            (ax, ay)
+        } else {
+            let mut x = margin + rng.gen::<f32>() * usable_w;
+            let mut y = margin + rng.gen::<f32>() * usable_h;
+            // Nudge away from the previous spawn so stacks feel scattered.
+            for _ in 0..6 {
+                let dx = x - self.last_x;
+                let dy = y - self.last_y;
+                if dx * dx + dy * dy > 12_000.0 {
+                    break;
+                }
+                x = margin + rng.gen::<f32>() * usable_w;
+                y = margin + rng.gen::<f32>() * usable_h;
             }
-            x = margin + rng.gen::<f32>() * usable_w;
-            y = margin + rng.gen::<f32>() * usable_h;
-        }
+            (x, y)
+        };
         self.last_x = x;
         self.last_y = y;
 
         let scale = if kind.is_fly() {
             0.75 + rng.gen::<f32>() * 0.7
+        } else if kind.hits_body() {
+            1.0
         } else {
             0.65 + rng.gen::<f32>() * 1.15
         };
-        let rot0 = rng.gen::<f32>() * std::f32::consts::TAU;
+        let rot0 = match kind {
+            ActionKind::Thrust | ActionKind::Shot | ActionKind::Poke => {
+                if rng.gen_bool(0.5) {
+                    0.0
+                } else {
+                    std::f32::consts::PI
+                }
+            }
+            ActionKind::Slash => -0.5 + rng.gen::<f32>() * 1.0,
+            _ => rng.gen::<f32>() * std::f32::consts::TAU,
+        };
         let mood = rng.gen_range(0u8..3);
         let (vx, vy) = if kind.is_fly() {
             let speed = 40.0 + rng.gen::<f32>() * 120.0;
@@ -376,6 +427,8 @@ impl Engine {
         };
         let ttl = if kind.is_fly() {
             Duration::from_millis(FLY_TTL_MS)
+        } else if kind.hits_body() {
+            Duration::from_millis(780)
         } else {
             Duration::from_millis(DEFAULT_TTL_MS + rng.gen_range(0..900))
         };
@@ -422,6 +475,21 @@ impl Engine {
         }
     }
 
+    /// Chest of the named resident, else the first walker, else the foot line.
+    fn hit_point(&self, anchor: Option<&str>) -> Option<(f32, f32)> {
+        let named = anchor.and_then(|id| self.residents.iter().find(|r| r.profile_id == id));
+        if let Some(resident) = named.or_else(|| self.residents.first()) {
+            let ps = crate::comm_overlay::avatar::display_pixel_size(&resident.kit, resident.scale);
+            let half = (crate::comm_overlay::avatar::COMPOSE_H as f32) * 0.35 * ps;
+            return Some((resident.x, resident.y - half));
+        }
+        let (x, y, w, h) = self.resident_walk_span();
+        if w < 64.0 || h < 64.0 {
+            return None;
+        }
+        Some((x + w * 0.5, y + h - 96.0))
+    }
+
     fn fly_count(&self) -> usize {
         self.sprites.iter().filter(|s| s.kind.is_fly()).count()
     }
@@ -438,12 +506,14 @@ impl Engine {
         self.sprites.is_empty() && self.residents.is_empty() && self.bubbles.is_empty()
     }
 
-    /// Sleep between blits. FX stays ~30fps; edge walk can be slower.
+    /// Sleep between blits. Walking stays ~30fps. A lunge is ~60fps so the dash
+    /// is not a few big jumps. An empty overlay waits.
     pub fn frame_sleep_ms(&self) -> u64 {
-        if !self.sprites.is_empty() {
+        if self.resident_strike_active() {
+            16
+        } else if !self.sprites.is_empty() || !self.bubbles.is_empty() || !self.residents.is_empty()
+        {
             33
-        } else if !self.bubbles.is_empty() || !self.residents.is_empty() {
-            80
         } else {
             200
         }
@@ -565,7 +635,6 @@ impl Engine {
         self.bounds_w = width.max(1.0);
         self.bounds_h = height.max(1.0);
         let dt = self.take_dt(now);
-        let fx_dt = 1.0 / 30.0;
 
         for s in &mut self.sprites {
             if s.kind.is_fly() {
@@ -581,8 +650,8 @@ impl Engine {
                     + (s.seed % 50) as f32)
                     .sin()
                     * 35.0;
-                s.x += (s.vx + wobble) * fx_dt;
-                s.y += (s.vy - wobble * 0.4) * fx_dt;
+                s.x += (s.vx + wobble) * dt;
+                s.y += (s.vy - wobble * 0.4) * dt;
                 let m = 20.0;
                 if s.x < m {
                     s.x = m;
@@ -618,51 +687,183 @@ impl Engine {
 
             match s.kind {
                 ActionKind::Poke => {
-                    let scale = (0.7 + pop * 0.9) * sc;
-                    let shake = if s.mood == 1 {
-                        (t * 40.0).sin() * 10.0
-                    } else {
-                        (t * 18.0).sin() * 3.0
-                    };
-                    cmds.push(DrawCmd::Glow {
-                        x: s.x + shake,
+                    let len = ease_out((t * 1.6).min(1.0)) * 34.0 * sc;
+                    cmds.push(DrawCmd::Ray {
+                        x: s.x,
                         y: s.y,
-                        r: 48.0 * scale,
-                        rgba: [255, 120, 150, a(fade, 100.0)],
+                        len,
+                        width: 2.2 * sc,
+                        rot: s.rot0,
+                        rgba: [236, 240, 245, a(fade, 230.0)],
+                    });
+                    let tip = t.max(0.45);
+                    cmds.push(DrawCmd::Ring {
+                        x: s.x + s.rot0.cos() * len,
+                        y: s.y + s.rot0.sin() * len,
+                        r: 6.0 + (tip - 0.45) * 18.0,
+                        stroke: 1.6 * sc,
+                        rgba: [210, 216, 224, a(fade * tip, 180.0)],
+                    });
+                }
+                ActionKind::Slash => {
+                    let sweep = -1.05 + ease_out(t) * 2.1;
+                    for i in 0..6 {
+                        let along = (i as f32 - 2.5) * 0.11;
+                        let rot = s.rot0 + sweep + along;
+                        let len = (28.0 + i as f32 * 8.0) * sc * (0.35 + ease_out(t) * 0.65);
+                        let core = i == 3;
+                        cmds.push(DrawCmd::Ray {
+                            x: s.x,
+                            y: s.y,
+                            len,
+                            width: if core { 3.4 } else { 1.5 } * sc,
+                            rot,
+                            rgba: if core {
+                                [248, 250, 255, a(fade, 240.0)]
+                            } else {
+                                [176, 186, 204, a(fade, 190.0)]
+                            },
+                        });
+                    }
+                }
+                ActionKind::Thrust => {
+                    let len = ease_out((t * 1.35).min(1.0)) * 86.0 * sc;
+                    cmds.push(DrawCmd::Ray {
+                        x: s.x,
+                        y: s.y,
+                        len,
+                        width: 2.4 * sc,
+                        rot: s.rot0,
+                        rgba: [220, 228, 238, a(fade, 235.0)],
+                    });
+                    if t > 0.4 {
+                        let tip_x = s.x + s.rot0.cos() * len;
+                        let tip_y = s.y + s.rot0.sin() * len;
+                        let hit = ease_out(((t - 0.4) / 0.6).min(1.0));
+                        cmds.push(DrawCmd::Ring {
+                            x: tip_x,
+                            y: tip_y,
+                            r: 5.0 + hit * 16.0,
+                            stroke: 2.0 * sc,
+                            rgba: [255, 244, 220, a(fade, 210.0)],
+                        });
+                    }
+                }
+                ActionKind::Blunt => {
+                    let hit = ease_out(t);
+                    cmds.push(DrawCmd::Circle {
+                        x: s.x,
+                        y: s.y,
+                        r: (8.0 + hit * 10.0) * sc,
+                        rgba: [255, 214, 140, a(fade, 230.0)],
+                    });
+                    cmds.push(DrawCmd::Ring {
+                        x: s.x,
+                        y: s.y,
+                        r: (6.0 + hit * 28.0) * sc,
+                        stroke: 3.2 * sc,
+                        rgba: [196, 132, 64, a(fade, 220.0)],
+                    });
+                    cmds.push(DrawCmd::Ring {
+                        x: s.x,
+                        y: s.y,
+                        r: (4.0 + hit * 46.0) * sc,
+                        stroke: 1.6 * sc,
+                        rgba: [120, 84, 48, a(fade * (1.0 - hit * 0.4), 160.0)],
+                    });
+                }
+                ActionKind::Shot => {
+                    let dist = ease_out(t) * 120.0 * sc;
+                    let tip_x = s.x + s.rot0.cos() * dist;
+                    let tip_y = s.y + s.rot0.sin() * dist;
+                    cmds.push(DrawCmd::Ray {
+                        x: s.x,
+                        y: s.y,
+                        len: dist.max(8.0),
+                        width: 1.7 * sc,
+                        rot: s.rot0,
+                        rgba: [92, 64, 40, a(fade, 220.0)],
+                    });
+                    cmds.push(DrawCmd::Circle {
+                        x: tip_x,
+                        y: tip_y,
+                        r: 3.2 * sc,
+                        rgba: [245, 245, 250, a(fade, 240.0)],
+                    });
+                }
+                ActionKind::Cast => {
+                    let dist = ease_out(t) * 64.0 * sc;
+                    let ox = s.x + s.rot0.cos() * dist;
+                    let oy = s.y + s.rot0.sin() * dist;
+                    cmds.push(DrawCmd::Glow {
+                        x: ox,
+                        y: oy,
+                        r: (18.0 + fade * 10.0) * sc,
+                        rgba: [168, 120, 255, a(fade, 140.0)],
+                        layers: 4,
+                    });
+                    cmds.push(DrawCmd::Circle {
+                        x: ox,
+                        y: oy,
+                        r: 5.5 * sc,
+                        rgba: [236, 220, 255, a(fade, 240.0)],
+                    });
+                    cmds.push(DrawCmd::Ring {
+                        x: s.x,
+                        y: s.y,
+                        r: (8.0 + ease_out(t) * 22.0) * sc,
+                        stroke: 1.5 * sc,
+                        rgba: [140, 90, 220, a(fade, 160.0)],
+                    });
+                    for i in 0..4 {
+                        let rot = s.rot0 + i as f32 * std::f32::consts::FRAC_PI_2 + t * 1.2;
+                        cmds.push(DrawCmd::Ray {
+                            x: ox,
+                            y: oy,
+                            len: 16.0 * fade * sc,
+                            width: 1.3 * sc,
+                            rot,
+                            rgba: [210, 180, 255, a(fade, 180.0)],
+                        });
+                    }
+                }
+                ActionKind::Guard => {
+                    let flash = (1.0 - t * 0.35).clamp(0.0, 1.0);
+                    cmds.push(DrawCmd::Ring {
+                        x: s.x,
+                        y: s.y,
+                        r: 26.0 * sc,
+                        stroke: 4.0 * sc,
+                        rgba: [150, 186, 214, a(fade * flash, 210.0)],
+                    });
+                    for i in -2..=2 {
+                        let rot = -0.5 + i as f32 * 0.22;
+                        cmds.push(DrawCmd::Ray {
+                            x: s.x,
+                            y: s.y,
+                            len: 22.0 * sc,
+                            width: 2.6 * sc,
+                            rot,
+                            rgba: [214, 228, 240, a(fade * flash, 200.0)],
+                        });
+                    }
+                }
+                ActionKind::Light => {
+                    let grow = 0.55 + ease_out(t) * 0.45;
+                    cmds.push(DrawCmd::Glow {
+                        x: s.x,
+                        y: s.y,
+                        r: 54.0 * grow * sc,
+                        rgba: [255, 176, 64, a(fade, 120.0)],
                         layers: 5,
                     });
-                    cmds.push(DrawCmd::Cat {
-                        x: s.x + shake,
+                    cmds.push(DrawCmd::Glow {
+                        x: s.x,
                         y: s.y,
-                        scale: 28.0 * scale,
-                        rot: s.rot0 * 0.05 + (t * (8.0 + s.mood as f32 * 10.0)).sin() * 0.35,
-                        tint: match s.mood {
-                            1 => [255, 170, 140],
-                            2 => [255, 240, 160],
-                            _ => [255, 214, 170],
-                        },
-                        alpha: a(fade, 250.0),
-                        mood: s.mood,
+                        r: 18.0 * sc,
+                        rgba: [255, 236, 190, a(fade, 200.0)],
+                        layers: 3,
                     });
-                    if s.mood == 1 {
-                        cmds.push(DrawCmd::Mark {
-                            x: s.x + 34.0 * scale,
-                            y: s.y - 30.0 * scale,
-                            scale: 14.0 * scale,
-                            kind: 0,
-                            rgba: [220, 40, 60, a(fade, 230.0)],
-                        });
-                    }
-                    for i in 0..(3 + s.mood as i32) {
-                        let ang = chaos * 6.0 + i as f32 * 1.7 + t * (5.0 + chaos * 4.0);
-                        let dist = 30.0 + t * 28.0 + i as f32 * 8.0 + chaos * 20.0;
-                        cmds.push(DrawCmd::Heart {
-                            x: s.x + ang.cos() * dist,
-                            y: s.y + ang.sin() * dist - t * 16.0,
-                            size: (6.0 + i as f32 * 2.0) * fade * sc,
-                            rgba: [255, 70 + (i as u8 * 30), 160, a(fade, 220.0)],
-                        });
-                    }
                 }
                 ActionKind::Sparkle => {
                     let spin = s.rot0 + t * (2.0 + chaos * 5.0);
@@ -995,6 +1196,7 @@ mod tests {
             600.0,
             99,
             Some("실험실".into()),
+            None,
         );
         assert_eq!(fly_count(&e), MAX_FLY_BURST as usize);
         assert!(e.has_catchables());
@@ -1017,7 +1219,7 @@ mod tests {
     fn fly_cap_drops_oldest() {
         let mut e = Engine::default();
         for _ in 0..4 {
-            e.spawn_n(ActionKind::Fly, Some(1), 800.0, 600.0, MAX_FLY_BURST, None);
+            e.spawn_n(ActionKind::Fly, Some(1), 800.0, 600.0, MAX_FLY_BURST, None, None);
         }
         assert_eq!(fly_count(&e), MAX_FLIES);
     }
@@ -1025,7 +1227,7 @@ mod tests {
     #[test]
     fn spray_removes_flies_in_radius() {
         let mut e = Engine::default();
-        e.spawn_n(ActionKind::Fly, Some(3), 400.0, 400.0, 8, None);
+        e.spawn_n(ActionKind::Fly, Some(3), 400.0, 400.0, 8, None, None);
         assert_eq!(fly_count(&e), 8);
         assert!(e.try_spray(200.0, 200.0, 1000.0));
         assert_eq!(fly_count(&e), 0);
@@ -1035,9 +1237,21 @@ mod tests {
     #[test]
     fn spray_chip_click_arms_tool() {
         let mut e = Engine::default();
-        e.spawn_n(ActionKind::Fly, Some(3), 800.0, 600.0, 2, None);
+        e.spawn_n(ActionKind::Fly, Some(3), 800.0, 600.0, 2, None, None);
         let (cx, cy) = Engine::arm_chip_center(800.0, 600.0);
         assert!(e.on_click(cx, cy, 800.0, 600.0));
         assert_eq!(e.tool(), OverlayTool::Spray);
+    }
+
+    #[test]
+    fn weapon_swings_are_not_hearts() {
+        assert_eq!(ActionKind::parse("slash"), ActionKind::Slash);
+        assert_eq!(ActionKind::parse("blunt"), ActionKind::Blunt);
+        assert_eq!(ActionKind::parse("shot"), ActionKind::Shot);
+        let mut e = Engine::default();
+        e.spawn_n(ActionKind::Slash, Some(1), 800.0, 600.0, 1, None, None);
+        let frame = e.tick(std::time::Instant::now(), 800.0, 600.0, None);
+        assert!(frame.cmds.iter().any(|cmd| matches!(cmd, DrawCmd::Ray { .. })));
+        assert!(frame.cmds.iter().all(|cmd| !matches!(cmd, DrawCmd::Heart { .. } | DrawCmd::Cat { .. })));
     }
 }

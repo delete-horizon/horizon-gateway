@@ -82,6 +82,12 @@ body {
   background-color: transparent; /* Rely on Root Layout's bg-base-200 */
 }
 
+/* Brand mark is painted platinum. Darken it when the compiled theme is light. */
+[data-theme="horizon-gateway-light"] .chrome-brand-logo {
+  filter: brightness(0);
+  opacity: 0.88;
+}
+
 @theme {
   --breakpoint-tablet: 720px;
   --animate-fade-in: fade-in 1s ease-in-out;

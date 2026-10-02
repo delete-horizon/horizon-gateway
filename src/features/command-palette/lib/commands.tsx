@@ -2,7 +2,6 @@ import {
   Activity,
   BookOpen,
   Bug,
-  Cat,
   Code2,
   Download,
   FileCode,
@@ -40,7 +39,6 @@ export function createPaletteCommands(handlers: {
   onClearApiLogs: () => Promise<void>;
   onExportRootCa: () => Promise<void>;
   onOpenTeamSync: () => void;
-  onOpenOverlayLab: () => void;
   onOpenAvatarStudio: () => void;
   onOpenThemeEditor: () => void;
   onOpenGlobalSurface: (surfaceId: string) => void;
@@ -626,7 +624,7 @@ export function createPaletteCommands(handlers: {
     {
       id: "switch-language",
       group: "settings",
-      icon: <Globe className="w-4 h-4 text-slate-400" />,
+      icon: <Globe className="w-4 h-4 text-base-content/55" />,
       meta: {
         label: { ko: "[설정] 언어: 표시 언어 변경 (한국어 / English)...", en: "[Settings] Switch Language..." },
         description: { ko: "앱 표기 언어를 한국어 또는 영어로 설정합니다", en: "Set application display language" },
@@ -669,25 +667,6 @@ export function createPaletteCommands(handlers: {
       },
       action: () => {
         handlers.onOpenTeamSync();
-      },
-    },
-    {
-      id: "open-overlay-lab",
-      group: "team",
-      icon: <Cat className="w-4 h-4 text-amber-500" />,
-      meta: {
-        label: { ko: "[팀] 오버레이 실험실", en: "[Team] Overlay lab" },
-        description: {
-          ko: "로그인 없이 내 캐릭터와 말풍선을 시험합니다",
-          en: "Try the edge character and bubbles without signing in",
-        },
-        aliases: {
-          ko: ["오버레이", "실험실", "캐릭터", "말풍선", "playground"],
-          en: ["overlay", "lab", "character", "bubble", "playground"],
-        },
-      },
-      action: () => {
-        handlers.onOpenOverlayLab();
       },
     },
     {
@@ -748,5 +727,5 @@ export function createPaletteCommands(handlers: {
       },
     },
   ];
-  return commands.filter((command) => import.meta.env.DEV || command.id !== "open-overlay-lab");
+  return commands;
 }

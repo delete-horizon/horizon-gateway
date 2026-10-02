@@ -45,8 +45,10 @@ export {
   emitChatUpdated,
   installChatUiBridge,
 } from "./lib/events";
+export { type ResolvedHeldAction, resolveHeldAction } from "./lib/heldAction";
 export type { IncomingMessageCard } from "./lib/incomingMessageCard";
 export { emitIncomingMessageCard, INCOMING_MESSAGE_EVENT } from "./lib/incomingMessageCard";
+export { isLocalDummy, type LocalDummy, localDummies } from "./lib/localDummies";
 export {
   appendLocalMessage,
   bumpUnread,

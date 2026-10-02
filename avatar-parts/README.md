@@ -112,6 +112,21 @@ Parts belong to a **silhouette group** (`groups.json`). Today everything is `hum
 
 Skins follow the group (`fits`). Same-group size differences use **scale**. A different **grid** is reserved for a new group later, not for making a dwarf taller.
 
+## Held actions
+
+Hand parts set `weaponKind` to an id in `held-actions.json`. Every part of one kind shares that row's action. Add a kind by appending a row (`id`, `role` of `weapon` | `prop` | `unarmed`, labels, and `overlay`). `overlay` is the comm effect name (`slash`, `thrust`, `blunt`, `shot`, `cast`, `guard`, `light`, `poke`). Do not add a handler per part.
+
+| kind | role | parts |
+| --- | --- | --- |
+| `slash` | weapon | blade, greataxe, scythe |
+| `thrust` | weapon | dagger, rapier |
+| `blunt` | weapon | mace, bo-staff |
+| `bow` | weapon | bow |
+| `cast` | weapon | staff, oak-staff, grimoire |
+| `guard` | weapon | shield |
+| `light` | prop | lantern |
+| `poke` | unarmed | empty hand |
+
 Reference body for `humanoid` is `human` — outfit/held art is authored to that rig and shifted per body anchors when composed.
 
 ### Humanoid display scales (approx.)

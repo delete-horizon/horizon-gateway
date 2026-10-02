@@ -11,6 +11,13 @@ export interface ChatSendResult {
 
 export type CommActionKind =
   | "poke"
+  | "slash"
+  | "thrust"
+  | "blunt"
+  | "shot"
+  | "cast"
+  | "guard"
+  | "light"
   | "sparkle"
   | "ping"
   | "float"

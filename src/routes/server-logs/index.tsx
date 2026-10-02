@@ -155,10 +155,10 @@ function ServerLogsPage() {
       <ProxyServerWarning />
 
       {isProxyRunning && (
-        <div className="flex-1 bg-[#0F172A] rounded-xl p-4 shadow-inner overflow-hidden flex flex-col mt-4">
+        <div className="flex-1 bg-base-100 rounded-xl p-4 shadow-inner overflow-hidden flex flex-col mt-4">
           <div
             ref={parentRef}
-            className="flex-1 overflow-auto rounded text-sm text-slate-300 font-mono styling-scrollbar"
+            className="flex-1 overflow-auto rounded text-sm text-base-content/80 font-mono styling-scrollbar"
           >
             <div
               style={{
@@ -188,37 +188,39 @@ function ServerLogsPage() {
                     }}
                     role="button"
                     tabIndex={0}
-                    className="flex items-center space-x-2 tablet:space-x-3 px-2 hover:bg-slate-700/50 whitespace-nowrap overflow-hidden text-ellipsis transition-colors cursor-pointer"
+                    className="flex items-center space-x-2 tablet:space-x-3 px-2 hover:bg-base-300/50 whitespace-nowrap overflow-hidden text-ellipsis transition-colors cursor-pointer"
                   >
-                    <span className="hidden tablet:inline text-slate-500 shrink-0 w-32 xl:w-64 text-[10px] tablet:text-xs font-semibold">
+                    <span className="hidden tablet:inline text-base-content/40 shrink-0 w-32 xl:w-64 text-[10px] tablet:text-xs font-semibold">
                       {log.timestamp}
                     </span>
-                    <span className="tablet:hidden text-slate-500 shrink-0 w-20 text-[10px] uppercase font-mono">
+                    <span className="tablet:hidden text-base-content/40 shrink-0 w-20 text-[10px] uppercase font-mono">
                       {log.timestamp.split(" ")[1]}
                     </span>
                     <span
                       className={clsx(
                         "shrink-0 font-bold w-12 tablet:w-16 text-[10px] tablet:text-xs",
                         log.level === "ERROR"
-                          ? "text-red-400"
+                          ? "text-error"
                           : log.level === "WARN"
-                            ? "text-amber-400"
+                            ? "text-warning"
                             : log.level === "INFO"
-                              ? "text-blue-400"
-                              : "text-slate-500",
+                              ? "text-info"
+                              : "text-base-content/40",
                       )}
                     >
                       {log.level.padEnd(5)}
                     </span>
-                    <span className="hidden tablet:inline text-indigo-400/80 shrink-0 min-w-24 tablet:min-w-32 truncate max-w-48 tablet:max-w-64 border-r border-slate-700 pr-3 text-[10px] tablet:text-xs text-right tablet:text-left">
+                    <span className="hidden tablet:inline text-primary/80 shrink-0 min-w-24 tablet:min-w-32 truncate max-w-48 tablet:max-w-64 border-r border-base-300 pr-3 text-[10px] tablet:text-xs text-right tablet:text-left">
                       {log.target}
                     </span>
-                    <span className="text-slate-200 leading-none truncate text-xs tablet:text-sm">{log.message}</span>
+                    <span className="text-base-content leading-none truncate text-xs tablet:text-sm">
+                      {log.message}
+                    </span>
                   </div>
                 );
               })}
               {filteredLogs.length === 0 && (
-                <div className="flex items-center justify-center h-full text-slate-500 w-full mt-12 text-sm">
+                <div className="flex items-center justify-center h-full text-base-content/40 w-full mt-12 text-sm">
                   No logs generated yet. Wait for events or check terminal.
                 </div>
               )}
@@ -275,7 +277,7 @@ function ServerLogsPage() {
                   </button>
                 )}
               </div>
-              <div className="bg-slate-900 text-slate-200 p-4 rounded-xl shadow-inner max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700">
+              <div className="bg-base-200 text-base-content p-4 rounded-xl shadow-inner max-h-96 overflow-y-auto scrollbar-thin">
                 <LogMessageViewer message={selectedLog?.message || ""} />
               </div>
             </div>
@@ -308,7 +310,7 @@ function LogMessageViewer({ message }: { message: string }) {
             return (
               <div
                 key={`${i}-${trimmed}`}
-                className="text-slate-500 mt-3 mb-1 font-semibold border-b border-slate-700/50 pb-1"
+                className="text-base-content/40 mt-3 mb-1 font-semibold border-b border-base-300/50 pb-1"
               >
                 {line}
               </div>
@@ -327,18 +329,16 @@ function LogMessageViewer({ message }: { message: string }) {
             return (
               <div
                 key={`${i}-${trimmed}`}
-                className="flex flex-wrap items-center gap-4 py-1 ml-2 text-slate-300 border-l-2 border-slate-700 pl-4 hover:bg-slate-800/50 transition-colors rounded-r-md"
+                className="flex flex-wrap items-center gap-4 py-1 ml-2 text-base-content/80 border-l-2 border-base-300 pl-4 hover:bg-base-300/50 transition-colors rounded-r-md"
               >
-                <span className="text-blue-300 break-all min-w-[280px] flex-[2]" title={name}>
+                <span className="text-info break-all min-w-[280px] flex-[2]" title={name}>
                   {name}
                 </span>
-                <span className="text-slate-500 text-xs w-12 text-right px-1 shrink-0" title="TTL">
+                <span className="text-base-content/40 text-xs w-12 text-right px-1 shrink-0" title="TTL">
                   {ttl}
                 </span>
-                <span className="text-fuchsia-400 font-bold w-24 shrink-0 px-2 bg-fuchsia-400/10 rounded">
-                  IN {type}
-                </span>
-                <span className="text-emerald-300 break-all flex-[3] min-w-[200px]">{data}</span>
+                <span className="text-secondary font-bold w-24 shrink-0 px-2 bg-secondary/10 rounded">IN {type}</span>
+                <span className="text-success break-all flex-[3] min-w-[200px]">{data}</span>
               </div>
             );
           }
@@ -348,7 +348,7 @@ function LogMessageViewer({ message }: { message: string }) {
           }
 
           return (
-            <div key={`${i}-${trimmed}`} className="text-slate-300 ml-2">
+            <div key={`${i}-${trimmed}`} className="text-base-content/80 ml-2">
               {line}
             </div>
           );
@@ -363,53 +363,53 @@ function LogMessageViewer({ message }: { message: string }) {
   const tokens = message.split(highlightRegex);
 
   return (
-    <div className="font-mono text-sm leading-relaxed whitespace-pre-wrap break-all text-slate-200">
+    <div className="font-mono text-sm leading-relaxed whitespace-pre-wrap break-all text-base-content">
       {tokens.map((token, i) => {
         if (token === "ERROR") {
           return (
-            <span key={`${i}-t`} className="text-red-400 font-bold">
+            <span key={`${i}-t`} className="text-error font-bold">
               {token}
             </span>
           );
         }
         if (token === "WARN") {
           return (
-            <span key={`${i}-t`} className="text-amber-400 font-bold">
+            <span key={`${i}-t`} className="text-warning font-bold">
               {token}
             </span>
           );
         }
         if (token === "INFO") {
           return (
-            <span key={`${i}-t`} className="text-blue-400 font-bold">
+            <span key={`${i}-t`} className="text-info font-bold">
               {token}
             </span>
           );
         }
         if (token === "DEBUG") {
           return (
-            <span key={`${i}-t`} className="text-slate-400 font-bold">
+            <span key={`${i}-t`} className="text-base-content/55 font-bold">
               {token}
             </span>
           );
         }
         if (["CONNECT", "GET", "POST", "PUT", "DELETE"].includes(token)) {
           return (
-            <span key={`${i}-t`} className="text-emerald-400 font-bold">
+            <span key={`${i}-t`} className="text-success font-bold">
               {token}
             </span>
           );
         }
         if (token.startsWith("HTTP/")) {
           return (
-            <span key={`${i}-t`} className="text-purple-400 font-bold">
+            <span key={`${i}-t`} className="text-secondary font-bold">
               {token}
             </span>
           );
         }
         if (token.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
           return (
-            <span key={`${i}-t`} className="text-cyan-400 font-bold">
+            <span key={`${i}-t`} className="text-accent font-bold">
               {token}
             </span>
           );

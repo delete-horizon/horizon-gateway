@@ -4,6 +4,7 @@
   "shop": false,
   "ko": "암살 단검",
   "en": "Assassin Dagger",
+  "weaponKind": "thrust",
   "glyphs": [
     "........................",
     "........................",

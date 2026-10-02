@@ -1,4 +1,4 @@
-import type { AvatarKit } from "@/entities/chat";
+import type { AvatarKit } from "./avatarKit";
 
 export interface LocalDummy {
   id: string;
@@ -24,7 +24,7 @@ const DUMMIES: LocalDummy[] = [
   },
 ];
 
-/** Dev-only stand-ins so the team composer and overlay can be tried without other clients. */
+/** Dev-only stand-ins so the team member list, composer, and overlay can be tried without other clients. */
 export function localDummies(): LocalDummy[] {
   return import.meta.env.DEV ? DUMMIES : [];
 }

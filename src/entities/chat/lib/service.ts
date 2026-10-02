@@ -18,6 +18,7 @@ import {
 } from "./crypto";
 import { emitChatTyping, emitChatUpdated } from "./events";
 import { emitIncomingMessageCard } from "./incomingMessageCard";
+import { isLocalDummy } from "./localDummies";
 import {
   appendLocalMessage,
   bumpUnread,
@@ -121,6 +122,45 @@ export async function refreshPeers(workspaceId: string): Promise<ChatPeerEndpoin
     .filter((x): x is ChatPeerEndpoint => x != null);
 }
 
+const BODY_STRIKES = new Set<CommActionKind>(["poke", "slash", "thrust", "blunt", "shot", "cast"]);
+
+function isBodyStrike(kind: string): boolean {
+  return BODY_STRIKES.has(kind as CommActionKind);
+}
+
+function emitHitCard(opts: {
+  roomId: string;
+  peerId: string;
+  peerName: string;
+  /** Local dummy who would see this notice. */
+  echoFromId?: string;
+}): Promise<void> {
+  const name = opts.peerName.trim() || "누군가";
+  return emitIncomingMessageCard({
+    id: `hit-${opts.echoFromId ?? opts.peerId}-${Date.now()}`,
+    roomId: opts.roomId,
+    senderId: opts.peerId,
+    senderName: name,
+    body: `${name}님이 때렸습니다.`,
+    createdAt: new Date().toISOString(),
+    direction: "in",
+    counter: true,
+    echoFromId: opts.echoFromId,
+  });
+}
+
+/** Dev stand-in. Text and actions stay on this machine; there is no remote client. */
+function localDummyPeer(room: ChatRoom, myId: string): string | null {
+  if (import.meta.env.DEV !== true || room.kind !== "dm") {
+    return null;
+  }
+  const peerId = room.memberIds.find((id) => id !== myId);
+  if (!peerId || !isLocalDummy(peerId)) {
+    return null;
+  }
+  return peerId;
+}
+
 export async function ensureDmRoom(opts: {
   workspaceId: string;
   myId: string;
@@ -145,6 +185,10 @@ export async function ensureDmRoom(opts: {
     unread: 0,
   };
   upsertLocalRoom(room);
+  if (isLocalDummy(opts.peerId)) {
+    emitChatUpdated(room.id);
+    return room;
+  }
   try {
     await upsertChatRoomMeta({
       id: room.id,
@@ -514,6 +558,25 @@ export async function sendTextMessage(opts: {
   if (!room) {
     throw new Error("Room not found");
   }
+  const dummyPeer = localDummyPeer(room, opts.myId);
+  if (dummyPeer) {
+    const createdAt = new Date().toISOString();
+    const id = uuid();
+    const local: ChatMessage = {
+      id,
+      roomId: opts.roomId,
+      senderId: opts.myId,
+      kind: "text",
+      body: opts.body,
+      createdAt,
+      pending: false,
+      delivered: true,
+    };
+    appendLocalMessage(local);
+    emitChatUpdated(opts.roomId);
+    void showCommBubble(dummyPeer, opts.body).catch(() => {});
+    return local;
+  }
   const peers = await refreshPeers(opts.workspaceId);
   const roomKey = await getOrDeriveRoomKey(room, opts.myId, peers);
   const createdAt = new Date().toISOString();
@@ -590,12 +653,25 @@ export async function sendAction(opts: {
   if (!room) {
     throw new Error("Room not found");
   }
+  const actionCount = opts.actionKind === "fly" ? Math.max(1, Math.min(40, Math.floor(opts.count ?? 1))) : 1;
+  const dummyPeer = localDummyPeer(room, opts.myId);
+  if (dummyPeer) {
+    await playCommAction(opts.actionKind, null, actionCount, opts.senderLabel?.trim() || null, dummyPeer, opts.myId);
+    if (isBodyStrike(opts.actionKind)) {
+      await emitHitCard({
+        roomId: opts.roomId,
+        peerId: opts.myId,
+        peerName: opts.senderLabel?.trim() || "나",
+        echoFromId: dummyPeer,
+      });
+    }
+    return;
+  }
   const peers = await refreshPeers(opts.workspaceId);
   const roomKey = await getOrDeriveRoomKey(room, opts.myId, peers);
   const createdAt = new Date().toISOString();
   const id = uuid();
   const ciphertext = await sealChatPayload(roomKey, opts.actionKind);
-  const actionCount = opts.actionKind === "fly" ? Math.max(1, Math.min(40, Math.floor(opts.count ?? 1))) : 1;
   const senderLabel = opts.senderLabel?.trim() || undefined;
   const frame: ChatWireFrame = {
     v: 1,
@@ -985,9 +1061,16 @@ export async function handleIncomingFrame(
     const count = frame.actionCount ?? 1;
     const fromLabel = frame.senderLabel?.trim() || null;
     try {
-      await playCommAction(kind, null, count, fromLabel);
+      await playCommAction(kind, null, count, fromLabel, myId, frame.senderId);
     } catch (e) {
       console.warn("playCommAction failed", e);
+    }
+    if (isBodyStrike(kind) && frame.senderId !== myId) {
+      emitHitCard({
+        roomId: frame.roomId,
+        peerId: frame.senderId,
+        peerName: fromLabel || frame.senderId.slice(0, 8),
+      });
     }
     return;
   }

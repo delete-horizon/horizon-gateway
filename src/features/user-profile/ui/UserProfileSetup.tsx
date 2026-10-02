@@ -30,9 +30,9 @@ export function UserProfileSetupView({
   onSave,
 }: UserProfileSetupViewProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-base-200/80 backdrop-blur-md">
       <div className="bg-base-100 border border-base-300/30 rounded-3xl overflow-hidden w-full max-w-md shadow-2xl flex flex-col mx-4 animate-in zoom-in-95 duration-500 text-base-content">
-        <div className="relative h-32 bg-slate-950 flex items-center justify-center overflow-hidden shrink-0">
+        <div className="relative h-32 bg-base-200 flex items-center justify-center overflow-hidden shrink-0">
           <div className={`absolute inset-0 opacity-20 ${tempColor}`} />
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay" />
 
@@ -51,7 +51,7 @@ export function UserProfileSetupView({
         <div className="pt-16 pb-8 px-8 flex flex-col gap-6">
           <div className="text-center flex flex-col gap-1">
             <h2 className="text-2xl font-black text-base-content flex items-center justify-center gap-2">
-              <Sparkles className="w-5 h-5 text-indigo-500" />
+              <Sparkles className="w-5 h-5 text-primary" />
               Welcome to Horizon Gateway
             </h2>
             <p className="text-sm text-base-content/60">How should we address you?</p>
@@ -59,7 +59,7 @@ export function UserProfileSetupView({
 
           <div className="flex flex-col gap-5 mt-2">
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="setup-name" className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <label htmlFor="setup-name" className="text-xs font-bold uppercase tracking-wider text-base-content/50">
                 Name / Nickname
               </label>
               <Input
@@ -77,7 +77,7 @@ export function UserProfileSetupView({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="setup-role" className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <label htmlFor="setup-role" className="text-xs font-bold uppercase tracking-wider text-base-content/50">
                 Role (Optional)
               </label>
               <Input
@@ -95,7 +95,7 @@ export function UserProfileSetupView({
             </div>
 
             <div className="flex flex-col gap-1.5 mt-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Avatar Theme</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-base-content/50">Avatar Theme</span>
               <div className="flex items-center gap-2 flex-wrap">
                 {AVATAR_COLORS.map((c) => (
                   <button
@@ -103,7 +103,7 @@ export function UserProfileSetupView({
                     type="button"
                     onClick={() => onTempColorChange(c)}
                     className={clsx(
-                      "w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 flex items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2",
+                      "w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 flex items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                       c,
                       tempColor === c ? "border-base-content scale-110 shadow-md" : "border-transparent",
                     )}
@@ -115,7 +115,7 @@ export function UserProfileSetupView({
             </div>
 
             <div className="flex flex-col gap-1.5 mt-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Language</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-base-content/50">Language</span>
               <div className="flex gap-2 bg-base-200 p-1 rounded-xl">
                 <button
                   type="button"
@@ -123,7 +123,7 @@ export function UserProfileSetupView({
                   className={clsx(
                     "flex-1 py-1.5 rounded-lg text-sm font-bold transition-all cursor-pointer",
                     lang === "en"
-                      ? "bg-base-100 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                      ? "bg-base-100 text-primary shadow-sm"
                       : "text-base-content/60 hover:text-base-content",
                   )}
                 >
@@ -135,7 +135,7 @@ export function UserProfileSetupView({
                   className={clsx(
                     "flex-1 py-1.5 rounded-lg text-sm font-bold transition-all cursor-pointer",
                     lang === "ko"
-                      ? "bg-base-100 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                      ? "bg-base-100 text-primary shadow-sm"
                       : "text-base-content/60 hover:text-base-content",
                   )}
                 >
@@ -150,7 +150,7 @@ export function UserProfileSetupView({
             variant="primary"
             onClick={onSave}
             disabled={!tempName.trim()}
-            className="w-full mt-4 h-12 text-base font-bold shadow-lg shadow-indigo-500/20"
+            className="w-full mt-4 h-12 text-base font-bold shadow-lg shadow-primary/20"
           >
             Start Exploring
           </Button>

@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.8.12] - 2026-10-02
+
+### Added
+
+- **Weapon actions**: Held parts share one action per kind (slash, thrust, blunt, shot, cast, guard, light, poke). Right-click a teammate to use the equipped action, offer coffee, or send flies.
+- **Hit reaction**: The attacker steps in. On contact the target is shoved back, hops, and wears a hurt or angry face until the flinch settles.
+- **Hit notice**: A body hit stacks "{name}님이 때렸습니다." on the right with a counter button. In dev, striking a local test friend also shows the notice that friend would receive, so the counter can be tried on this PC.
+- **Local test members**: Dev builds list 미나, 준호, and 하윤 so overlay actions can be tried without a second client.
+
+### Changed
+
+- **Lighter walk**: A standing character stays still. The window moves while they walk, and the picture is uploaded again only when the pose, face, or effect changes.
+- **Chrome theme**: The title bar, tools menu, and command palette follow the app theme.
+
+### Removed
+
+- **Overlay lab**: The playground route is gone. Early Access Labs on the profile stays.
+
 ## [v2.8.11] - 2026-10-01
 
 ### Changed

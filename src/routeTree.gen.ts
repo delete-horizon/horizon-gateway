@@ -18,7 +18,6 @@ import { Route as ChatAvatarRouteImport } from './routes/chat/avatar'
 import { Route as ChatAvatarCatalogRouteImport } from './routes/chat/avatar-catalog'
 import { Route as ChatAvatarStudioRouteImport } from './routes/chat/avatar-studio'
 import { Route as ChatIncomingRouteImport } from './routes/chat/incoming'
-import { Route as ChatPlaygroundRouteImport } from './routes/chat/playground'
 import { Route as ChatResidentRouteImport } from './routes/chat/resident'
 import { Route as CommIndexRouteImport } from './routes/comm/index'
 import { Route as DomainsIndexRouteImport } from './routes/domains/index'
@@ -103,11 +102,6 @@ const ChatAvatarStudioRoute = ChatAvatarStudioRouteImport.update({
 const ChatIncomingRoute = ChatIncomingRouteImport.update({
   id: '/chat/incoming',
   path: '/chat/incoming',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ChatPlaygroundRoute = ChatPlaygroundRouteImport.update({
-  id: '/chat/playground',
-  path: '/chat/playground',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChatResidentRoute = ChatResidentRouteImport.update({
@@ -320,7 +314,6 @@ export interface FileRoutesByFullPath {
   '/chat/avatar-catalog': typeof ChatAvatarCatalogRoute
   '/chat/avatar-studio': typeof ChatAvatarStudioRoute
   '/chat/incoming': typeof ChatIncomingRoute
-  '/chat/playground': typeof ChatPlaygroundRoute
   '/chat/resident': typeof ChatResidentRoute
   '/about/': typeof AboutIndexRoute
   '/apis/': typeof ApisIndexRoute
@@ -372,7 +365,6 @@ export interface FileRoutesByTo {
   '/chat/avatar-catalog': typeof ChatAvatarCatalogRoute
   '/chat/avatar-studio': typeof ChatAvatarStudioRoute
   '/chat/incoming': typeof ChatIncomingRoute
-  '/chat/playground': typeof ChatPlaygroundRoute
   '/chat/resident': typeof ChatResidentRoute
   '/about': typeof AboutIndexRoute
   '/apis': typeof ApisIndexRoute
@@ -425,7 +417,6 @@ export interface FileRoutesById {
   '/chat/avatar-catalog': typeof ChatAvatarCatalogRoute
   '/chat/avatar-studio': typeof ChatAvatarStudioRoute
   '/chat/incoming': typeof ChatIncomingRoute
-  '/chat/playground': typeof ChatPlaygroundRoute
   '/chat/resident': typeof ChatResidentRoute
   '/about/': typeof AboutIndexRoute
   '/apis/': typeof ApisIndexRoute
@@ -479,7 +470,6 @@ export interface FileRouteTypes {
     | '/chat/avatar-catalog'
     | '/chat/avatar-studio'
     | '/chat/incoming'
-    | '/chat/playground'
     | '/chat/resident'
     | '/about/'
     | '/apis/'
@@ -531,7 +521,6 @@ export interface FileRouteTypes {
     | '/chat/avatar-catalog'
     | '/chat/avatar-studio'
     | '/chat/incoming'
-    | '/chat/playground'
     | '/chat/resident'
     | '/about'
     | '/apis'
@@ -583,7 +572,6 @@ export interface FileRouteTypes {
     | '/chat/avatar-catalog'
     | '/chat/avatar-studio'
     | '/chat/incoming'
-    | '/chat/playground'
     | '/chat/resident'
     | '/about/'
     | '/apis/'
@@ -636,7 +624,6 @@ export interface RootRouteChildren {
   ChatAvatarCatalogRoute: typeof ChatAvatarCatalogRoute
   ChatAvatarStudioRoute: typeof ChatAvatarStudioRoute
   ChatIncomingRoute: typeof ChatIncomingRoute
-  ChatPlaygroundRoute: typeof ChatPlaygroundRoute
   ChatResidentRoute: typeof ChatResidentRoute
   AboutIndexRoute: typeof AboutIndexRoute
   ApisIndexRoute: typeof ApisIndexRoute
@@ -745,13 +732,6 @@ declare module '@tanstack/react-router' {
       path: '/chat/incoming'
       fullPath: '/chat/incoming'
       preLoaderRoute: typeof ChatIncomingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/chat/playground': {
-      id: '/chat/playground'
-      path: '/chat/playground'
-      fullPath: '/chat/playground'
-      preLoaderRoute: typeof ChatPlaygroundRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chat/resident': {
@@ -1044,7 +1024,6 @@ const rootRouteChildren: RootRouteChildren = {
   ChatAvatarCatalogRoute: ChatAvatarCatalogRoute,
   ChatAvatarStudioRoute: ChatAvatarStudioRoute,
   ChatIncomingRoute: ChatIncomingRoute,
-  ChatPlaygroundRoute: ChatPlaygroundRoute,
   ChatResidentRoute: ChatResidentRoute,
   AboutIndexRoute: AboutIndexRoute,
   ApisIndexRoute: ApisIndexRoute,

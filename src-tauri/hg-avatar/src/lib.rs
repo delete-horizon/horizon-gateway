@@ -177,6 +177,10 @@ pub struct AvatarStudioPart {
     /// Per-part colors. Missing channels fall back to the shared default chroma.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub chroma: Option<PartChroma>,
+    /// Held slot only. Id in `held-actions.json`. Empty on other slots.
+    /// New kinds are a new row in that file; parts only store the id.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub weapon_kind: String,
 }
 
 /// Optional RGB overrides for glyph channels. Body should set `skin` / `skinD`;
@@ -271,8 +275,24 @@ pub struct AvatarStudioCatalog {
     pub sets: Vec<AvatarStudioSet>,
     #[serde(default)]
     pub groups: Vec<AvatarGroup>,
+    /// Unified held actions. A new weapon kind is a row here, not a new part handler.
+    #[serde(default)]
+    pub held_actions: Vec<HeldAction>,
     #[serde(default)]
     pub warnings: Vec<String>,
+}
+
+/// One action shared by every held part of this kind.
+/// `overlay` is the existing comm effect. A later kind points at an effect until it has its own.
+#[derive(Clone, Debug, Deserialize, Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct HeldAction {
+    pub id: String,
+    /// `weapon`, `prop`, or `unarmed`.
+    pub role: String,
+    pub ko: String,
+    pub en: String,
+    pub overlay: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Type)]
@@ -308,6 +328,12 @@ struct SetsFile {
 struct GroupsFile {
     #[serde(default)]
     groups: Vec<AvatarGroup>,
+}
+
+#[derive(Deserialize)]
+struct HeldActionsFile {
+    #[serde(default)]
+    actions: Vec<HeldAction>,
 }
 
 #[derive(Clone, Copy)]
@@ -370,6 +396,7 @@ struct Catalog {
     parts: Vec<AvatarStudioPart>,
     sets: Vec<AvatarStudioSet>,
     groups: Vec<AvatarGroup>,
+    held_actions: Vec<HeldAction>,
     warnings: Vec<String>,
     body_ids: Vec<String>,
     head_ids: Vec<String>,
@@ -399,6 +426,30 @@ impl Catalog {
             return Err("need at least one body part".into());
         }
         let mut warnings = dto.warnings;
+        let mut action_ids = std::collections::BTreeSet::new();
+        for action in &dto.held_actions {
+            let id = action.id.trim();
+            if id.is_empty() || action.overlay.trim().is_empty() {
+                return Err(format!("held action '{id}' needs an id and an overlay"));
+            }
+            if !action_ids.insert(id.to_string()) {
+                return Err(format!("duplicate held action '{id}'"));
+            }
+        }
+        for part in &dto.parts {
+            if part.slot != "held" {
+                continue;
+            }
+            let kind = part.weapon_kind.trim();
+            if kind.is_empty() {
+                warnings.push(format!("held {}: missing weaponKind", part.id));
+            } else if !action_ids.contains(kind) {
+                warnings.push(format!(
+                    "held {}: unknown weaponKind '{kind}'",
+                    part.id
+                ));
+            }
+        }
         for set in &dto.sets {
             validate_id(&set.id)?;
             for (slot, id) in [
@@ -436,6 +487,7 @@ impl Catalog {
             } else {
                 dto.groups
             },
+            held_actions: dto.held_actions,
             warnings,
         })
     }
@@ -498,6 +550,7 @@ impl Catalog {
                 .collect(),
             sets: self.sets.clone(),
             groups: self.groups.clone(),
+            held_actions: self.held_actions.clone(),
             warnings: self.warnings.clone(),
         }
     }
@@ -671,6 +724,17 @@ fn load_from_dir(dir: &Path) -> Result<Catalog, String> {
     } else {
         Vec::new()
     };
+    let actions_path = dir.join("held-actions.json");
+    let held_actions = if actions_path.is_file() {
+        let file: HeldActionsFile = serde_json::from_str(
+            &std::fs::read_to_string(&actions_path)
+                .map_err(|e| format!("{}: {e}", actions_path.display()))?,
+        )
+        .map_err(|e| format!("held-actions.json: {e}"))?;
+        file.actions
+    } else {
+        Vec::new()
+    };
     let mut parts = Vec::new();
     let mut warnings = Vec::new();
     let mut files: Vec<_> = std::fs::read_dir(dir)
@@ -682,7 +746,7 @@ fn load_from_dir(dir: &Path) -> Result<Catalog, String> {
     files.sort();
     for path in files {
         let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
-        if name == "sets.json" || name == "groups.json" {
+        if name == "sets.json" || name == "groups.json" || name == "held-actions.json" {
             continue;
         }
         match load_part_file(&path) {
@@ -700,6 +764,7 @@ fn load_from_dir(dir: &Path) -> Result<Catalog, String> {
         parts,
         sets,
         groups,
+        held_actions,
         warnings,
     })
 }
@@ -895,6 +960,84 @@ impl GridBuf {
             }
         }
     }
+
+    fn opaque(&self, x: i32, y: i32) -> bool {
+        if x < 0 || y < 0 || x >= self.w || y >= self.h {
+            return false;
+        }
+        let i = ((y * self.w + x) * 4) as usize;
+        self.px.get(i + 3).copied().unwrap_or(0) > 0
+    }
+
+    /// Replace the face with a hurt or angry expression. Only opaque cells change,
+    /// so a hood or helm keeps its silhouette.
+    fn stamp_face(&mut self, fx: i32, fy: i32, pal: &Palette, a: u8, mood: FaceMood) {
+        let mut solid = 0;
+        for dy in -2..=2 {
+            for dx in -3..=3 {
+                if self.opaque(fx + dx, fy + dy) {
+                    solid += 1;
+                }
+            }
+        }
+        if solid < 8 {
+            return;
+        }
+        let skin = rgb(pal, Ch::Skin);
+        let mark = rgb(pal, Ch::Outline);
+        let eye = rgb(pal, Ch::Eye);
+        let white = rgb(pal, Ch::White);
+        for dy in -2..=2 {
+            for dx in -3..=3 {
+                let x = fx + dx;
+                let y = fy + dy;
+                if self.opaque(x, y) {
+                    self.put(x, y, skin, a);
+                }
+            }
+        }
+        let mut dot = |dx: i32, dy: i32, color: [u8; 3]| {
+            let x = fx + dx;
+            let y = fy + dy;
+            if self.opaque(x, y) {
+                self.put(x, y, color, a);
+            }
+        };
+        match mood {
+            FaceMood::Hurt => {
+                dot(-3, -1, mark);
+                dot(-2, 0, mark);
+                dot(-3, 1, mark);
+                dot(-1, -1, mark);
+                dot(-1, 1, mark);
+                dot(3, -1, mark);
+                dot(2, 0, mark);
+                dot(3, 1, mark);
+                dot(1, -1, mark);
+                dot(1, 1, mark);
+                dot(0, 0, mark);
+                dot(-1, 2, mark);
+                dot(0, 2, eye);
+                dot(1, 2, mark);
+            }
+            FaceMood::Angry => {
+                dot(-3, -2, mark);
+                dot(-2, -1, mark);
+                dot(3, -2, mark);
+                dot(2, -1, mark);
+                dot(-2, 0, white);
+                dot(-1, 0, eye);
+                dot(1, 0, eye);
+                dot(2, 0, white);
+                dot(-2, 1, mark);
+                dot(2, 1, mark);
+                dot(-1, 2, mark);
+                dot(0, 2, mark);
+                dot(1, 2, mark);
+            }
+            FaceMood::Neutral => {}
+        }
+    }
 }
 
 fn infer_seat(glyphs: &[String]) -> [i32; 2] {
@@ -933,9 +1076,33 @@ pub fn display_pixel_size(kit: &AvatarKit, resident_scale: f32) -> f32 {
     (PIXEL_SIZE * body_scale(kit) * resident_scale.max(0.8)).max(MIN_PIXEL_SIZE)
 }
 
+/// Face drawn over the rig while a resident is flinching.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FaceMood {
+    Neutral,
+    /// Squeezed eyes and a small grimace.
+    Hurt,
+    /// Slanted brows, narrowed eyes, frown.
+    Angry,
+}
+
+impl FaceMood {
+    pub fn from_code(code: u8) -> Self {
+        match code {
+            1 => Self::Hurt,
+            2 => Self::Angry,
+            _ => Self::Neutral,
+        }
+    }
+}
+
 /// Colors: default chroma → set chroma (if part.`set`) → part chroma.
 /// Layer colors come from part chroma, then set chroma.
 pub fn compose(kit: &AvatarKit, alpha: u8, step: u8) -> Vec<u8> {
+    compose_mood(kit, alpha, step, FaceMood::Neutral)
+}
+
+pub fn compose_mood(kit: &AvatarKit, alpha: u8, step: u8, mood: FaceMood) -> Vec<u8> {
     let kit = kit.normalized();
     let cat = current_catalog();
     let (group, _scale, rig) = cat.body_meta(&kit.body);
@@ -1001,6 +1168,13 @@ pub fn compose(kit: &AvatarKit, alpha: u8, step: u8) -> Vec<u8> {
             );
         }
     }
+    if mood != FaceMood::Neutral {
+        let pal = cat
+            .part("body", &kit.body)
+            .map(|p| layer_palette(&cat, p))
+            .unwrap_or_else(default_chroma_palette);
+        g.stamp_face(rig.face[0], base + foot + rig.face[1], &pal, a, mood);
+    }
     g.px
 }
 
@@ -1014,8 +1188,32 @@ pub fn paint(
     step: u8,
     kit: &AvatarKit,
 ) {
+    paint_mood(
+        pixmap,
+        cx,
+        cy,
+        pixel_size,
+        facing,
+        alpha,
+        step,
+        kit,
+        FaceMood::Neutral,
+    )
+}
+
+pub fn paint_mood(
+    pixmap: &mut Pixmap,
+    cx: f32,
+    cy: f32,
+    pixel_size: f32,
+    facing: i8,
+    alpha: u8,
+    step: u8,
+    kit: &AvatarKit,
+    mood: FaceMood,
+) {
     let ps = pixel_size.max(MIN_PIXEL_SIZE).round().max(MIN_PIXEL_SIZE);
-    let buf = compose(kit, alpha, step);
+    let buf = compose_mood(kit, alpha, step, mood);
     let flip = facing < 0;
     let w = GRID;
     let h = COMPOSE_H;
@@ -1094,6 +1292,17 @@ mod tests {
         assert!(a.iter().any(|v| *v != 0));
         assert!(b.iter().any(|v| *v != 0));
         assert_eq!(a.len(), (GRID * COMPOSE_H * 4) as usize);
+    }
+
+    #[test]
+    fn hit_moods_change_the_face() {
+        let kit = AvatarKit::default();
+        let neutral = compose(&kit, 255, 0);
+        let hurt = compose_mood(&kit, 255, 0, FaceMood::Hurt);
+        let angry = compose_mood(&kit, 255, 0, FaceMood::Angry);
+        assert_ne!(neutral, hurt);
+        assert_ne!(neutral, angry);
+        assert_ne!(hurt, angry);
     }
 
     #[test]
@@ -1258,6 +1467,39 @@ mod tests {
     }
 
     #[test]
+    fn held_parts_share_actions_by_kind() {
+        let cat = current_catalog();
+        let slash = cat
+            .held_actions
+            .iter()
+            .find(|action| action.id == "slash")
+            .expect("slash action");
+        assert_eq!(slash.role, "weapon");
+        assert!(!slash.overlay.is_empty());
+        let blade = cat.part("held", "blade").unwrap();
+        let axe = cat.part("held", "greataxe").unwrap();
+        assert_eq!(blade.weapon_kind, "slash");
+        assert_eq!(axe.weapon_kind, blade.weapon_kind);
+        let lantern = cat.part("held", "lantern").unwrap();
+        assert_eq!(lantern.weapon_kind, "light");
+        assert!(cat
+            .held_actions
+            .iter()
+            .any(|action| action.id == "light" && action.role == "prop"));
+        for part in cat.parts.iter().filter(|part| part.slot == "held") {
+            assert!(
+                cat.held_actions
+                    .iter()
+                    .any(|action| action.id == part.weapon_kind),
+                "held {} kind {}",
+                part.id,
+                part.weapon_kind
+            );
+        }
+        assert!(cat.warnings.iter().all(|warning| !warning.contains("weaponKind")));
+    }
+
+    #[test]
     fn crusader_set_is_in_catalog() {
         let cat = current_catalog();
         assert!(cat.part("head", "greathelm").is_some());
@@ -1300,6 +1542,7 @@ mod tests {
             seat: None,
             fits: Vec::new(),
             chroma: None,
+            weapon_kind: String::new(),
         }])
         .unwrap();
         let custom = compose(

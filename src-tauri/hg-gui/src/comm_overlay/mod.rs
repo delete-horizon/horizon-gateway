@@ -23,7 +23,15 @@ mod present_impl;
 mod present_impl {
     use super::engine::ActionKind;
     use super::presence::CommResidentInput;
-    pub fn play(_kind: ActionKind, _seed: Option<u64>, _count: u32, _from_label: Option<String>) {}
+    pub fn play(
+        _kind: ActionKind,
+        _seed: Option<u64>,
+        _count: u32,
+        _from_label: Option<String>,
+        _anchor: Option<String>,
+        _attacker: Option<String>,
+    ) {
+    }
     pub fn set_tool(_tool: &str) {}
     pub fn clear() {}
     pub fn sync_residents(_items: Vec<CommResidentInput>) {}
@@ -47,12 +55,14 @@ pub fn play_comm_action(
     seed: Option<i64>,
     count: Option<u32>,
     from_label: Option<String>,
+    anchor_id: Option<String>,
+    attacker_id: Option<String>,
 ) -> Result<(), String> {
     let k = ActionKind::parse(&kind);
     let seed = seed.map(|s| s as u64);
     let count = count.unwrap_or(1).max(1);
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        present_impl::play(k, seed, count, from_label);
+        present_impl::play(k, seed, count, from_label, anchor_id, attacker_id);
     })) {
         Ok(()) => Ok(()),
         Err(_) => Err("comm overlay panicked".into()),
@@ -93,6 +103,12 @@ pub fn sync_comm_residents(residents: Vec<CommResidentInput>) -> Result<(), Stri
 #[specta::specta]
 pub fn take_overlay_resident_click() -> Option<presence::OverlayResidentClick> {
     presence::take_resident_click()
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn take_overlay_resident_context() -> Option<presence::OverlayResidentClick> {
+    presence::take_resident_context()
 }
 
 #[tauri::command]

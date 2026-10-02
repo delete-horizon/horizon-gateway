@@ -51,7 +51,7 @@ export function WindowControls({ scope = "window" }: WindowControlsProps) {
           type="button"
           data-tauri-drag-region={false}
           onClick={onMinimize}
-          className="w-11 h-full flex items-center justify-center hover:bg-slate-800 text-slate-400 transition-colors"
+          className="w-11 h-full flex items-center justify-center hover:bg-base-300 text-base-content/55 transition-colors"
         >
           <Minus className="w-3.5 h-3.5" />
         </button>
@@ -59,7 +59,7 @@ export function WindowControls({ scope = "window" }: WindowControlsProps) {
           type="button"
           data-tauri-drag-region={false}
           onClick={() => appWindow.toggleMaximize()}
-          className="w-11 h-full flex items-center justify-center hover:bg-slate-800 text-slate-400 transition-colors"
+          className="w-11 h-full flex items-center justify-center hover:bg-base-300 text-base-content/55 transition-colors"
         >
           {isMaximized ? <Square className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
         </button>
@@ -68,7 +68,7 @@ export function WindowControls({ scope = "window" }: WindowControlsProps) {
           data-tauri-drag-region={false}
           onClick={onClose}
           className={clsx(
-            "w-11 h-full flex items-center justify-center hover:bg-rose-600 hover:text-white text-slate-400 transition-colors",
+            "w-11 h-full flex items-center justify-center hover:bg-error hover:text-error-content text-base-content/55 transition-colors",
           )}
         >
           <X className="w-4 h-4" />

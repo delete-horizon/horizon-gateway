@@ -3,7 +3,7 @@ import { commands } from "@/shared/api";
 import { putSessionHandoff } from "./sessionHandoff";
 import { supabaseSessionAtom } from "./user/store";
 
-export type CommTab = "workspaces" | "resources" | "chat" | "character" | "avatar" | "lab";
+export type CommTab = "workspaces" | "resources" | "chat" | "character" | "avatar";
 
 /** Focus the Comm companion, spawning it when it is not running. */
 export async function openWorkspaceCompanion(tab?: CommTab): Promise<string | null> {

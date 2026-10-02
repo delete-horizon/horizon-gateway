@@ -96,13 +96,6 @@ export function CommandPalette() {
           }
         });
       },
-      onOpenOverlayLab: () => {
-        void openWorkspaceCompanion("lab").then((error) => {
-          if (error) {
-            toastError(error);
-          }
-        });
-      },
       onOpenAvatarStudio: () => {
         void openWorkspaceCompanion("avatar").then((error) => {
           if (error) {
@@ -384,7 +377,7 @@ export function CommandPalette() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.1 }}
-          className="fixed inset-0 bg-slate-950/75"
+          className="fixed inset-0 bg-base-200/75"
           onClick={handleClose}
         />
 

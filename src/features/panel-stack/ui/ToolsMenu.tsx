@@ -124,7 +124,7 @@ export function ToolsMenu({ onOpenTool }: ToolsMenuProps) {
       <Button
         variant="ghost"
         size="sm"
-        className="gap-1.5 h-8 text-xs text-slate-300 hover:text-white hover:bg-slate-800"
+        className="gap-1.5 h-8 text-xs text-base-content/80 hover:text-base-content hover:bg-base-300"
         onClick={() => setOpen((v) => !v)}
       >
         <Wrench className="w-3.5 h-3.5" />
@@ -139,11 +139,11 @@ export function ToolsMenu({ onOpenTool }: ToolsMenuProps) {
             aria-label={t.handoffCloseMenu}
             onClick={() => setOpen(false)}
           />
-          <div className="absolute right-0 top-full mt-1 z-50 min-w-[220px] rounded-xl border border-slate-700/80 bg-slate-900 shadow-2xl py-1.5 px-1">
+          <div className="absolute right-0 top-full mt-1 z-50 min-w-[220px] rounded-xl border border-base-300 bg-base-100 shadow-2xl py-1.5 px-1">
             {TOOL_GROUPS.map((group, groupIdx) => (
               <div key={group.labelKey}>
-                {groupIdx > 0 && <div className="my-1.5 border-t border-slate-800" />}
-                <div className="px-2.5 pt-1.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                {groupIdx > 0 && <div className="my-1.5 border-t border-base-300" />}
+                <div className="px-2.5 pt-1.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-base-content/50">
                   {t[group.labelKey]}
                 </div>
                 <div className="space-y-0.5">
@@ -153,7 +153,7 @@ export function ToolsMenu({ onOpenTool }: ToolsMenuProps) {
                       <button
                         key={id}
                         type="button"
-                        className="w-full px-2.5 py-1.5 text-left text-xs font-semibold text-slate-200 hover:text-white hover:bg-slate-800/90 rounded-lg flex items-center gap-2.5 transition-colors"
+                        className="w-full px-2.5 py-1.5 text-left text-xs font-semibold text-base-content hover:bg-base-300/90 rounded-lg flex items-center gap-2.5 transition-colors"
                         onClick={() => {
                           onOpenTool(id);
                           setOpen(false);

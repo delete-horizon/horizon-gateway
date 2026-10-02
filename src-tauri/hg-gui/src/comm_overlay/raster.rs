@@ -1,6 +1,9 @@
+use std::sync::Mutex;
+
 use tiny_skia::{Color, FillRule, Paint, PathBuilder, Pixmap, Stroke, Transform};
 
 use super::engine::{DrawCmd, Frame};
+use crate::comm_overlay::avatar::AvatarIds;
 
 pub fn rasterize(frame: &Frame, width: u32, height: u32) -> Option<Pixmap> {
     let mut pixmap = Pixmap::new(width, height)?;
@@ -16,6 +19,8 @@ pub struct SpriteBlit {
     pub width: u32,
     pub height: u32,
     pub rgba: Vec<u8>,
+    /// Avatar sprites take the click so it does not fall through to the window behind.
+    pub capture: bool,
 }
 
 const SPRITE_PAD: f32 = 6.0;
@@ -69,8 +74,9 @@ fn draw_cmd(pixmap: &mut Pixmap, cmd: &DrawCmd) {
             facing,
             alpha,
             step,
+            face,
             ids,
-        } => crate::comm_overlay::avatar::paint(
+        } => crate::comm_overlay::avatar::paint_mood(
             pixmap,
             x,
             y,
@@ -79,6 +85,7 @@ fn draw_cmd(pixmap: &mut Pixmap, cmd: &DrawCmd) {
             alpha,
             step,
             &ids.kit(),
+            crate::comm_overlay::avatar::FaceMood::from_code(face),
         ),
         DrawCmd::Glow {
             x,
@@ -931,6 +938,79 @@ fn draw_mark(pixmap: &mut Pixmap, x: f32, y: f32, scale: f32, kind: u8, rgba: [u
     }
 }
 
+struct AvatarStamp {
+    ids: AvatarIds,
+    pixel_bits: u32,
+    facing: i8,
+    alpha: u8,
+    step: u8,
+    face: u8,
+    width: u32,
+    height: u32,
+    rgba: Vec<u8>,
+}
+
+fn avatar_stamps() -> &'static Mutex<Vec<AvatarStamp>> {
+    static STAMPS: Mutex<Vec<AvatarStamp>> = Mutex::new(Vec::new());
+    &STAMPS
+}
+
+fn take_avatar_stamp(cmd: &DrawCmd, width: u32, height: u32) -> Option<Vec<u8>> {
+    let DrawCmd::Avatar {
+        pixel_size,
+        facing,
+        alpha,
+        step,
+        face,
+        ids,
+        ..
+    } = *cmd
+    else {
+        return None;
+    };
+    let stamps = avatar_stamps().lock().unwrap_or_else(|e| e.into_inner());
+    stamps.iter().find(|stamp| {
+        stamp.ids == ids
+            && stamp.pixel_bits == pixel_size.to_bits()
+            && stamp.facing == facing
+            && stamp.alpha == alpha
+            && stamp.step == step
+            && stamp.face == face
+            && stamp.width == width
+            && stamp.height == height
+    }).map(|stamp| stamp.rgba.clone())
+}
+
+fn store_avatar_stamp(cmd: &DrawCmd, width: u32, height: u32, rgba: &[u8]) {
+    let DrawCmd::Avatar {
+        pixel_size,
+        facing,
+        alpha,
+        step,
+        face,
+        ids,
+        ..
+    } = *cmd
+    else {
+        return;
+    };
+    let mut stamps = avatar_stamps().lock().unwrap_or_else(|e| e.into_inner());
+    if stamps.len() >= 24 {
+        stamps.remove(0);
+    }
+    stamps.push(AvatarStamp {
+        ids,
+        pixel_bits: pixel_size.to_bits(),
+        facing,
+        alpha,
+        step,
+        face,
+        width,
+        height,
+        rgba: rgba.to_vec(),
+    });
+}
+
 fn rasterize_sprite(cmd: &DrawCmd) -> Option<SpriteBlit> {
     let (left, top, right, bottom) = cmd_bounds(cmd)?;
     let width = ((right - left).ceil()).clamp(1.0, SPRITE_MAX_SIDE as f32) as u32;
@@ -938,16 +1018,25 @@ fn rasterize_sprite(cmd: &DrawCmd) -> Option<SpriteBlit> {
     if width == 0 || height == 0 {
         return None;
     }
-    let mut pixmap = Pixmap::new(width, height)?;
-    pixmap.fill(Color::from_rgba8(0, 0, 0, 0));
-    let local = translate_cmd(cmd, -left, -top);
-    draw_cmd(&mut pixmap, &local);
+    let capture = matches!(cmd, DrawCmd::Avatar { .. });
+    let rgba = if let Some(cached) = take_avatar_stamp(cmd, width, height) {
+        cached
+    } else {
+        let mut pixmap = Pixmap::new(width, height)?;
+        pixmap.fill(Color::from_rgba8(0, 0, 0, 0));
+        let local = translate_cmd(cmd, -left, -top);
+        draw_cmd(&mut pixmap, &local);
+        let rgba = pixmap.data().to_vec();
+        store_avatar_stamp(cmd, width, height, &rgba);
+        rgba
+    };
     Some(SpriteBlit {
         dest_x: left.floor() as i32,
         dest_y: top.floor() as i32,
         width,
         height,
-        rgba: pixmap.data().to_vec(),
+        rgba,
+        capture,
     })
 }
 
@@ -1092,6 +1181,7 @@ fn translate_cmd(cmd: &DrawCmd, dx: f32, dy: f32) -> DrawCmd {
             facing,
             alpha,
             step,
+            face,
             ids,
         } => DrawCmd::Avatar {
             x: x + dx,
@@ -1100,6 +1190,7 @@ fn translate_cmd(cmd: &DrawCmd, dx: f32, dy: f32) -> DrawCmd {
             facing,
             alpha,
             step,
+            face,
             ids,
         },
         DrawCmd::Glow {
@@ -1248,6 +1339,7 @@ mod tests {
                 facing: 1,
                 alpha: 255,
                 step: 0,
+                face: 0,
                 ids: crate::comm_overlay::avatar::AvatarKit::default().ids(),
             }],
             banners: Vec::new(),

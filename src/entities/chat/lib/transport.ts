@@ -34,8 +34,19 @@ export async function playCommAction(
   seed?: number | null,
   count?: number | null,
   fromLabel?: string | null,
+  anchorId?: string | null,
+  attackerId?: string | null,
 ): Promise<void> {
-  unwrap(await commands.playCommAction(kind, seed ?? null, count ?? null, fromLabel ?? null));
+  unwrap(
+    await commands.playCommAction(
+      kind,
+      seed ?? null,
+      count ?? null,
+      fromLabel ?? null,
+      anchorId ?? null,
+      attackerId ?? null,
+    ),
+  );
 }
 
 export async function setCommOverlayTool(tool: "none" | "spray"): Promise<void> {

@@ -43,10 +43,6 @@ export async function openAvatarStudioWindow(part?: AvatarEditorTarget): Promise
   }
 }
 
-export async function openOverlayPlaygroundWindow(): Promise<void> {
-  unwrap(await commands.openWindow("chat-playground", "Overlay lab", "/chat/playground", 420, 720));
-}
-
 export async function openChatRoomWindow(roomId: string, title?: string): Promise<void> {
   const label = `chat-room-${roomId}`;
   const url = `/chat/${encodeURIComponent(roomId)}`;

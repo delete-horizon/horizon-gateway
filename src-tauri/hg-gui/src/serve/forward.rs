@@ -23,7 +23,9 @@ const GUI_ONLY_COMMANDS: &[&str] = &[
     "broadcast_comm_bubble",
     "show_comm_bubble",
     "take_overlay_resident_click",
+    "take_overlay_resident_context",
     "open_resident_composer",
+    "open_resident_action_menu",
     "fit_resident_composer",
     "push_incoming_card",
     "list_incoming_cards",
@@ -97,6 +99,14 @@ mod tests {
         }
         assert!(should_forward("session_handoff_put"));
         assert!(should_forward("session_handoff_take"));
+    }
+
+    #[test]
+    fn resident_action_menu_stays_in_gui() {
+        for cmd in ["take_overlay_resident_context", "open_resident_action_menu"] {
+            assert!(is_gui_only(cmd), "{cmd} must stay in the GUI");
+            assert!(!should_forward(cmd), "{cmd} must not forward");
+        }
     }
 
     #[test]

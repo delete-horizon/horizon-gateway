@@ -13,12 +13,12 @@ import { type ChangelogItem, getParsedChangelog } from "./changelogData";
 export const updateChangelogModalOpenAtom = atom(false);
 
 const BADGE_COLOR: Record<ChangelogItem["changes"][number]["type"], string> = {
-  added: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
-  changed: "bg-blue-500/10 text-blue-400 border border-blue-500/20",
-  fixed: "bg-amber-500/10 text-amber-400 border border-amber-500/20",
-  removed: "bg-rose-500/10 text-rose-400 border border-rose-500/20",
-  deprecated: "bg-purple-500/10 text-purple-400 border border-purple-500/20",
-  security: "bg-red-500/10 text-red-400 border border-red-500/20",
+  added: "bg-success/10 text-success border border-success/20",
+  changed: "bg-info/10 text-info border border-info/20",
+  fixed: "bg-warning/10 text-warning border border-warning/20",
+  removed: "bg-error/10 text-error border border-error/20",
+  deprecated: "bg-secondary/10 text-secondary border border-secondary/20",
+  security: "bg-error/10 text-error border border-error/20",
 };
 
 function badgeLabel(type: ChangelogItem["changes"][number]["type"], lang: string): string {
@@ -52,10 +52,10 @@ const ChangelogVersionBlock = memo(function ChangelogVersionBlockComponent({
 }) {
   return (
     <section className="space-y-4 pb-8">
-      <div className="flex items-center gap-3 border-b border-slate-800/40 pb-2">
-        <span className="text-base font-black text-slate-200">v{item.version}</span>
+      <div className="flex items-center gap-3 border-b border-base-300/40 pb-2">
+        <span className="text-base font-black text-base-content">v{item.version}</span>
         {item.date && (
-          <span className="text-[10px] font-bold text-slate-500 bg-slate-850 px-2 py-0.5 rounded-md border border-slate-800">
+          <span className="text-[10px] font-bold text-base-content/40 bg-base-200 px-2 py-0.5 rounded-md border border-base-300">
             {item.date}
           </span>
         )}
@@ -70,9 +70,9 @@ const ChangelogVersionBlock = memo(function ChangelogVersionBlockComponent({
               {badgeLabel(change.type, lang)}
             </span>
             <div className="space-y-1 min-w-0">
-              <h4 className="text-xs font-bold text-slate-200">{change.title}</h4>
+              <h4 className="text-xs font-bold text-base-content">{change.title}</h4>
               {change.description && (
-                <p className="text-xs text-slate-400 leading-relaxed font-medium">{change.description}</p>
+                <p className="text-xs text-base-content/55 leading-relaxed font-medium">{change.description}</p>
               )}
             </div>
           </div>
@@ -165,7 +165,7 @@ export function UpdateChangelogModal() {
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-slate-950/75"
+          className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-base-200/75"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -181,12 +181,12 @@ export function UpdateChangelogModal() {
           />
 
           <div
-            className="relative w-full max-w-2xl max-h-[85vh] flex flex-col bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl shadow-black/80 overflow-hidden"
+            className="relative w-full max-w-2xl max-h-[85vh] flex flex-col bg-base-100 border border-base-300 rounded-3xl shadow-2xl overflow-hidden"
             role="dialog"
             aria-modal="true"
             aria-labelledby="update-changelog-title"
           >
-            <div className="relative flex items-center justify-between p-6 border-b border-slate-800 shrink-0">
+            <div className="relative flex items-center justify-between p-6 border-b border-base-300 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
                   <Gift className="w-5 h-5" />
@@ -194,14 +194,14 @@ export function UpdateChangelogModal() {
                 <div>
                   <h2
                     id="update-changelog-title"
-                    className="text-lg font-black text-slate-100 tracking-tight flex items-center gap-2"
+                    className="text-lg font-black text-base-content tracking-tight flex items-center gap-2"
                   >
                     {lang === "ko" ? "업데이트 안내" : "What's New"}
                     <span className="text-[10px] font-bold py-0.5 px-2 bg-primary/10 text-primary border border-primary/20 rounded-full">
                       v{currentVer}
                     </span>
                   </h2>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-base-content/55">
                     {lang === "ko"
                       ? `전체 릴리스 이력 · ${list.length}개 버전`
                       : `Full release history · ${list.length} versions`}
@@ -212,7 +212,7 @@ export function UpdateChangelogModal() {
                 variant="ghost"
                 size="icon"
                 onClick={handleClose}
-                className="h-8 w-8 rounded-full border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-slate-200"
+                className="h-8 w-8 rounded-full border border-base-300 hover:bg-base-300 text-base-content/55 hover:text-base-content"
               >
                 <X className="w-4 h-4" />
               </Button>
@@ -247,8 +247,8 @@ export function UpdateChangelogModal() {
               )}
             </div>
 
-            <div className="p-6 border-t border-slate-800 bg-slate-900/80 flex items-center justify-between shrink-0">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5 select-none">
+            <div className="p-6 border-t border-base-300 bg-base-200/80 flex items-center justify-between shrink-0">
+              <span className="text-[10px] font-bold text-base-content/40 uppercase tracking-widest flex items-center gap-1.5 select-none">
                 <Sparkles className="w-3.5 h-3.5 text-primary" />
                 Enjoy Horizon Gateway
               </span>

@@ -11,11 +11,11 @@ export function useIsChatWindow(): boolean {
   const label = useWindowLabel();
   return (
     label === "chat-inbox" ||
-    label === "chat-playground" ||
     label === "chat-avatar-dress" ||
     label === "chat-avatar-studio" ||
     label === "chat-avatar-catalog" ||
     label === "chat-resident" ||
+    label === "chat-action-menu" ||
     label === "chat-incoming" ||
     label.startsWith("chat-room-")
   );
@@ -31,11 +31,11 @@ export function useEmbedMode(): EmbedMode {
   }
   if (
     label === "chat-inbox" ||
-    label === "chat-playground" ||
     label === "chat-avatar-dress" ||
     label === "chat-avatar-studio" ||
     label === "chat-avatar-catalog" ||
     label === "chat-resident" ||
+    label === "chat-action-menu" ||
     label === "chat-incoming" ||
     label.startsWith("chat-room-")
   ) {

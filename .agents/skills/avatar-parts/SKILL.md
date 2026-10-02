@@ -40,6 +40,7 @@ Rules:
 - Body parts may set `group`, `scale` (1.0 = human height), `rig`, and `chroma.skin` / `chroma.skinD`
 - Head parts may set `attach`: `perch` (wizard hat) or `cover` (hood), plus optional `seat`
 - Skins set `fits: ["humanoid"]` so they follow the silhouette group
+- Held parts set `weaponKind` to an id in `held-actions.json`. One kind shares one action. Add a kind as a new row there, not a new handler per part
 - `"shop": true` = planned paid SKU (still previewable)
 - Bundles go in `avatar-parts/sets.json` (`set:{id}`), not as a fake body part
 - Groups live in `avatar-parts/groups.json` (grid + reference body)

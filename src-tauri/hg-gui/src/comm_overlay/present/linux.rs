@@ -2,7 +2,14 @@
 use crate::comm_overlay::engine::ActionKind;
 use crate::comm_overlay::presence::CommResidentInput;
 
-pub fn play(kind: ActionKind, seed: Option<u64>, count: u32, from_label: Option<String>) {
+pub fn play(
+    kind: ActionKind,
+    seed: Option<u64>,
+    count: u32,
+    from_label: Option<String>,
+    _anchor: Option<String>,
+    _attacker: Option<String>,
+) {
     tracing::info!(
         "comm overlay play on Linux (degrade): {:?} seed={:?} count={count} from={from_label:?}",
         kind,

@@ -1,10 +1,10 @@
 import clsx from "clsx";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { localDummies } from "@/entities/chat";
 import { listMembers } from "@/entities/team";
 import { commands, unwrap } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
-import { localDummies } from "../lib/localDummies";
 import { sendTeamLine } from "../lib/sendTeamLine";
 
 /** Keep in sync with DOCK_* in window_commands.rs */

@@ -6,6 +6,6 @@ export { ChatLiveBridge } from "./ui/ChatLiveBridge";
 export { ChatRoomView } from "./ui/ChatRoomView";
 export { ChatShell } from "./ui/ChatShell";
 export { IncomingMessageStack } from "./ui/IncomingMessageStack";
-export { OverlayPlayground } from "./ui/OverlayPlayground";
+export { ResidentActionMenu } from "./ui/ResidentActionMenu";
 export { ResidentComposer } from "./ui/ResidentComposer";
 export { TeamCommsRuntime } from "./ui/TeamCommsRuntime";

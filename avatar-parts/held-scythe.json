@@ -4,6 +4,7 @@
   "shop": false,
   "ko": "영혼의 낫",
   "en": "Soul Scythe",
+  "weaponKind": "slash",
   "glyphs": [
     "........................",
     "........................",

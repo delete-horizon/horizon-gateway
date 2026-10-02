@@ -5,6 +5,7 @@
   "shop": true,
   "ko": "성기사 방패",
   "en": "Holy Shield",
+  "weaponKind": "guard",
   "glyphs": [
     "........................",
     "........................",

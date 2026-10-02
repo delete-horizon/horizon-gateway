@@ -9,14 +9,25 @@ export type IncomingMessageCard = {
   createdAt: string;
   /** `out` is a line this machine sent. Missing or `in` is a received line. */
   direction?: "in" | "out";
+  /** Body-hit notice. The button strikes `senderId` back. */
+  counter?: boolean;
+  /**
+   * Local dummy whose inbox this card mirrors.
+   * The button plays that resident's counter on this machine.
+   */
+  echoFromId?: string;
 };
 
-export function emitIncomingMessageCard(card: IncomingMessageCard): void {
+/** Pushes the card before resolving, so a closing window cannot drop it. */
+export function emitIncomingMessageCard(card: IncomingMessageCard): Promise<void> {
   if (typeof window === "undefined") {
-    return;
+    return Promise.resolve();
   }
   window.dispatchEvent(new CustomEvent(INCOMING_MESSAGE_EVENT, { detail: card }));
-  void import("@tauri-apps/api/core")
+  return import("@tauri-apps/api/core")
     .then(({ invoke }) => invoke("push_incoming_card", { card }))
-    .catch((err) => console.warn("push incoming card", err));
+    .then(() => undefined)
+    .catch((err) => {
+      console.warn("push incoming card", err);
+    });
 }
