@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.8.13] - 2026-10-02
+
+### Changed
+
+- **Own swing**: A slash, cast, or other body action walks your character on your screen as well as on the person you hit.
+
 ## [v2.8.12] - 2026-10-02
 
 ### Added

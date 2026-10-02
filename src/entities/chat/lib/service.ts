@@ -124,6 +124,9 @@ export async function refreshPeers(workspaceId: string): Promise<ChatPeerEndpoin
 
 const BODY_STRIKES = new Set<CommActionKind>(["poke", "slash", "thrust", "blunt", "shot", "cast"]);
 
+/** Kinds where the attacker walks up to the target. */
+const LUNGE_ACTIONS = new Set<CommActionKind>(["poke", "slash", "thrust", "blunt", "shot", "cast", "guard", "light"]);
+
 function isBodyStrike(kind: string): boolean {
   return BODY_STRIKES.has(kind as CommActionKind);
 }
@@ -704,7 +707,13 @@ export async function sendAction(opts: {
   for (const peer of targets) {
     await deliverToPeer(peer, frame);
   }
-  // Receiver-only overlays — no local echo.
+  // The receiver already plays this lunge. The sender sees the same walk on their own overlay.
+  if (room.kind === "dm" && LUNGE_ACTIONS.has(opts.actionKind)) {
+    const anchorId = room.memberIds.find((memberId) => memberId !== opts.myId);
+    if (anchorId) {
+      await playCommAction(opts.actionKind, null, actionCount, opts.senderLabel?.trim() || null, anchorId, opts.myId);
+    }
+  }
 }
 
 export async function sendTypingSignal(opts: {
