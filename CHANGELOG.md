@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.8.13] - 2026-10-02
+
+### Fixed
+
+- **Windows update**: Stopping the proxy no longer quits the app before the installer starts. The window that launches setup stays up until the installer takes over.
+
 ## [v2.8.12] - 2026-10-02
 
 ### Added

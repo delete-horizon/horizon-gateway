@@ -1,5 +1,6 @@
 use std::io::{BufRead, BufReader};
 use std::net::TcpStream;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 
@@ -7,6 +8,18 @@ use hg_core::{ServeEvent, SERVE_EVENT_ADDR};
 use tauri::{AppHandle, Emitter, Manager};
 
 use super::ensure;
+
+static EXIT_ON_SERVE_STOP: AtomicBool = AtomicBool::new(true);
+
+/// Updates call this before `shutdown_serve`. That event would otherwise `exit` the GUI
+/// before the installer process exists.
+pub fn set_exit_on_serve_stop(allow: bool) {
+    EXIT_ON_SERVE_STOP.store(allow, Ordering::SeqCst);
+}
+
+pub fn exit_on_serve_stop() -> bool {
+    EXIT_ON_SERVE_STOP.load(Ordering::SeqCst)
+}
 
 /// Background thread: subscribe to serve event stream and re-emit to the webview.
 pub fn start_event_forwarder(app: AppHandle) {
@@ -71,6 +84,10 @@ fn forward_events(app: &AppHandle) -> Result<(), String> {
                 });
             }
             "serve-stopping" => {
+                if !exit_on_serve_stop() {
+                    tracing::info!("[gui] serve-stopping ignored; update keeps this process alive");
+                    break;
+                }
                 let handle = app.clone();
                 let _ = handle.clone().run_on_main_thread(move || {
                     handle.exit(0);
@@ -95,4 +112,19 @@ fn forward_events(app: &AppHandle) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{exit_on_serve_stop, set_exit_on_serve_stop};
+
+    #[test]
+    fn update_can_keep_the_gui_alive_when_serve_stops() {
+        let previous = exit_on_serve_stop();
+        set_exit_on_serve_stop(false);
+        assert!(!exit_on_serve_stop());
+        set_exit_on_serve_stop(true);
+        assert!(exit_on_serve_stop());
+        set_exit_on_serve_stop(previous);
+    }
 }

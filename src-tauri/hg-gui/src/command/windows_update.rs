@@ -11,8 +11,10 @@
 //! returns void (so a `<= 32` check always fails), and the setup stays in this job.
 //! NSIS then `taskkill`s this process and the job takes the installer with it.
 //! A perMachine NSIS manifest raises UAC from the task, so the setup is neither our
-//! child nor in our job. We do **not** call `process::exit`. UAC cancel or a dead
-//! installer returns an error and restarts serve. A file log is always written under
+//! child nor in our job. We do **not** call `process::exit`. Stopping serve publishes
+//! `serve-stopping`; that must not quit the GUI or the installer never starts. UAC
+//! cancel or a dead installer returns an error and restarts serve. A file log is
+//! always written under
 //! `%LOCALAPPDATA%\com.lurain.horizon-gateway\update.log`.
 
 use std::path::{Path, PathBuf};
@@ -172,15 +174,17 @@ fn update_log(message: &str) {
 
 #[cfg(windows)]
 fn stop_companions_for_update() {
+    // `shutdown_serve` publishes `serve-stopping`, and the GUI treats that as "quit".
+    // Doing that here closes every window before the installer is started.
+    crate::serve::set_exit_on_serve_stop(false);
+    update_log("[gui] install_windows_update: serve shutdown will not close this process");
     crate::serve::kill_serve_process();
     crate::serve::mark_inactive();
     // Workspace and hgc hold binaries next to the GUI. The NSIS preinstall hook
     // kills them too, but a passive installer that dies first never gets there.
-    hidden_command(
-        "taskkill",
-        &["/IM", "horizon-gateway-workspace.exe", "/F", "/T"],
-    );
-    hidden_command("taskkill", &["/IM", "hgc.exe", "/F", "/T"]);
+    // Never taskkill this image: the update command is running inside it.
+    taskkill_unless_self("horizon-gateway-workspace.exe");
+    taskkill_unless_self("hgc.exe");
     hidden_command("net", &["stop", "WinDivert"]);
     hidden_command("sc", &["stop", "WinDivert"]);
 
@@ -196,6 +200,26 @@ fn stop_companions_for_update() {
     tracing::warn!(
         "[gui] install_windows_update: a companion was still running after stop; the elevated installer will retry"
     );
+}
+
+#[cfg(windows)]
+fn taskkill_unless_self(image: &str) {
+    let current = std::env::current_exe().ok().and_then(|path| {
+        path.file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+    });
+    if !should_taskkill_image(current.as_deref(), image) {
+        update_log(&format!(
+            "[gui] install_windows_update: skip taskkill {image}; this process is still installing"
+        ));
+        return;
+    }
+    hidden_command("taskkill", &["/IM", image, "/F", "/T"]);
+}
+
+/// True when `image` is some other process. Killing our own image aborts the launch.
+fn should_taskkill_image(current: Option<&str>, image: &str) -> bool {
+    !current.is_some_and(|name| name.eq_ignore_ascii_case(image))
 }
 
 #[cfg(windows)]
@@ -483,7 +507,7 @@ fn parse_pid_pairs(stdout: &str) -> Vec<(u32, u32)> {
 mod tests {
     use super::{
         installer_launch_script, is_outside_our_tree, parse_pid_pairs, process_rows_script,
-        UPDATE_TASK_NAME, VISIBLE_NSIS_ARGS,
+        should_taskkill_image, UPDATE_TASK_NAME, VISIBLE_NSIS_ARGS,
     };
     use std::path::Path;
 
@@ -509,6 +533,23 @@ mod tests {
         assert!(!script.contains("/P"));
         assert!(!script.contains("/S"));
         assert!(script.contains("horizon-gateway_2.8.9_x64-setup.exe"));
+    }
+
+    #[test]
+    fn update_does_not_taskkill_the_process_running_the_installer_launch() {
+        assert!(!should_taskkill_image(
+            Some("horizon-gateway-workspace.exe"),
+            "horizon-gateway-workspace.exe"
+        ));
+        assert!(!should_taskkill_image(
+            Some("HORIZON-GATEWAY-WORKSPACE.EXE"),
+            "horizon-gateway-workspace.exe"
+        ));
+        assert!(should_taskkill_image(
+            Some("horizon-gateway.exe"),
+            "horizon-gateway-workspace.exe"
+        ));
+        assert!(should_taskkill_image(None, "hgc.exe"));
     }
 
     #[test]

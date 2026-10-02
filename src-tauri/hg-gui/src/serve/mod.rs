@@ -10,7 +10,7 @@ mod tray;
 
 pub use client::{call_command, invoke_args_to_payload, ping};
 pub use ensure::{ensure_running, is_backend_active, leftover_is_gone, mark_inactive};
-pub use events_client::start_event_forwarder;
+pub use events_client::{exit_on_serve_stop, set_exit_on_serve_stop, start_event_forwarder};
 pub use forward::{is_gui_only, should_forward};
 pub use router::wrap_invoke_handler;
 pub use spawn::{
