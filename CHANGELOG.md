@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Own swing**: A slash, cast, or other body action walks your character on your screen as well as on the person you hit.
 
+### Fixed
+
+- **Windows update**: The update button asks for administrator consent. A limited scheduled task never showed that prompt and failed with error 740.
+
 ## [v2.8.12] - 2026-10-02
 
 ### Added
