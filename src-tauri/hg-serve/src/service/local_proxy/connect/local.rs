@@ -6,8 +6,9 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use tokio_rustls::TlsAcceptor;
 
+use super::super::access::ClientPeer;
 use super::super::io::PrependIo;
-use super::super::server::proxy_app;
+use super::super::server::proxy_app_for_peer;
 use super::super::state::ProxyState;
 use super::super::tls::DynamicCertResolver;
 
@@ -20,6 +21,7 @@ pub(crate) async fn handle_connect_tunnel_local(
     original_host: String,
     state: Arc<ProxyState>,
     header_buf: Vec<u8>,
+    peer: ClientPeer,
 ) {
     let response = b"HTTP/1.1 200 Connection Established\r\n\r\n";
     if client.write_all(response).await.is_err() {
@@ -59,7 +61,7 @@ pub(crate) async fn handle_connect_tunnel_local(
         original_host
     );
     let io = TokioIo::new(tls_stream);
-    let app = proxy_app(Arc::clone(&state), "https");
+    let app = proxy_app_for_peer(Arc::clone(&state), "https", peer);
     let svc = TowerToHyperService::new(app);
     let _ = Http1Builder::new()
         .serve_connection(io, svc)

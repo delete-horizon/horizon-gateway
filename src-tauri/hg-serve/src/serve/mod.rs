@@ -1,5 +1,6 @@
 //! Headless backend process: owns app services and accepts GUI/CLI IPC.
 
+pub mod auth;
 pub mod client;
 pub mod events;
 pub mod logging;

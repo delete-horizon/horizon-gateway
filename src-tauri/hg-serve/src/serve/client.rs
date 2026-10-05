@@ -19,7 +19,7 @@ pub fn is_port_open(timeout: Duration) -> bool {
 
 /// Dispatch a backend command through the serve IPC channel.
 pub fn call_command(command: &str, payload: Value) -> Result<Value, String> {
-    let request = ServeRequest::new(command, payload);
+    let request = ServeRequest::new(command, payload).with_token(super::auth::read_token());
 
     let response = send_request(&request)?;
     if response.ok {

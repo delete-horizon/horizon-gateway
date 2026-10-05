@@ -1,8 +1,9 @@
-use std::io::Write;
+use std::io::{BufRead, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex, OnceLock};
+use std::time::Duration;
 
-use hg_core::{ServeEvent, SERVE_EVENT_ADDR};
+use hg_core::{serve_token_matches, ServeEvent, ServeEventHello, SERVE_EVENT_ADDR};
 use serde::Serialize;
 use serde_json::Value;
 
@@ -55,7 +56,28 @@ pub fn emit_to_gui<S: Serialize + Clone>(_app: Option<&()>, event: &str, payload
     publish_event(event, payload);
 }
 
-pub fn start_event_listener(bus: Arc<ServeEventBus>) -> Result<(), String> {
+/// Subscribers must send a [`ServeEventHello`] line with the session token first.
+fn read_hello(stream: &TcpStream, token: &str) -> bool {
+    if stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .is_err()
+    {
+        return false;
+    }
+    let Ok(read_half) = stream.try_clone() else {
+        return false;
+    };
+    let mut line = String::new();
+    let mut reader = std::io::BufReader::new(read_half.take(4096));
+    if reader.read_line(&mut line).is_err() {
+        return false;
+    }
+    let ok = serde_json::from_str::<ServeEventHello>(line.trim())
+        .is_ok_and(|hello| serve_token_matches(token, Some(hello.token.as_str())));
+    ok && stream.set_read_timeout(None).is_ok()
+}
+
+pub fn start_event_listener(bus: Arc<ServeEventBus>, token: Arc<str>) -> Result<(), String> {
     let listener = TcpListener::bind(SERVE_EVENT_ADDR)
         .map_err(|e| format!("failed to bind event socket {SERVE_EVENT_ADDR}: {e}"))?;
     tracing::info!("[serve] event stream on {SERVE_EVENT_ADDR}");
@@ -64,8 +86,18 @@ pub fn start_event_listener(bus: Arc<ServeEventBus>) -> Result<(), String> {
         for stream in listener.incoming() {
             match stream {
                 Ok(stream) => {
-                    tracing::debug!("[serve] event subscriber connected");
-                    bus.add_subscriber(stream);
+                    let bus = Arc::clone(&bus);
+                    let token = Arc::clone(&token);
+                    std::thread::spawn(move || {
+                        if read_hello(&stream, &token) {
+                            tracing::debug!("[serve] event subscriber connected");
+                            bus.add_subscriber(stream);
+                        } else {
+                            tracing::warn!(
+                                "[serve] event subscriber rejected: missing or invalid token"
+                            );
+                        }
+                    });
                 }
                 Err(e) => tracing::warn!("[serve] event accept error: {e}"),
             }

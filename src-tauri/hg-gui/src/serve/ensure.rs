@@ -10,6 +10,8 @@ static SERVE_ENSURED: AtomicBool = AtomicBool::new(false);
 const SERVE_GONE_TIMEOUT: Duration = Duration::from_secs(5);
 const SERVE_READY_ATTEMPTS: u32 = 25;
 const PROXY_PORT_PROBE: &str = "0.0.0.0:8888";
+/// Proxy binds loopback by default; check it too (wildcard probe alone may succeed on Windows).
+const PROXY_LOOPBACK_PROBE: &str = "127.0.0.1:8888";
 const SERVE_IPC_PROBE: &str = "127.0.0.1:17345";
 
 /// How the GUI should attach to hg-serve at process start.
@@ -151,6 +153,7 @@ pub fn leftover_is_gone() -> bool {
     client::ping().is_err()
         && tcp_addr_is_free(SERVE_IPC_PROBE)
         && tcp_addr_is_free(PROXY_PORT_PROBE)
+        && tcp_addr_is_free(PROXY_LOOPBACK_PROBE)
 }
 
 pub(crate) fn tcp_addr_is_free(addr: &str) -> bool {

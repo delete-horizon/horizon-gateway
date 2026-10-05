@@ -61,6 +61,9 @@ export const settingsEn = {
   corsDesc: "Inject CORS headers on proxied responses, including unregistered hosts.",
   corsOn: "On",
   corsOff: "Off",
+  remoteAccessTitle: "Allow other devices",
+  remoteAccessDesc:
+    "Let LAN / Tailscale devices (mobile, team) use the proxy and setup page. Off keeps it on this computer only. Restart the app to apply.",
   tlsBypassTitle: "TLS bypass seed",
   tlsBypassDesc: "These hosts always tunnel (no decrypt). One host per line.",
   tlsBypassPlaceholder: "okta.com\nlogin.microsoftonline.com",

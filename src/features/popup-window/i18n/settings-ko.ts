@@ -61,6 +61,9 @@ export const settingsKo = {
   corsDesc: "프록시 응답에 CORS 헤더를 붙입니다. 미등록 호스트에도 적용됩니다.",
   corsOn: "켜짐",
   corsOff: "꺼짐",
+  remoteAccessTitle: "다른 기기 접속 허용",
+  remoteAccessDesc:
+    "LAN·Tailscale 기기(모바일, 팀)가 프록시와 설정 페이지를 쓸 수 있게 합니다. 끄면 이 컴퓨터에서만 접속됩니다. 앱을 다시 시작하면 적용됩니다.",
   tlsBypassTitle: "TLS 우회 시드",
   tlsBypassDesc: "이 호스트는 항상 터널입니다(복호화 없음). 한 줄에 하나.",
   tlsBypassPlaceholder: "okta.com\nlogin.microsoftonline.com",

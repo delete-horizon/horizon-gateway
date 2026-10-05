@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 /// Must match `tauri.conf.json` identifier and `logs.mjs` app id.
-pub const APP_IDENTIFIER: &str = "com.lurain.horizon-gateway";
+pub const APP_IDENTIFIER: &str = hg_core::APP_IDENTIFIER;
 
 /// Resolves the Horizon Gateway app data directory (same layout as Tauri `app_data_dir`).
 pub fn resolve_app_data_dir() -> Result<PathBuf, String> {

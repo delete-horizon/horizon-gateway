@@ -848,6 +848,20 @@ export function SettingsContent() {
                 </div>
               </Section>
 
+              <Section title={t.remoteAccessTitle} desc={t.remoteAccessDesc}>
+                <div className="flex justify-end">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    aria-label={proxySettings?.allow_remote_access ? t.corsOn : t.corsOff}
+                    className="toggle toggle-warning toggle-sm shrink-0"
+                    checked={proxySettings?.allow_remote_access === true}
+                    disabled={engineSaving}
+                    onChange={(e) => void patchEngine({ allowRemoteAccess: e.target.checked })}
+                  />
+                </div>
+              </Section>
+
               <Section title={t.tlsBypassTitle} desc={t.tlsBypassDesc}>
                 <textarea
                   className="textarea textarea-bordered w-full font-mono text-xs min-h-28"

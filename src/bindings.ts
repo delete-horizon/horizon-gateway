@@ -691,6 +691,13 @@ export type ProxySettings = {
 	upstream_timeout_secs?: number,
 	/**  Days to retain captured API logs on disk (e.g. 7, 14, 30, 90). 0 means keep forever. */
 	log_retention_days?: number,
+	/**
+	 *  Let other devices (LAN / Tailscale / mobile) reach the proxy and the setup page.
+	 *  Off (default): listen on 127.0.0.1 only. On: listen on 0.0.0.0 but accept only loopback,
+	 *  private (10/8, 172.16/12, 192.168/16), CGNAT/Tailscale (100.64/10), link-local and IPv6 ULA peers.
+	 *  Applies on next proxy start / app restart. Never imported from a settings file.
+	 */
+	allow_remote_access?: boolean,
 };
 
 export type ProxyStatusPayload = {
@@ -933,6 +940,8 @@ export type UpdateProxySettingsPayload = {
 	connectTimeoutSecs?: number | null,
 	upstreamTimeoutSecs?: number | null,
 	logRetentionDays?: number | null,
+	/**  LAN / Tailscale access to the proxy and setup page (default off). Restart the proxy to apply. */
+	allowRemoteAccess?: boolean | null,
 };
 
 export type SetProxyDnsServerPayload = {

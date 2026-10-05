@@ -92,6 +92,12 @@ pub struct ProxySettings {
     /// Days to retain captured API logs on disk (e.g. 7, 14, 30, 90). 0 means keep forever.
     #[serde(default = "default_log_retention_days")]
     pub log_retention_days: u32,
+    /// Let other devices (LAN / Tailscale / mobile) reach the proxy and the setup page.
+    /// Off (default): listen on 127.0.0.1 only. On: listen on 0.0.0.0 but accept only loopback,
+    /// private (10/8, 172.16/12, 192.168/16), CGNAT/Tailscale (100.64/10), link-local and IPv6 ULA peers.
+    /// Applies on next proxy start / app restart. Never imported from a settings file.
+    #[serde(default)]
+    pub allow_remote_access: bool,
     /// Legacy master switch. Read for one-shot migration, never written back.
     #[serde(default = "default_true", skip_serializing)]
     #[specta(skip)]
@@ -117,6 +123,7 @@ impl Default for ProxySettings {
             connect_timeout_secs: default_connect_timeout_secs(),
             upstream_timeout_secs: default_upstream_timeout_secs(),
             log_retention_days: default_log_retention_days(),
+            allow_remote_access: false,
             local_routing_enabled: true,
             tls_bypass_seeded: false,
             https_decrypt_seeded: false,
@@ -142,6 +149,7 @@ mod tests {
         assert!(settings.cors_rewrite_enabled);
         assert!(settings.local_routing_enabled);
         assert!(!settings.https_decrypt_seeded);
+        assert!(!settings.allow_remote_access);
     }
 
     #[test]
@@ -169,6 +177,7 @@ mod tests {
             connect_timeout_secs: 10,
             upstream_timeout_secs: 20,
             log_retention_days: 14,
+            allow_remote_access: true,
             local_routing_enabled: false,
             tls_bypass_seeded: true,
             https_decrypt_seeded: true,
@@ -182,6 +191,7 @@ mod tests {
         );
         assert!(!deserialized.cors_rewrite_enabled);
         assert_eq!(deserialized.https_decrypt_hosts, vec!["api.example.com"]);
+        assert!(deserialized.allow_remote_access);
     }
 
     #[test]
@@ -191,5 +201,6 @@ mod tests {
         assert!(settings.cors_rewrite_enabled);
         assert_eq!(settings.connect_timeout_secs, 15);
         assert_eq!(settings.upstream_timeout_secs, 30);
+        assert!(!settings.allow_remote_access, "remote access is opt-in");
     }
 }

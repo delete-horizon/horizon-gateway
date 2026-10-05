@@ -16,6 +16,7 @@
 import net from "node:net";
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { eventHello, readServeToken } from "./serve-token.mjs";
 
 const IPC_HOST = "127.0.0.1";
 const IPC_PORT = 17345;
@@ -36,6 +37,7 @@ function pingIpc() {
       const req = {
         id: randomUUID(),
         protocolVersion: 1,
+        token: readServeToken(),
         command: "ping",
         payload: null,
       };
@@ -73,6 +75,7 @@ function pingIpc() {
 function connectEventSubscriber(label) {
   return new Promise((resolve, reject) => {
     const socket = net.connect({ host: IPC_HOST, port: EVENT_PORT }, () => {
+      socket.write(eventHello());
       resolve(socket);
     });
     socket.setTimeout(3000);

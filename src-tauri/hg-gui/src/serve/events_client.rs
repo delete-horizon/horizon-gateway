@@ -1,10 +1,10 @@
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 
-use hg_core::{ServeEvent, SERVE_EVENT_ADDR};
+use hg_core::{ServeEvent, ServeEventHello, SERVE_EVENT_ADDR};
 use tauri::{AppHandle, Emitter, Manager};
 
 use super::ensure;
@@ -54,11 +54,18 @@ pub fn start_event_forwarder(app: AppHandle) {
 }
 
 fn forward_events(app: &AppHandle) -> Result<(), String> {
-    let stream = TcpStream::connect(SERVE_EVENT_ADDR)
+    let mut stream = TcpStream::connect(SERVE_EVENT_ADDR)
         .map_err(|e| format!("connect {SERVE_EVENT_ADDR}: {e}"))?;
     stream
         .set_read_timeout(Some(Duration::from_secs(3600)))
         .ok();
+    let token = super::client::serve_token().ok_or("serve token not found")?;
+    let mut hello = serde_json::to_string(&ServeEventHello { token })
+        .map_err(|e| format!("encode hello: {e}"))?;
+    hello.push('\n');
+    stream
+        .write_all(hello.as_bytes())
+        .map_err(|e| format!("send hello: {e}"))?;
 
     // Signal GUI that serve backend event connection is established and ready
     let _ = app.emit("serve-ready", ());

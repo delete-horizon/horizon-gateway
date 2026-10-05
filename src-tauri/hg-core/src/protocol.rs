@@ -13,6 +13,34 @@ fn default_protocol_version() -> u32 {
 pub const SERVE_TCP_ADDR: &str = "127.0.0.1:17345";
 /// Deprecated fixed event address — discovery via [`ServeEndpoints`] is preferred.
 pub const SERVE_EVENT_ADDR: &str = "127.0.0.1:17346";
+/// Port of [`SERVE_TCP_ADDR`].
+pub const SERVE_TCP_PORT: u16 = 17345;
+/// Port of [`SERVE_EVENT_ADDR`].
+pub const SERVE_EVENT_PORT: u16 = 17346;
+
+/// Must match `tauri.conf.json` identifier. Serve, CLI and GUI share this data dir.
+pub const APP_IDENTIFIER: &str = "com.lurain.horizon-gateway";
+/// Per-session IPC token written by serve into the app data dir (owner-only on unix).
+pub const SERVE_TOKEN_FILE: &str = "serve.token";
+
+/// `<platform data dir>/<APP_IDENTIFIER>/serve.token`, given the platform data dir.
+pub fn serve_token_path(platform_data_dir: &std::path::Path) -> std::path::PathBuf {
+    platform_data_dir
+        .join(APP_IDENTIFIER)
+        .join(SERVE_TOKEN_FILE)
+}
+
+/// Constant-time token comparison. Empty tokens never match.
+pub fn serve_token_matches(expected: &str, provided: Option<&str>) -> bool {
+    let Some(provided) = provided else {
+        return false;
+    };
+    let (a, b) = (expected.as_bytes(), provided.as_bytes());
+    if a.is_empty() || a.len() != b.len() {
+        return false;
+    }
+    a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
+}
 
 /// Shared command contract: client `call_cmd` and server typed dispatch use the same types.
 pub trait ServeCommand {
@@ -43,6 +71,15 @@ pub struct ServeRequest<P = Value> {
     pub command: String,
     #[serde(default)]
     pub payload: P,
+    /// Session token from [`SERVE_TOKEN_FILE`]. Serve rejects requests without it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub token: Option<String>,
+}
+
+/// First NDJSON line a client sends on the event stream before it receives events.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServeEventHello {
+    pub token: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -87,11 +124,18 @@ impl<P: Default> ServeRequest<P> {
             protocol_version: PROTOCOL_VERSION,
             command: command.into(),
             payload,
+            token: None,
         }
     }
 }
 
 impl<P> ServeRequest<P> {
+    #[must_use]
+    pub fn with_token(mut self, token: Option<String>) -> Self {
+        self.token = token;
+        self
+    }
+
     pub fn unsupported_version_error(&self) -> Option<String> {
         if self.protocol_version == PROTOCOL_VERSION {
             None
@@ -204,6 +248,33 @@ mod tests {
         let json = serde_json::to_string(&ep).unwrap();
         let back: ServeEndpoints = serde_json::from_str(&json).unwrap();
         assert_eq!(back, ep);
+    }
+
+    #[test]
+    fn token_is_optional_on_the_wire() {
+        let req = ServeRequest::new("ping", Value::Null);
+        assert!(!serde_json::to_string(&req).unwrap().contains("token"));
+        let req = req.with_token(Some("abc".into()));
+        let back: ServeRequest<Value> =
+            serde_json::from_str(&serde_json::to_string(&req).unwrap()).unwrap();
+        assert_eq!(back.token.as_deref(), Some("abc"));
+    }
+
+    #[test]
+    fn token_match_rules() {
+        assert!(serve_token_matches("abc", Some("abc")));
+        assert!(!serve_token_matches("abc", Some("abd")));
+        assert!(!serve_token_matches("abc", Some("ab")));
+        assert!(!serve_token_matches("abc", None));
+        assert!(!serve_token_matches("", Some("")));
+    }
+
+    #[test]
+    fn fixed_ports_match_addrs() {
+        assert!(SERVE_TCP_ADDR.ends_with(&format!(":{SERVE_TCP_PORT}")));
+        assert!(SERVE_EVENT_ADDR.ends_with(&format!(":{SERVE_EVENT_PORT}")));
+        let p = serve_token_path(std::path::Path::new("base"));
+        assert!(p.ends_with(format!("{APP_IDENTIFIER}/{SERVE_TOKEN_FILE}")));
     }
 
     #[test]

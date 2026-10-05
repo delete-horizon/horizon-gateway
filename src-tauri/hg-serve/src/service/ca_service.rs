@@ -3,6 +3,8 @@ use std::fs;
 use std::path::Path;
 use time::OffsetDateTime;
 
+use crate::runtime::private_file::{restrict_permissions, write_private_file};
+
 pub struct CaService {
     ca_cert: Certificate,
     ca_key: KeyPair,
@@ -19,11 +21,15 @@ impl CaService {
         let cert_path = ca_dir.join("root.crt");
 
         let key_pair = if key_path.exists() {
+            // Older versions wrote the key world-readable.
+            if let Err(e) = restrict_permissions(&key_path) {
+                tracing::warn!("[ca] could not restrict root.key permissions: {e}");
+            }
             let key_pem = fs::read_to_string(&key_path).map_err(|e| e.to_string())?;
             KeyPair::from_pem(&key_pem).map_err(|e: rcgen::Error| e.to_string())?
         } else {
             let kp = KeyPair::generate().map_err(|e: rcgen::Error| e.to_string())?;
-            fs::write(&key_path, kp.serialize_pem()).map_err(|e| e.to_string())?;
+            write_private_file(&key_path, kp.serialize_pem().as_bytes())?;
             kp
         };
 
@@ -107,5 +113,27 @@ mod tests {
         let (cert, _key) = ca_service.sign_host_certificate(host).unwrap();
         let cert_pem = cert.pem();
         assert!(cert_pem.contains("BEGIN CERTIFICATE"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn root_key_is_owner_only_including_existing_installs() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempdir().unwrap();
+        let key_path = dir.path().join("ca").join("root.key");
+        let mode = |p: &Path| fs::metadata(p).unwrap().permissions().mode() & 0o777;
+
+        CaService::new(dir.path()).unwrap();
+        assert_eq!(mode(&key_path), 0o600);
+        let key_pem = fs::read_to_string(&key_path).unwrap();
+
+        fs::set_permissions(&key_path, fs::Permissions::from_mode(0o644)).unwrap();
+        CaService::new(dir.path()).unwrap();
+        assert_eq!(mode(&key_path), 0o600);
+        assert_eq!(
+            fs::read_to_string(&key_path).unwrap(),
+            key_pem,
+            "same key reused"
+        );
     }
 }

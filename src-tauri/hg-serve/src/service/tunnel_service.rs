@@ -1,9 +1,30 @@
-use axum::{extract::State, response::Html, response::IntoResponse, routing::get, Router};
+use axum::{
+    extract::{ConnectInfo, Request, State},
+    http::{HeaderValue, Method, StatusCode},
+    middleware::{self, Next},
+    response::{Html, IntoResponse, Response},
+    routing::get,
+    Router,
+};
+use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Child;
 use tokio::sync::Mutex;
 use tower_http::cors::CorsLayer;
+
+use crate::service::local_proxy::{is_peer_allowed, listen_ip};
+use crate::service::proxy_settings_service::ProxySettingsService;
+
+/// Setup / connect page server for mobile devices (Tailscale) and the Cloudflare tunnel.
+pub const SETUP_SERVER_PORT: u16 = 13030;
+
+/// Webview origins of this app. Pages here are opened by navigation, so no other origin needs CORS.
+const APP_ORIGINS: [&str; 3] = [
+    "tauri://localhost",
+    "http://tauri.localhost",
+    "https://tauri.localhost",
+];
 
 pub struct TunnelService {
     pub child: Arc<Mutex<Option<Child>>>,
@@ -12,7 +33,7 @@ pub struct TunnelService {
 
 #[derive(Clone)]
 struct AxumState {
-    _app_handle: Option<()>,
+    proxy_settings: Arc<ProxySettingsService>,
 }
 
 impl TunnelService {
@@ -28,27 +49,40 @@ impl TunnelService {
         get_tailscale_ip()
     }
 
-    pub async fn start_axum_server(&self, _app_handle: Option<()>) -> Result<(), std::io::Error> {
+    /// Binds 127.0.0.1, or 0.0.0.0 with the proxy peer allowlist when remote access is enabled
+    /// (Tailscale / LAN mobile devices). Applies on next serve start.
+    pub async fn start_axum_server(
+        &self,
+        proxy_settings: Arc<ProxySettingsService>,
+    ) -> Result<(), std::io::Error> {
         let mut axum_guard = self.axum_handle.lock().await;
         if axum_guard.is_some() {
             return Ok(()); // already running
         }
 
-        let state = AxumState { _app_handle: None };
+        let allow_remote_access = proxy_settings.get().allow_remote_access;
+        let state = AxumState { proxy_settings };
+        let cors = CorsLayer::new()
+            .allow_origin(APP_ORIGINS.map(HeaderValue::from_static))
+            .allow_methods([Method::GET]);
         let app = Router::new()
             .route("/api/ping", get(ping_handler))
             .route("/connect", get(connect_handler))
             .route("/setup", get(setup_handler))
-            .layer(CorsLayer::permissive())
+            .layer(cors)
+            .layer(middleware::from_fn_with_state(state.clone(), peer_guard))
             .with_state(state);
 
-        // Bind to 0.0.0.0 so the server is reachable via Tailscale IP (100.x.x.x)
-        // from mobile devices on the same VPN network.
-        let addr = std::net::SocketAddr::from(([0, 0, 0, 0], 13030));
+        let addr = SocketAddr::new(listen_ip(allow_remote_access), SETUP_SERVER_PORT);
         let listener = tokio::net::TcpListener::bind(addr).await?;
+        tracing::info!("[serve] setup server on {}", listener.local_addr()?);
 
         let handle = tokio::spawn(async move {
-            let _ = axum::serve(listener, app).await;
+            let _ = axum::serve(
+                listener,
+                app.into_make_service_with_connect_info::<SocketAddr>(),
+            )
+            .await;
         });
 
         *axum_guard = Some(handle);
@@ -66,7 +100,8 @@ impl TunnelService {
 
         // Spawn cloudflared
         let mut command = tokio::process::Command::new(&binary_path);
-        command.args(["tunnel", "--url", "http://127.0.0.1:13030"]);
+        let origin = format!("http://127.0.0.1:{SETUP_SERVER_PORT}");
+        command.args(["tunnel", "--url", origin.as_str()]);
         command.stdout(std::process::Stdio::piped());
         command.stderr(std::process::Stdio::piped());
 
@@ -273,25 +308,39 @@ async fn ping_handler() -> impl IntoResponse {
     }))
 }
 
-async fn connect_handler(State(_state): State<AxumState>) -> impl IntoResponse {
+/// Same allowlist as the proxy listener (loopback always; LAN / Tailscale only when enabled).
+async fn peer_guard(
+    State(state): State<AxumState>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
+    req: Request,
+    next: Next,
+) -> Response {
+    if is_peer_allowed(peer.ip(), state.proxy_settings.get().allow_remote_access) {
+        next.run(req).await
+    } else {
+        StatusCode::FORBIDDEN.into_response()
+    }
+}
+
+async fn connect_handler(State(state): State<AxumState>) -> impl IntoResponse {
     let tailscale_ip = get_tailscale_ip().unwrap_or_else(|| "127.0.0.1".to_string());
 
-    let proxy_port = 17345;
+    let proxy_port = state.proxy_settings.get().proxy_port;
 
     let html = include_str!("../../resources/landing.html")
         .replace("{{TAILSCALE_IP}}", &tailscale_ip)
         .replace("{{PROXY_PORT}}", &proxy_port.to_string())
-        .replace("{{AXUM_PORT}}", "13030");
+        .replace("{{AXUM_PORT}}", &SETUP_SERVER_PORT.to_string());
 
     Html(html)
 }
 
 /// Setup guide page: served over HTTP on the Tailscale IP (100.x.x.x:13030/setup).
 /// If the mobile device can load this page, it proves VPN connectivity.
-async fn setup_handler(State(_state): State<AxumState>) -> impl IntoResponse {
+async fn setup_handler(State(state): State<AxumState>) -> impl IntoResponse {
     let tailscale_ip = get_tailscale_ip().unwrap_or_else(|| "127.0.0.1".to_string());
 
-    let proxy_port = 17345;
+    let proxy_port = state.proxy_settings.get().proxy_port;
 
     let html = include_str!("../../resources/setup_guide.html")
         .replace("{{TAILSCALE_IP}}", &tailscale_ip)
