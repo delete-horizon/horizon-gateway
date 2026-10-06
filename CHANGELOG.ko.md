@@ -4,6 +4,12 @@
 
 이 형식은 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)를 기반으로 합니다.
 
+## [v2.8.15] - 2026-10-06
+
+### Security (보안)
+
+- **보안 강화**
+
 ## [v2.8.14] - 2026-10-02
 
 ### Added (추가 기능)
