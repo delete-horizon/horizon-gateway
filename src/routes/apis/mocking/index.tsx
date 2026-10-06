@@ -305,7 +305,7 @@ function MockingDashboard() {
             <input
               id="rule-host"
               className="input input-bordered border-base-300 w-full font-mono text-sm bg-base-100/50"
-              placeholder="b2c-api.modetour.dev (optional)"
+              placeholder="api.example.dev"
               value={ruleForm.host}
               onChange={(e) => setRuleForm((prev) => ({ ...prev, host: e.target.value }))}
             />

@@ -23,7 +23,7 @@ Personal and commercial use. Your AI agent can drive it with `hgc`.
 ---
 
 <div align="center">
-  <img src="./docs/images/gateway-proxy-routes.png" alt="Horizon Gateway Local MITM Proxy & Dynamic Routing" width="90%" />
+  <img src="./docs/images/gateway-proxy-routes.png" alt="Horizon Gateway Proxy Connections" width="90%" />
 </div>
 
 ---
@@ -38,20 +38,20 @@ Modern frontend and backend engineering requires running multiple disconnected u
 
 Horizon Gateway consolidates your local development network and debugging toolchain into a single, native desktop application.
 
-- **Native Performance**: Built with Rust and Tauri 2, delivering a lightweight ~16MB Windows installer footprint and negligible memory usage compared to Electron-based alternatives.
+- **Native Performance**: Built with Rust and Tauri 2, delivering a lightweight ~22MB Windows installer footprint and negligible memory usage compared to Electron-based alternatives.
 - **AI Agent-Ready**: Includes a dedicated console CLI (`hgc`) designed for direct integration with AI coding assistants like Cursor, Gemini CLI, Claude Code, and Windsurf.
-- **Zero-Friction Configuration**: Switch proxy routes, mock endpoints, and inspect client applications with a single click.
+- **Zero-Friction Configuration**: Switch proxy routes, mock endpoints, and check domain health from one desktop app.
 
 ---
 
 ## Screenshots
 
 <div align="center">
-  <p><strong>OpenAPI & Mocking Rule Editor</strong></p>
-  <img src="./docs/images/gateway-mock-editor.png" alt="OpenAPI & API Mocking Rule Editor" width="85%" />
+  <p><strong>API Mocking — Edit Rule</strong></p>
+  <img src="./docs/images/gateway-mock-editor.png" alt="API Mocking Edit Rule dialog" width="85%" />
   <br/><br/>
-  <p><strong>hgc AI Agent CLI with Cursor</strong></p>
-  <img src="./docs/images/gateway-hgc-cursor.png" alt="hgc Agent CLI with Cursor" width="85%" />
+  <p><strong>hgc CLI</strong></p>
+  <img src="./docs/images/gateway-hgc-cursor.png" alt="hgc init and get_domains in a terminal" width="85%" />
 </div>
 
 ---
@@ -79,10 +79,10 @@ Horizon Gateway consolidates your local development network and debugging toolch
 - **ADB Port Forwarding**: Automatically route connected Android device traffic through the local proxy.
 - **Secure Tunneling**: Expose local proxy environments over Tailscale or Cloudflare tunnels for remote QA and cross-device validation. *(Note: iOS USB debugging is unsupported; use Android ADB or network tunnels)*.
 
-### 6. Live Capture & UI/UX Policy Inspector
-- Inject an interactive inspector overlay into monitored web applications.
-- Visually select DOM elements, pin interactive notes, and associate UI/UX design policies with rich Markdown support.
-- Live theme synchronization using DaisyUI 5 tokens.
+### 6. UI/UX Guides
+- **Guide Management** (Tools → UI/UX Guides) stores and edits UI/UX guides for your hosts.
+- Import and export the guide set as JSON.
+- Generate a PDF report from the saved guides.
 
 ---
 
@@ -92,8 +92,8 @@ Download the prebuilt binaries from the [GitHub Releases](https://github.com/del
 
 | Operating System | Package | Architecture |
 |---|---|---|
-| Windows | `.exe` / `.msi` | x64 (~16MB installer) |
-| macOS | `.dmg` | Universal (Apple Silicon & Intel) |
+| Windows | NSIS `.exe` | x64 (~22MB) |
+| macOS | `.dmg` | Apple Silicon and Intel, separate installers |
 | Linux | `.AppImage` / `.deb` / `.rpm` | x64 |
 
 ---
@@ -101,9 +101,9 @@ Download the prebuilt binaries from the [GitHub Releases](https://github.com/del
 ## Quick Start
 
 1. **Start the Proxy**: Launch Horizon Gateway and toggle the local proxy switch in the sidebar.
-2. **Install Root CA**: Navigate to **Settings -> Root CA -> Export & Install** to enable HTTPS decryption.
-3. **Add a Route**: Under **Proxy -> Routes**, specify a target domain pattern (e.g. `api.example.dev`) and map it to `http://localhost:3000`.
-4. **Mock an API**: Under **APIs -> Mocking**, configure a rule for any endpoint (e.g. `/user/profile`) and test your frontend immediately.
+2. **Install Root CA**: Open **Settings → Proxy → HTTPS certificate (Root CA)** and click **Save certificate** so the OS or browser can trust HTTPS decryption.
+3. **Add a route**: Under **Tools → Proxy Connections**, map a domain (for example `api.example.dev`) to a local target such as `localhost:3000`.
+4. **Mock an API**: Under **Tools → API Mocking**, add a rule for a path (for example `/api/users`) with a status code and JSON body.
 
 ---
 

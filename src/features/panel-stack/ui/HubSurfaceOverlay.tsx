@@ -36,6 +36,7 @@ function resolveTitle(titleKey: string, t: typeof ko): string {
     toolsCrypto: t.toolsCrypto,
     toolsPreview: t.toolsPreview,
     toolsApiClient: t.toolsApiClient,
+    toolsApiMocking: t.toolsApiMocking,
     toolsJsonSchema: t.toolsJsonSchema,
     toolsServerLogs: t.toolsServerLogs,
     apiLogs: t.apiLogs,
