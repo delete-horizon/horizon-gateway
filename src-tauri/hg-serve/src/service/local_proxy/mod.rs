@@ -13,6 +13,7 @@ macro_rules! proxy_log {
     };
 }
 
+mod access;
 mod connect;
 mod dns;
 mod handler;
@@ -23,6 +24,7 @@ mod server;
 mod state;
 mod tls;
 
+pub(crate) use access::{is_peer_allowed, listen_ip};
 pub use routing::route_domain_to_host;
 pub use server::{run_proxy, run_reverse_proxy_http, run_reverse_proxy_https};
 #[allow(unused_imports)]

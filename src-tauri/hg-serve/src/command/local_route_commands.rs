@@ -511,7 +511,7 @@ pub async fn start_local_proxy_svc(
     let inspector_service_arc = (*inspector_service).clone();
     let domain_service_arc = std::sync::Arc::new((*domain_service).clone());
 
-    match local_proxy::run_proxy(
+    let bound_addr = match local_proxy::run_proxy(
         app.clone(),
         port,
         std::sync::Arc::clone(&*route_service),
@@ -526,7 +526,10 @@ pub async fn start_local_proxy_svc(
     )
     .await
     {
-        Ok(h0) => handles.push(h0),
+        Ok((h0, addr)) => {
+            handles.push(h0);
+            addr
+        }
         Err(e) if is_addr_in_use(&e) => {
             if in_process_proxy_became_ready().await {
                 return Ok(already_running_ok(app));
@@ -534,7 +537,7 @@ pub async fn start_local_proxy_svc(
             return Err(map_bind_error(port, e));
         }
         Err(e) => return Err(map_bind_error(port, e)),
-    }
+    };
 
     if let Some(rh) = reverse_http {
         match local_proxy::run_reverse_proxy_http(
@@ -614,7 +617,7 @@ pub async fn start_local_proxy_svc(
         reverse_https_port: reverse_https,
     };
     let _ = emit_proxy_status(app.as_ref(), &payload);
-    let mut msg = format!("Proxy started on 127.0.0.1:{port}");
+    let mut msg = format!("Proxy started on {bound_addr}");
     if let Some(p) = reverse_http {
         let _ = write!(&mut msg, ", reverse HTTP :{p}");
     }
@@ -738,13 +741,15 @@ pub struct UpdateProxySettingsPayload {
     pub connect_timeout_secs: Option<u64>,
     pub upstream_timeout_secs: Option<u64>,
     pub log_retention_days: Option<u32>,
+    /// LAN / Tailscale access to the proxy and setup page (default off). Restart the proxy to apply.
+    pub allow_remote_access: Option<bool>,
 }
 
 pub const UPDATE_PROXY_SETTINGS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "update_proxy_settings",
     description:
-        "프록시 엔진 옵션(CORS, TLS 우회, 타임아웃, 로그 보관 기간)을 부분 업데이트합니다.",
-    payload_example: r#"{"corsRewriteEnabled": true, "logRetentionDays": 14}"#,
+        "프록시 엔진 옵션(CORS, TLS 우회, 타임아웃, 로그 보관 기간, 외부 기기 접속 허용)을 부분 업데이트합니다. allowRemoteAccess는 프록시 재시작 후 적용됩니다.",
+    payload_example: r#"{"corsRewriteEnabled": true, "logRetentionDays": 14, "allowRemoteAccess": false}"#,
     category: "proxy",
     gui_only: false,
 };
@@ -760,6 +765,7 @@ pub fn update_proxy_settings_svc(
         payload.connect_timeout_secs,
         payload.upstream_timeout_secs,
         payload.log_retention_days,
+        payload.allow_remote_access,
     );
     Ok(ApiResponse {
         message: "Proxy settings updated".to_string(),
@@ -856,7 +862,7 @@ pub async fn auto_start_proxy(
     }
 
     let mut handles = Vec::new();
-    match local_proxy::run_proxy(
+    let bound_addr = match local_proxy::run_proxy(
         app_handle.clone(),
         port,
         std::sync::Arc::clone(&route_service),
@@ -871,9 +877,12 @@ pub async fn auto_start_proxy(
     )
     .await
     {
-        Ok(h) => handles.push(h),
+        Ok((h, addr)) => {
+            handles.push(h);
+            addr
+        }
         Err(e) => return Err(format!("Failed to bind proxy port {port}: {e}")),
-    }
+    };
 
     if let Some(rh) = reverse_http {
         match local_proxy::run_reverse_proxy_http(
@@ -947,7 +956,7 @@ pub async fn auto_start_proxy(
 
     emit_proxy_status(app_handle.as_ref(), &current_proxy_status());
 
-    let mut msg = format!("[auto-start] Proxy on 127.0.0.1:{port}");
+    let mut msg = format!("[auto-start] Proxy on {bound_addr}");
     if let Some(p) = reverse_http {
         let _ = write!(&mut msg, ", reverse HTTP :{p}");
     }

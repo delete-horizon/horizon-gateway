@@ -3,8 +3,10 @@ use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
+use super::super::access::{is_local_ip, ClientPeer};
 use super::super::dns::connect_for_connect;
 use super::super::state::ProxyState;
+use super::tunnel::refuse_connect;
 
 /// Pass-through CONNECT tunnel: 200 Established + bidirectional copy.
 pub(crate) async fn handle_connect_passthrough(
@@ -14,6 +16,7 @@ pub(crate) async fn handle_connect_passthrough(
     resolver: Option<&std::sync::Arc<super::super::dns::TokioResolver>>,
     header_buf: Vec<u8>,
     state: &Arc<ProxyState>,
+    peer: ClientPeer,
 ) {
     let settings = state.proxy_settings.get();
     let timeout = Duration::from_secs(settings.connect_timeout_secs.clamp(1, 300));
@@ -28,6 +31,13 @@ pub(crate) async fn handle_connect_passthrough(
             return;
         }
     };
+    // Names that resolve to this machine's loopback are local-only targets too.
+    if !peer.is_loopback() && upstream.peer_addr().is_ok_and(|a| is_local_ip(a.ip())) {
+        crate::proxy_log!("-> CONNECT refused: {} resolves to loopback", host);
+        drop(upstream);
+        refuse_connect(client).await;
+        return;
+    }
     let response = b"HTTP/1.1 200 Connection Established\r\n\r\n";
     if client.write_all(response).await.is_err() {
         return;

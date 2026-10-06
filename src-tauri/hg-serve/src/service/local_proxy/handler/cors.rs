@@ -6,16 +6,18 @@ use axum::{
 };
 use std::sync::Arc;
 
+use super::super::access::ClientPeer;
 use super::super::state::ProxyState;
 use super::pipeline::proxy_handler_inner;
 
 pub(crate) async fn proxy_handler(
     state: State<Arc<ProxyState>>,
     ext: axum::Extension<&'static str>,
+    peer: axum::Extension<ClientPeer>,
     req: Request,
 ) -> Response {
     if !state.proxy_settings.get().cors_rewrite_enabled {
-        return proxy_handler_inner(state, ext, req).await;
+        return proxy_handler_inner(state, ext, peer, req).await;
     }
 
     let req_headers = req.headers().clone();
@@ -55,7 +57,7 @@ pub(crate) async fn proxy_handler(
     }
 
     // 2. Handle actual request
-    let mut response = proxy_handler_inner(state, ext, req).await;
+    let mut response = proxy_handler_inner(state, ext, peer, req).await;
 
     // 3. Skip CORS for WebSocket Upgrades (101 Switching Protocols)
     // Adding CORS headers to 101 responses can cause browser to fail the handshake.

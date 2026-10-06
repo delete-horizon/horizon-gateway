@@ -2,7 +2,7 @@ use std::io::{BufRead, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;
 
-use hg_core::{ServeRequest, ServeResponse, SERVE_TCP_ADDR};
+use hg_core::{serve_token_matches, ServeRequest, ServeResponse, SERVE_TCP_ADDR};
 
 use crate::cli;
 use crate::runtime::{bootstrap_app_context, AppContext, CliRuntime};
@@ -47,13 +47,17 @@ fn serve_loop(rt: tokio::runtime::Runtime) -> Result<(), String> {
     let inspector_service = ctx.inspector_service.clone();
     let domain_service = Arc::new(ctx.domain_service.clone());
 
+    let token: Arc<str> = super::auth::generate_token().into();
+
     let event_bus = super::events::ServeEventBus::new();
     super::events::ServeEventBus::init_global(Arc::clone(&event_bus));
-    super::events::start_event_listener(event_bus)?;
+    super::events::start_event_listener(event_bus, Arc::clone(&token))?;
 
     let listener = TcpListener::bind(SERVE_TCP_ADDR)
         .map_err(|e| format!("failed to bind serve socket {SERVE_TCP_ADDR}: {e}"))?;
 
+    // Publish only after both sockets are ours, so a second instance never replaces the token.
+    super::auth::publish_token(&token)?;
     tracing::info!("[serve] listening on {SERVE_TCP_ADDR}");
 
     rt.spawn(async move {
@@ -113,7 +117,12 @@ fn serve_loop(rt: tokio::runtime::Runtime) -> Result<(), String> {
     {
         let ctx_clone = Arc::clone(&ctx);
         rt.spawn(async move {
-            if let Err(e) = ctx_clone.tunnel_service.start_axum_server(None).await {
+            let proxy_settings = Arc::clone(&ctx_clone.proxy_settings_service);
+            if let Err(e) = ctx_clone
+                .tunnel_service
+                .start_axum_server(proxy_settings)
+                .await
+            {
                 tracing::error!("[serve] Axum server failed: {e}");
             }
         });
@@ -125,7 +134,7 @@ fn serve_loop(rt: tokio::runtime::Runtime) -> Result<(), String> {
         let rt_ipc = Arc::clone(&rt);
         std::thread::Builder::new()
             .name("serve-ipc".into())
-            .spawn(move || accept_loop(listener, ctx_ipc, rt_ipc))
+            .spawn(move || accept_loop(listener, ctx_ipc, rt_ipc, token))
             .map_err(|e| format!("failed to start serve IPC thread: {e}"))?;
         // macOS requires the tray event loop on the main thread.
         super::tray::start();
@@ -135,12 +144,17 @@ fn serve_loop(rt: tokio::runtime::Runtime) -> Result<(), String> {
     #[cfg(windows)]
     {
         super::tray::start();
-        accept_loop(listener, ctx, rt);
+        accept_loop(listener, ctx, rt, token);
         return Ok(());
     }
 }
 
-fn accept_loop(listener: TcpListener, ctx: Arc<AppContext>, rt: Arc<tokio::runtime::Runtime>) {
+fn accept_loop(
+    listener: TcpListener,
+    ctx: Arc<AppContext>,
+    rt: Arc<tokio::runtime::Runtime>,
+    token: Arc<str>,
+) {
     for stream in listener.incoming() {
         let stream = match stream {
             Ok(s) => s,
@@ -151,8 +165,9 @@ fn accept_loop(listener: TcpListener, ctx: Arc<AppContext>, rt: Arc<tokio::runti
         };
         let ctx = Arc::clone(&ctx);
         let rt = Arc::clone(&rt);
+        let token = Arc::clone(&token);
         std::thread::spawn(move || {
-            if let Err(e) = handle_client(stream, &ctx, rt.as_ref()) {
+            if let Err(e) = handle_client(stream, &ctx, rt.as_ref(), &token) {
                 tracing::warn!("[serve] client session error: {e}");
             }
         });
@@ -163,6 +178,7 @@ fn handle_client(
     stream: TcpStream,
     ctx: &Arc<AppContext>,
     rt: &tokio::runtime::Runtime,
+    token: &str,
 ) -> Result<(), String> {
     let mut reader = std::io::BufReader::new(stream.try_clone().map_err(|e| e.to_string())?);
     let mut writer = stream;
@@ -185,7 +201,12 @@ fn handle_client(
         let request: ServeRequest = serde_json::from_str(trimmed)
             .map_err(|e| format!("invalid serve request JSON: {e}"))?;
 
-        let response = dispatch_serve_request(&request, ctx, rt);
+        let authorized = serve_token_matches(token, request.token.as_deref());
+        let response = if authorized {
+            dispatch_serve_request(&request, ctx, rt)
+        } else {
+            ServeResponse::failure(request.id.clone(), UNAUTHORIZED)
+        };
         let mut out =
             serde_json::to_string(&response).map_err(|e| format!("encode response: {e}"))?;
         out.push('\n');
@@ -193,10 +214,18 @@ fn handle_client(
             .write_all(out.as_bytes())
             .map_err(|e| format!("write failed: {e}"))?;
         writer.flush().map_err(|e| format!("flush failed: {e}"))?;
+        if !authorized {
+            return Err(format!(
+                "rejected command `{}`: {UNAUTHORIZED}",
+                request.command
+            ));
+        }
     }
 
     Ok(())
 }
+
+const UNAUTHORIZED: &str = "unauthorized: missing or invalid serve token";
 
 fn dispatch_serve_request(
     request: &ServeRequest,

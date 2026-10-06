@@ -117,6 +117,7 @@ impl ProxySettingsService {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn patch(
         &self,
         cors_rewrite_enabled: Option<bool>,
@@ -125,6 +126,7 @@ impl ProxySettingsService {
         connect_timeout_secs: Option<u64>,
         upstream_timeout_secs: Option<u64>,
         log_retention_days: Option<u32>,
+        allow_remote_access: Option<bool>,
     ) -> ProxySettings {
         let mut s = self.settings.lock().unwrap();
         if let Some(v) = cors_rewrite_enabled {
@@ -146,6 +148,9 @@ impl ProxySettingsService {
         }
         if let Some(v) = log_retention_days {
             s.log_retention_days = v;
+        }
+        if let Some(v) = allow_remote_access {
+            s.allow_remote_access = v;
         }
         let out = s.clone();
         self.save(&out);
@@ -178,10 +183,12 @@ impl ProxySettingsService {
         out
     }
 
-    /// Replace all settings (for import).
+    /// Replace all settings (for import). Network exposure stays as configured on this machine.
     pub fn replace_all(&self, settings: ProxySettings) -> ProxySettings {
         let mut s = self.settings.lock().unwrap();
+        let allow_remote_access = s.allow_remote_access;
         *s = settings;
+        s.allow_remote_access = allow_remote_access;
         self.save(&s);
         s.clone()
     }
@@ -266,6 +273,24 @@ mod tests {
         assert_eq!(svc.get().https_decrypt_hosts, vec!["app.example.com"]);
         svc.set_https_decrypt_host("app.example.com", false);
         assert!(svc.get().https_decrypt_hosts.is_empty());
+    }
+
+    #[test]
+    fn test_remote_access_patch_and_import_keeps_local_choice() {
+        let (_dir, path) = temp_settings_path();
+        let svc = ProxySettingsService::new(path.clone());
+        assert!(!svc.get().allow_remote_access);
+        svc.patch(None, None, None, None, None, None, Some(true));
+        assert!(ProxySettingsService::new(path).get().allow_remote_access);
+
+        let imported = ProxySettings::default();
+        assert!(svc.replace_all(imported).allow_remote_access);
+        svc.patch(None, None, None, None, None, None, Some(false));
+        let imported = ProxySettings {
+            allow_remote_access: true,
+            ..ProxySettings::default()
+        };
+        assert!(!svc.replace_all(imported).allow_remote_access);
     }
 
     #[test]

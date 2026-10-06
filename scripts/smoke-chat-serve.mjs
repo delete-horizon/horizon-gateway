@@ -8,6 +8,7 @@
  */
 import net from "node:net";
 import { randomUUID } from "node:crypto";
+import { eventHello, readServeToken } from "./serve-token.mjs";
 
 const IPC_HOST = "127.0.0.1";
 const IPC_PORT = 17345;
@@ -28,6 +29,7 @@ function callCommand(command, payload = null) {
       const req = {
         id: randomUUID(),
         protocolVersion: 1,
+        token: readServeToken(),
         command,
         payload,
       };
@@ -63,6 +65,7 @@ function callCommand(command, payload = null) {
 function waitEvent(eventName, timeoutMs = 5000) {
   return new Promise((resolve, reject) => {
     const socket = net.connect({ host: IPC_HOST, port: EVENT_PORT }, () => {
+      socket.write(eventHello());
       // connected; wait for NDJSON
     });
     let buf = "";

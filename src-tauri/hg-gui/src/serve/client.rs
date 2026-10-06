@@ -5,6 +5,15 @@ use std::time::Duration;
 use hg_core::{ServeRequest, ServeResponse, SERVE_TCP_ADDR};
 use serde_json::Value;
 
+/// Session token published by serve (`<data dir>/com.lurain.horizon-gateway/serve.token`).
+/// Read per call: serve writes a new one each time it starts.
+pub fn serve_token() -> Option<String> {
+    let path = hg_core::serve_token_path(&dirs::data_dir()?);
+    let token = std::fs::read_to_string(path).ok()?;
+    let token = token.trim();
+    (!token.is_empty()).then(|| token.to_string())
+}
+
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
 const IO_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -28,7 +37,7 @@ pub fn serve_matches_gui_version() -> bool {
 
 /// Dispatch a backend command through the serve IPC channel.
 pub fn call_command(command: &str, payload: Value) -> Result<Value, String> {
-    let request = ServeRequest::new(command, payload);
+    let request = ServeRequest::new(command, payload).with_token(serve_token());
 
     let response = send_request(&request)?;
     if response.ok {

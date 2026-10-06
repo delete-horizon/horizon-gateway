@@ -43,6 +43,9 @@ pub fn ensure_identity() -> Result<(String, String), String> {
 fn load_or_create_secret() -> Result<StaticSecret, String> {
     let path = secret_path()?;
     if path.exists() {
+        if let Err(e) = crate::runtime::private_file::restrict_permissions(&path) {
+            tracing::warn!("[chat] could not restrict secret permissions: {e}");
+        }
         let bytes = fs::read(&path).map_err(|e| e.to_string())?;
         if bytes.len() != 32 {
             return Err("invalid secret length".into());
@@ -52,7 +55,7 @@ fn load_or_create_secret() -> Result<StaticSecret, String> {
         return Ok(StaticSecret::from(arr));
     }
     let secret = StaticSecret::random_from_rng(OsRng);
-    fs::write(&path, secret.to_bytes()).map_err(|e| e.to_string())?;
+    crate::runtime::private_file::write_private_file(&path, &secret.to_bytes())?;
     Ok(secret)
 }
 

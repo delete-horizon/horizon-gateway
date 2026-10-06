@@ -8,6 +8,7 @@
  */
 import net from "node:net";
 import { randomUUID } from "node:crypto";
+import { eventHello, readServeToken } from "./serve-token.mjs";
 
 const IPC_HOST = "127.0.0.1";
 const IPC_PORT = 17345;
@@ -29,6 +30,7 @@ function callCommand(command, payload = null) {
         `${JSON.stringify({
           id: randomUUID(),
           protocolVersion: 1,
+          token: readServeToken(),
           command,
           payload,
         })}\n`,
@@ -62,7 +64,9 @@ function callCommand(command, payload = null) {
 
 function waitEvent(eventName, timeoutMs = 4000) {
   return new Promise((resolve, reject) => {
-    const socket = net.connect({ host: IPC_HOST, port: EVENT_PORT });
+    const socket = net.connect({ host: IPC_HOST, port: EVENT_PORT }, () => {
+      socket.write(eventHello());
+    });
     let buf = "";
     const timer = setTimeout(() => {
       socket.destroy();
