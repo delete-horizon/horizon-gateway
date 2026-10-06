@@ -23,7 +23,7 @@
 ---
 
 <div align="center">
-  <img src="./docs/images/gateway-proxy-routes.png" alt="Horizon Gateway 로컬 MITM 프록시 & 동적 라우팅" width="90%" />
+  <img src="./docs/images/gateway-proxy-routes.png" alt="Horizon Gateway 프록시 연결 맵" width="90%" />
 </div>
 
 ---
@@ -38,20 +38,20 @@
 
 Horizon Gateway는 분산되어 있던 로컬 개발 및 네트워크 도구를 단 하나의 가볍고 빠른 네이티브 데스크톱 앱으로 통합합니다.
 
-- **네이티브 성능**: Rust 및 Tauri 2 기반으로 제작되어 Electron 앱 대비 가벼운 ~16MB(Windows) 설치 용량과 최소한의 메모리 점유율을 제공합니다.
+- **네이티브 성능**: Rust 및 Tauri 2 기반으로 제작되어 Electron 앱 대비 가벼운 ~22MB(Windows) 설치 용량과 최소한의 메모리 점유율을 제공합니다.
 - **AI 에이전트 연동**: Cursor, Gemini CLI, Claude Code, Windsurf 등 AI 코딩 어시스턴트와 직접 연동할 수 있는 전용 콘솔 CLI (`hgc`)를 지원합니다.
-- **간편한 설정**: 복잡한 환경 설정 없이 직관적인 인터페이스에서 프록시 라우팅, 모킹, 인스펙터를 즉시 제어할 수 있습니다.
+- **간편한 설정**: 복잡한 환경 설정 없이 프록시 라우팅, 모킹, 도메인 상태를 한 화면에서 제어할 수 있습니다.
 
 ---
 
 ## 실제 화면 미리보기
 
 <div align="center">
-  <p><strong>OpenAPI & API 모킹 에디터</strong></p>
-  <img src="./docs/images/gateway-mock-editor.png" alt="OpenAPI & API 모킹 에디터" width="85%" />
+  <p><strong>API 모킹 — 룰 수정</strong></p>
+  <img src="./docs/images/gateway-mock-editor.png" alt="API 모킹 룰 수정 대화상자" width="85%" />
   <br/><br/>
-  <p><strong>hgc AI 에이전트 CLI와 Cursor 연동</strong></p>
-  <img src="./docs/images/gateway-hgc-cursor.png" alt="hgc Agent CLI with Cursor" width="85%" />
+  <p><strong>hgc CLI</strong></p>
+  <img src="./docs/images/gateway-hgc-cursor.png" alt="터미널에서 hgc init과 get_domains를 실행한 화면" width="85%" />
 </div>
 
 ---
@@ -79,10 +79,10 @@ Horizon Gateway는 분산되어 있던 로컬 개발 및 네트워크 도구를 
 - **ADB 포트 포워딩**: USB로 연결된 안드로이드 기기의 트래픽을 로컬 프록시로 손쉽게 라우팅합니다.
 - **터널링 연동**: Tailscale 및 Cloudflare 터널을 통해 로컬 개발 서버를 안전하게 외부에 공유하여 원격 QA 및 교차 기기 테스트를 수행합니다. *(참고: iOS USB 디버깅은 지원하지 않으며, Android ADB 또는 터널링을 권장합니다)*.
 
-### 6. 라이브 캡처 및 UI/UX 가이드 인스펙터
-- 모니터링 대상 웹 애플리케이션에 가벼운 인스펙터 오버레이를 주입합니다.
-- 화면의 DOM 요소를 직접 선택하여 가이드 핀을 등록하고, 마크다운 기반의 디자인 정책을 연결할 수 있습니다.
-- DaisyUI 5 디자인 토큰과 실시간으로 테마를 동기화합니다.
+### 6. UI/UX 가이드
+- **가이드 관리**(도구 → UI/UX 가이드)에서 호스트별 UI/UX 가이드를 저장하고 편집합니다.
+- 가이드 묶음을 JSON으로 가져오고 내보낼 수 있습니다.
+- 저장된 가이드로 PDF 리포트를 생성합니다.
 
 ---
 
@@ -92,8 +92,8 @@ Horizon Gateway는 분산되어 있던 로컬 개발 및 네트워크 도구를 
 
 | 운영체제 | 패키지 | 아키텍처 |
 |---|---|---|
-| Windows | `.exe` / `.msi` | x64 (~16MB 설치 파일) |
-| macOS | `.dmg` | Universal (Apple Silicon & Intel) |
+| Windows | NSIS `.exe` | x64 (~22MB) |
+| macOS | `.dmg` | Apple Silicon과 Intel, 각각 별도 설치 파일 |
 | Linux | `.AppImage` / `.deb` / `.rpm` | x64 |
 
 ---
@@ -101,9 +101,9 @@ Horizon Gateway는 분산되어 있던 로컬 개발 및 네트워크 도구를 
 ## 빠른 시작
 
 1. **프록시 시작**: Horizon Gateway를 실행하고 사이드바에서 로컬 프록시를 켭니다.
-2. **Root CA 설치**: **설정 -> Root CA -> Export & Install** 메뉴에서 HTTPS 복호화 인증서를 설치합니다.
-3. **라우팅 규칙 추가**: **Proxy -> Routes**에서 대상 도메인(예: `api.example.dev`)을 로컬 주소(`http://localhost:3000`)로 연결합니다.
-4. **API 모킹 테스트**: **APIs -> Mocking**에서 원하는 경로(예: `/user/profile`)에 모킹 규칙을 생성하고 프론트엔드에서 즉시 확인합니다.
+2. **Root CA 설치**: **설정 → 프록시 → HTTPS 인증서 (Root CA)** 에서 **인증서 저장**을 눌러 HTTPS 복호화용 인증서를 저장합니다.
+3. **라우팅 추가**: **도구 → 프록시 연결 맵**에서 도메인(예: `api.example.dev`)을 로컬 대상(예: `localhost:3000`)에 연결합니다.
+4. **API 모킹**: **도구 → API 모킹**에서 경로(예: `/api/users`)에 상태 코드와 JSON 본문을 담은 규칙을 만듭니다.
 
 ---
 
