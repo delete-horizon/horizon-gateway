@@ -29,6 +29,15 @@ pub fn run_serve() -> i32 {
     }
 }
 
+/// Env var that selects headless process mode. Desktop sidecar spawn does not set this.
+const HG_SERVE_HEADLESS_ENV: &str = "HG_SERVE_HEADLESS";
+
+/// Desktop `serve_loop` calls `tray::start()` (GUI spawn lives only there).
+/// `HG_SERVE_HEADLESS=1` is the only value that skips that branch.
+fn tray_branch_enabled(env_value: Option<&str>) -> bool {
+    env_value != Some("1")
+}
+
 fn serve_loop(rt: tokio::runtime::Runtime) -> Result<(), String> {
     let rt = Arc::new(rt);
     let ctx = Arc::new(bootstrap_app_context()?);
@@ -126,6 +135,18 @@ fn serve_loop(rt: tokio::runtime::Runtime) -> Result<(), String> {
                 tracing::error!("[serve] Axum server failed: {e}");
             }
         });
+    }
+
+    // `HG_SERVE_HEADLESS=1` (CI / containers): skip `tray::start()`. GUI spawn
+    // (`find_gui_exe` / `open_gui`) runs only from the tray. `accept_loop` stays
+    // on this thread on every OS so the process remains alive without a display.
+    // Unset or any other value keeps the desktop blocks below unchanged.
+    if !tray_branch_enabled(std::env::var(HG_SERVE_HEADLESS_ENV).ok().as_deref()) {
+        tracing::info!(
+            "[serve] headless: tray and GUI spawn skipped; IPC accept loop holds the process"
+        );
+        accept_loop(listener, ctx, rt, token);
+        return Ok(());
     }
 
     #[cfg(not(windows))]
@@ -264,5 +285,26 @@ fn dispatch_serve_request(
     ) {
         Ok(data) => ServeResponse::success(request.id.clone(), data),
         Err(err) => ServeResponse::failure(request.id.clone(), err),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{tray_branch_enabled, HG_SERVE_HEADLESS_ENV};
+
+    #[test]
+    fn headless_flag_skips_tray_branch() {
+        assert_eq!(HG_SERVE_HEADLESS_ENV, "HG_SERVE_HEADLESS");
+        assert!(
+            tray_branch_enabled(None),
+            "unset keeps the desktop tray path"
+        );
+        assert!(tray_branch_enabled(Some("")));
+        assert!(tray_branch_enabled(Some("0")));
+        assert!(tray_branch_enabled(Some("true")));
+        assert!(
+            !tray_branch_enabled(Some("1")),
+            "HG_SERVE_HEADLESS=1 skips tray::start and the GUI spawn inside it"
+        );
     }
 }
