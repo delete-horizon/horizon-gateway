@@ -5,6 +5,7 @@
 - 범위: 조사와 설계만. 이 문서는 코드 변경을 포함하지 않는다.
 - 기준 트리: `main` @ `1787ecd` (PR #9 merge). `docs/ROADMAP.md`는 이 커밋의 `main`에 없다. Phase 1 방향은 열린 PR #10 (`cursor/docs-roadmap-7abb`)의 draft를 따랐다.
 - 제품 목표 (roadmap Phase 1): proxy / mock / routing을 GUI 없이 도는 **headless core**로 두고, desktop (Tauri)와 이후 web UI는 그 core에 attach하는 thin client로 만든다.
+- 2026-10-07 결정 (`docs/ROADMAP.md` Phase 1 「배치와 접속」): 머신당 daemon 하나, 기본 기동은 트레이와 GUI가 없는 headless, 식별자는 인스턴스 이름(내부 id + 표시 이름), 제어 주소는 이번 기동에서 바인드한 소켓이다. 웹 view와 Windows 앱은 그 이름의 데이터 뷰어/컨트롤러다. 밖으로 여는 프록시 포트는 제어 연결의 결과로 알리고, HTTP 데이터 소켓은 제어 소켓과 따로 둔다. 아래 PR 1의 "headless는 opt-in"과 PR 3의 "고정 포트 상수를 오래 fallback"은 이 결정보다 앞선 가정이다. 조사 내용(1–2장)은 당시 코드를 적은 것으로 유지한다.
 
 이 문서는 “아직 모놀리스다”라는 전제로 쓰지 않았다. 코드를 읽어 보면 **프로세스 분리는 이미 되어 있다.** 남아 있는 일은 그 프로세스를 GUI·트레이·고정 로컬 포트에서 떼어, 버전된 client API로 고정하는 것이다.
 
@@ -218,7 +219,7 @@ roadmap 문구와 코드를 대조하면 오늘 위치가 다르다. 목표 위�
 
 ### PR 1 — headless 프로세스 모드 (첫 추출)
 
-가장 작은 유용한 변경이다. 로직을 새 crate로 옮기지 않는다. 이미 `hg-serve`에 있다.
+가장 작은 유용한 변경이다. 로직을 새 crate로 옮기지 않는다. 이미 `hg-serve`에 있다. 이 PR은 headless를 opt-in으로 넣었고, 그 상태로 `main`에 있다. 2026-10-07 결정의 기본 기동(트레이 없음)은 이후 PR에서 기본 경로를 바꾸는 일이며, 이 절의 "기본값은 꺼 둔다"를 유지하라는 뜻이 아니다.
 
 - `horizon-gateway-serve`에 headless 스위치 하나를 추가한다. 예: `--headless` 또는 `HG_SERVE_HEADLESS=1`. 기본값은 꺼 둔다. 데스크톱 sidecar spawn (`hg-gui/src/serve/spawn.rs`)은 이 변수를 넣지 않는다.
 - 켜져 있으면 `serve/server.rs`가 `tray::start()`를 호출하지 않고, 모든 OS에서 `accept_loop`가 프로세스를 살린다. `find_gui_exe` / GUI spawn을 하지 않는다.
@@ -229,13 +230,15 @@ roadmap 문구와 코드를 대조하면 오늘 위치가 다르다. 목표 위�
 
 ### PR 2 — CI에서 daemon + `hgc` 스모크
 
-- Linux에서 `HG_SERVE_HEADLESS=1`로 serve를 띄우고, `hgc`로 mock rule을 만든 뒤 proxy 포트로 요청하고, `get_api_logs` 또는 기존 캡처 이벤트로 확인한다.
+- Linux, Windows, macOS에서 `HG_SERVE_HEADLESS=1`로 serve를 띄우고, `hgc`로 mock rule을 만든 뒤 proxy 포트로 요청하고, `get_api_logs`로 캡처를 확인한다. 진입점은 `scripts/smoke-headless-serve-linux.mjs`, `scripts/smoke-headless-serve-windows.mjs`, `scripts/smoke-headless-serve-macos.mjs`다. `/proc`으로 `DISPLAY`가 없는지를 보는 검사는 Linux 스크립트만 한다.
 - 데이터 디렉터리가 호스트 머신 설정과 섞이지 않게, 이 PR에서 `resolve_app_data_dir`에 **테스트 전용 루트 override**를 넣는다. 이름과 기본값(미설정 시 오늘과 동일)은 구현 때 정한다. override 없이 CI를 돌리면 개발자 데이터 디렉터리를 오염시킨다.
 - 실패하면 PR 1의 “컨테이너에서 tray 없이 살아 있는가”가 여기서 드러난다. 이 조사는 그 실행을 하지 않았다.
 
 ### PR 3 — `ServeEndpoints`를 실제로 쓰기
 
-- `serve_loop`가 bind한 주소를 `ServeEndpoints`로 기록한다. 로컬 client (`hgc`, GUI)는 파일이 있으면 그 주소를, 없으면 오늘 상수로 fallback한다. fallback을 먼저 두면 구 serve와 신 client가 한동안 공존한다.
+2026-10-07 결정에서 이 기록이 handshake의 주소다. 클라이언트는 인스턴스 이름으로 찾은 뒤 여기 적힌 제어 주소로 접속한다. `127.0.0.1:17345`가 이미 쓰이면 다른 loopback 주소나 포트에 바인드하고 기록을 갱신한다. 이벤트 주소와 프록시 listen 주소도 제어 연결의 결과로 알린다. 프록시 HTTP 소켓 자체는 제어 소켓과 따로 둔다.
+
+- `serve_loop`가 bind한 주소를 `ServeEndpoints`로 기록한다. 로컬 client (`hgc`, GUI)는 파일이 있으면 그 주소를, 없으면 오늘 상수로 fallback한다. fallback을 먼저 두면 구 serve와 신 client가 한동안 공존한다. 공존이 끝나면 상수 접속은 제거한다. 포트 번호는 인스턴스 식별자가 아니다.
 - 그 다음에 고정 포트 상수를 제거한다. `local_proxy/access/policy.rs`의 `is_control_port`도 기록된 포트를 보게 한다.
 - `handle_client`가 `unsupported_version_error`를 적용하게 한다. 버전을 2로 올리는 작업은 별도다. 이 PR은 “검사하지 않던 필드를 검사”하는 쪽이므로, 필드가 없는 구 클라이언트가 default `1`로 역직렬화되는 동작(`protocol.rs` 테스트 `protocol_version_defaults_on_legacy_json`)을 유지한다.
 

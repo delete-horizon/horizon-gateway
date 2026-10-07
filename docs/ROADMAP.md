@@ -1,6 +1,7 @@
 # horizon-gateway Roadmap
 
 - 작성일: 2026-10-06
+- 갱신: 2026-10-07. Phase 1에 배치와 접속(머신당 daemon 하나, 이름 식별, handshake 주소)을 넣었다.
 - 상태: Draft (owner 검토용)
 - 범위: 다음 3단계의 제품·아키텍처 방향. 일정은 확정하지 않고, 단계별 "done when" 기준으로 진행 여부를 판단한다.
 
@@ -69,19 +70,26 @@ horizon-gateway는 **Tauri 2 (Rust) + React** 기반의 데스크톱 앱이다. 
 
 ### Phase 1: Headless core / View 분리
 
-**목표:** `hgc` core를 GUI 없이 단독 서버로 실행할 수 있게 만든다. 데스크톱과 웹 view는 이 core에 attach하는 client가 된다. VS Code Agent Host / AHP가 가는 방향("세션 core 하나, client 여러 개")에 맞춘다. 이 흐름과 싸우지 않고 올라탄다.
+**목표:** 머신마다 headless daemon 하나를 둔다. 웹 view와 Windows 앱은 그 daemon의 데이터를 보고 명령을 보내는 client다. 서버 로직은 daemon에만 있다. VS Code Agent Host / AHP가 가는 방향("세션 core 하나, client 여러 개")에 맞춘다. 이 흐름과 싸우지 않고 올라탄다.
 
 **Workstreams**
-- **Core 추출:** proxy, mock, routing, health-check 로직을 Tauri 앱에서 분리해 독립 Rust 바이너리(headless daemon)로 만든다. 데스크톱 앱은 이 core를 띄우거나, 이미 떠 있는 core에 붙는다.
-- **Client API 정의:** core와 client 사이에 명시적인 API(제어 + 이벤트 스트림)를 둔다. 데스크톱 view, 웹 view, `hgc` CLI가 모두 같은 API를 쓴다. 이 API는 Phase 3에서 MCP/AHP/ACP로 노출할 때의 기반이 되므로 처음부터 versioning한다.
-- **Web view:** 원격 core(cloud VM, CI runner, 다른 머신)에 붙어서 볼 수 있는 최소 web client를 만든다.
-- **CLI/cloud 테스트 가능성:** Linux 컨테이너와 CI에서 core를 띄우고 `hgc`로 시나리오를 실행하는 경로를 공식 지원한다. root CA 설치·신뢰 절차를 headless 환경에 맞게 문서화한다.
-- **인증 기본값:** core는 기본적으로 localhost에만 바인딩한다. 원격 attach는 명시적으로 켜야 하고 token이 필요하다.
+- **Core 추출:** proxy, mock, routing, health-check는 Tauri에 의존하지 않는 Rust 바이너리 `horizon-gateway-serve`에 둔다. 같은 소스를 OS·CPU 타깃별 바이너리로 빌드한다. 한 파일이 Windows, Linux, macOS를 모두 실행하지는 않는다. 데스크톱 셸은 로컬 daemon을 띄우거나, 이미 떠 있는 daemon에 붙는다.
+- **Client API 정의:** daemon과 client 사이에 버전된 제어 API를 둔다. 지금 wire인 NDJSON을 Phase 1의 프로토콜로 유지한다. MCP/AHP/ACP는 그 위의 어댑터이며 Phase 3이다. 브라우저는 raw TCP를 열 수 없으므로, daemon이 같은 dispatch를 부르는 얇은 HTTP 또는 WebSocket을 제공한다. Windows 앱도 그 통로를 써서 웹과 같은 client가 된다.
+- **Web view와 Windows 앱:** 둘 다 서버 목록에 붙는 데이터 뷰어이자 컨트롤러다. 프록시, mock, 저장을 프로세스 안에 두지 않는다. 로컬 1인 사용에서 필요한 트레이와 창은 이 셸이 가진다. daemon의 기본 기동은 트레이도 GUI spawn도 하지 않는다.
+- **CLI/cloud 테스트 가능성:** Linux 컨테이너와 CI에서 daemon을 띄우고 `hgc`로 시나리오를 실행하는 경로를 공식 지원한다. root CA 설치·신뢰 절차를 headless 환경에 맞게 문서화한다.
+- **인증 기본값:** 제어 소켓의 기본 바인드는 loopback이다. 다른 머신에서 붙는 것은 명시적으로 켜야 하고, 그 머신의 `serve.token` 파일과 다른 token이 필요하다.
+
+**배치와 접속** (2026-10-07 결정)
+
+- **머신당 daemon 하나.** 여러 머신이 각각 자신의 서버를 가진다. 한 머신에 서버를 여러 개 띄우는 것은 이 단계의 제품 모델이 아니다.
+- **식별자는 인스턴스 이름이다.** 내부 id를 두고, 사람이 보는 이름은 그 id의 표시 이름이다. 이름을 바꿔도 저장된 접속과 기록이 끊기지 않게 한다. 포트 번호는 식별자가 아니다. 번들 id `com.lurain.horizon-gateway`는 제품 id라 모든 머신에서 같다.
+- **IP와 포트는 이번 기동의 소켓이다.** `127.0.0.1`은 그 머신의 다른 앱과 같이 쓴다. `127.0.0.1:17345`를 이미 다른 프로세스가 잡고 있으면, daemon은 다른 loopback 주소나 포트에 바인드하고 그 주소를 인스턴스 아래에 갱신한다. client는 이름으로 인스턴스를 찾은 뒤 그 주소로 접속하고, 붙은 다음 토큰과 프로토콜 버전으로 확인한다. 서버와 client가 고정 주소를 상수로 알고 바로 붙는 현재 handshake는 이 결정의 대상이다. 로컬 기록은 이미 타입으로만 있는 `ServeEndpoints`를 실제로 쓰는 쪽이다.
+- **밖으로 여는 포트는 제어 연결에서만 결정한다.** 이벤트 구독 주소와 프록시 listen 주소는 그 연결의 응답으로 받는다. `17346`과 `8888`은 well-known 식별자가 아니다. 브라우저와 기기가 보내는 HTTP는 제어 연결과 프로토콜이 다르므로 프록시 소켓은 따로 둔다. 뷰어는 그 소켓의 실제 주소를 handshake 결과로 보여 주고, 상수 포트를 가정하지 않는다.
 
 **Done when**
-- GUI가 없는 Linux 컨테이너에서 core를 띄우고, `hgc`만으로 mock 등록 → 요청 → 캡처 확인까지 하는 시나리오가 CI에서 돌아간다.
-- 데스크톱 앱이 내장 로직 없이 core client로만 동작하고, 기존 기능에 회귀가 없다.
-- 원격 core에 web view로 붙어서 트래픽과 mock 상태를 볼 수 있다.
+- GUI가 없는 Linux, Windows, macOS에서 daemon을 띄우고, `hgc`만으로 mock 등록 → 요청 → 캡처 확인까지 하는 시나리오가 CI에서 돌아간다. daemon 기본 기동은 트레이와 GUI spawn이 없다. Linux 스모크만 디스플레이 환경 변수가 없는지를 확인한다.
+- Windows 앱이 내장 로직 없이 daemon client로만 동작하고, 기존 기능에 회귀가 없다. 로컬에서 트레이와 창은 그 앱에 있다.
+- 웹 view와 Windows 앱이 인스턴스 이름으로 서버를 고르고, 이번 기동에서 기록된 제어 주소로 붙어 트래픽과 mock 상태를 본다. 프록시 listen 주소는 제어 연결의 결과로 표시된다.
 
 ---
 
@@ -154,5 +162,7 @@ horizon-gateway는 **Tauri 2 (Rust) + React** 기반의 데스크톱 앱이다. 
 ## 7. 열린 질문
 
 - Automerge와 Loro 중 무엇을 쓸지 (Phase 3 착수 전에 spike로 결정)
-- Phase 1 client API를 자체 프로토콜로 둘지, 처음부터 AHP/MCP 형태에 맞출지
+- 브라우저용 제어 어댑터를 HTTP로 둘지 WebSocket으로 둘지. Phase 1 프로토콜 자체는 버전된 NDJSON으로 두기로 했다. MCP/AHP로 바꾸는 일은 Phase 3다.
+- 로컬 셸을 종료할 때 그 머신의 daemon도 같이 종료할지. 서버로 쓰는 머신은 daemon이 셸 없이 남아야 한다.
+- 인스턴스 표시 이름의 초기값. 설치 시 머신 이름을 쓸지, 사람이 비워 둔 채 목록에서만 구분할지.
 - Primary 포지셔닝의 성패를 판단할 신호를 무엇으로 정의할지 (예: Phase 2 view 사용 여부, workspace export/import 사용 빈도)
