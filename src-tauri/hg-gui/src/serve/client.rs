@@ -2,7 +2,7 @@ use std::io::{BufRead, Write};
 use std::net::TcpStream;
 use std::time::Duration;
 
-use hg_core::{ServeRequest, ServeResponse, SERVE_TCP_ADDR};
+use hg_core::{ServeEndpoints, ServeRequest, ServeResponse, SERVE_ENDPOINTS_FILE, SERVE_TCP_ADDR};
 use serde_json::Value;
 
 /// Session token published by serve (`<data dir>/com.lurain.horizon-gateway/serve.token`).
@@ -51,12 +51,39 @@ pub fn call_command(command: &str, payload: Value) -> Result<Value, String> {
     }
 }
 
+pub(crate) fn command_addr() -> String {
+    published_endpoints()
+        .map(|endpoints| endpoints.command_addr)
+        .unwrap_or_else(|| SERVE_TCP_ADDR.to_string())
+}
+
+pub(crate) fn event_addr() -> String {
+    published_endpoints()
+        .map(|endpoints| endpoints.event_addr)
+        .unwrap_or_else(|| hg_core::SERVE_EVENT_ADDR.to_string())
+}
+
+fn published_endpoints() -> Option<ServeEndpoints> {
+    let dir = app_data_dir()?;
+    ServeEndpoints::load(&dir.join(SERVE_ENDPOINTS_FILE))
+}
+
+fn app_data_dir() -> Option<std::path::PathBuf> {
+    if let Some(dir) = std::env::var_os("HG_DATA_DIR") {
+        if !dir.is_empty() {
+            return Some(std::path::PathBuf::from(dir));
+        }
+    }
+    dirs::data_dir().map(|dir| dir.join(hg_core::APP_IDENTIFIER))
+}
+
 fn send_request(request: &ServeRequest) -> Result<ServeResponse, String> {
-    let addr: std::net::SocketAddr = SERVE_TCP_ADDR
+    let endpoint = command_addr();
+    let addr: std::net::SocketAddr = endpoint
         .parse()
-        .map_err(|e| format!("invalid serve address {SERVE_TCP_ADDR}: {e}"))?;
+        .map_err(|e| format!("invalid serve address {endpoint}: {e}"))?;
     let mut stream = TcpStream::connect_timeout(&addr, CONNECT_TIMEOUT)
-        .map_err(|e| format!("failed to connect to serve at {SERVE_TCP_ADDR}: {e}"))?;
+        .map_err(|e| format!("failed to connect to serve at {endpoint}: {e}"))?;
     stream
         .set_read_timeout(Some(IO_TIMEOUT))
         .map_err(|e| format!("set_read_timeout: {e}"))?;

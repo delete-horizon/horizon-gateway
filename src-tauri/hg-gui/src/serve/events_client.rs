@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 
-use hg_core::{ServeEvent, ServeEventHello, SERVE_EVENT_ADDR};
+use hg_core::{ServeEvent, ServeEventHello};
 use tauri::{AppHandle, Emitter, Manager};
 
 use super::ensure;
@@ -54,8 +54,9 @@ pub fn start_event_forwarder(app: AppHandle) {
 }
 
 fn forward_events(app: &AppHandle) -> Result<(), String> {
-    let mut stream = TcpStream::connect(SERVE_EVENT_ADDR)
-        .map_err(|e| format!("connect {SERVE_EVENT_ADDR}: {e}"))?;
+    let endpoint = super::client::event_addr();
+    let mut stream =
+        TcpStream::connect(&endpoint).map_err(|e| format!("connect {endpoint}: {e}"))?;
     stream
         .set_read_timeout(Some(Duration::from_secs(3600)))
         .ok();

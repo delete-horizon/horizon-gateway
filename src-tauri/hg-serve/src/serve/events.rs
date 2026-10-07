@@ -1,9 +1,9 @@
 use std::io::{BufRead, Read, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::{SocketAddr, TcpStream};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
-use hg_core::{serve_token_matches, ServeEvent, ServeEventHello, SERVE_EVENT_ADDR};
+use hg_core::{serve_token_matches, ServeEvent, ServeEventHello, SERVE_EVENT_PORT};
 use serde::Serialize;
 use serde_json::Value;
 
@@ -77,10 +77,15 @@ fn read_hello(stream: &TcpStream, token: &str) -> bool {
     ok && stream.set_read_timeout(None).is_ok()
 }
 
-pub fn start_event_listener(bus: Arc<ServeEventBus>, token: Arc<str>) -> Result<(), String> {
-    let listener = TcpListener::bind(SERVE_EVENT_ADDR)
-        .map_err(|e| format!("failed to bind event socket {SERVE_EVENT_ADDR}: {e}"))?;
-    tracing::info!("[serve] event stream on {SERVE_EVENT_ADDR}");
+pub fn start_event_listener(
+    bus: Arc<ServeEventBus>,
+    token: Arc<str>,
+) -> Result<SocketAddr, String> {
+    let listener = super::server::bind_loopback(SERVE_EVENT_PORT)?;
+    let addr = listener
+        .local_addr()
+        .map_err(|err| format!("event socket has no local address: {err}"))?;
+    tracing::info!("[serve] event stream on {addr}");
 
     std::thread::spawn(move || {
         for stream in listener.incoming() {
@@ -104,5 +109,5 @@ pub fn start_event_listener(bus: Arc<ServeEventBus>, token: Arc<str>) -> Result<
         }
     });
 
-    Ok(())
+    Ok(addr)
 }

@@ -2,7 +2,9 @@ use std::io::{BufRead, Write};
 use std::net::TcpStream;
 use std::time::Duration;
 
-use hg_core::{ServeRequest, ServeResponse, SERVE_TCP_ADDR};
+use hg_core::{ServeRequest, ServeResponse};
+
+use super::endpoints::command_addr;
 use serde_json::Value;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
@@ -10,7 +12,7 @@ const IO_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Fast TCP probe — no IPC round-trip.
 pub fn is_port_open(timeout: Duration) -> bool {
-    let addr: std::net::SocketAddr = match SERVE_TCP_ADDR.parse() {
+    let addr: std::net::SocketAddr = match command_addr().parse() {
         Ok(addr) => addr,
         Err(_) => return false,
     };
@@ -34,11 +36,12 @@ pub fn call_command(command: &str, payload: Value) -> Result<Value, String> {
 }
 
 fn send_request(request: &ServeRequest) -> Result<ServeResponse, String> {
-    let addr: std::net::SocketAddr = SERVE_TCP_ADDR
+    let endpoint = command_addr();
+    let addr: std::net::SocketAddr = endpoint
         .parse()
-        .map_err(|e| format!("invalid serve address {SERVE_TCP_ADDR}: {e}"))?;
+        .map_err(|e| format!("invalid serve address {endpoint}: {e}"))?;
     let mut stream = TcpStream::connect_timeout(&addr, CONNECT_TIMEOUT)
-        .map_err(|e| format!("failed to connect to serve at {SERVE_TCP_ADDR}: {e}"))?;
+        .map_err(|e| format!("failed to connect to serve at {endpoint}: {e}"))?;
     stream
         .set_read_timeout(Some(IO_TIMEOUT))
         .map_err(|e| format!("set_read_timeout: {e}"))?;

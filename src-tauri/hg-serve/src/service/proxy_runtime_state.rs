@@ -46,12 +46,15 @@ impl ProxyRuntimeStateService {
         if let Ok(json) = serde_json::to_string_pretty(&state) {
             let _ = fs::write(path, json);
         }
+        let addr = SocketAddr::from(([127, 0, 0, 1], port));
+        crate::serve::endpoints::set_proxy_addr(addr);
     }
 
     pub fn clear_state() {
         if let Some(path) = Self::state_file_path() {
             let _ = fs::remove_file(path);
         }
+        crate::serve::endpoints::clear_proxy_addr();
     }
 
     pub fn load_active_state() -> Option<ProxyRuntimeState> {

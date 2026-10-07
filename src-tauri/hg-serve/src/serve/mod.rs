@@ -2,6 +2,7 @@
 
 pub mod auth;
 pub mod client;
+pub mod endpoints;
 pub mod events;
 pub mod logging;
 pub mod server;

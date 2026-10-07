@@ -1,8 +1,8 @@
 use std::io::{BufRead, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
 use std::sync::Arc;
 
-use hg_core::{serve_token_matches, ServeRequest, ServeResponse, SERVE_TCP_ADDR};
+use hg_core::{serve_token_matches, ServeRequest, ServeResponse, SERVE_TCP_PORT};
 
 use crate::cli;
 use crate::runtime::{bootstrap_app_context, AppContext, CliRuntime};
@@ -60,14 +60,17 @@ fn serve_loop(rt: tokio::runtime::Runtime) -> Result<(), String> {
 
     let event_bus = super::events::ServeEventBus::new();
     super::events::ServeEventBus::init_global(Arc::clone(&event_bus));
-    super::events::start_event_listener(event_bus, Arc::clone(&token))?;
 
-    let listener = TcpListener::bind(SERVE_TCP_ADDR)
-        .map_err(|e| format!("failed to bind serve socket {SERVE_TCP_ADDR}: {e}"))?;
+    let listener = bind_loopback(SERVE_TCP_PORT)?;
+    let command_addr = listener
+        .local_addr()
+        .map_err(|err| format!("serve socket has no local address: {err}"))?;
+    let event_addr = super::events::start_event_listener(event_bus, Arc::clone(&token))?;
 
     // Publish only after both sockets are ours, so a second instance never replaces the token.
+    super::endpoints::publish(command_addr, event_addr)?;
     super::auth::publish_token(&token)?;
-    tracing::info!("[serve] listening on {SERVE_TCP_ADDR}");
+    tracing::info!("[serve] listening on {command_addr} (events {event_addr})");
 
     rt.spawn(async move {
         if let Err(e) = crate::command::local_route_commands::auto_start_proxy(
@@ -222,19 +225,21 @@ fn handle_client(
         let request: ServeRequest = serde_json::from_str(trimmed)
             .map_err(|e| format!("invalid serve request JSON: {e}"))?;
 
+        if let Some(err) = request.unsupported_version_error() {
+            write_response(
+                &mut writer,
+                &ServeResponse::failure(request.id.clone(), err.clone()),
+            )?;
+            return Err(format!("rejected command `{}`: {err}", request.command));
+        }
+
         let authorized = serve_token_matches(token, request.token.as_deref());
         let response = if authorized {
             dispatch_serve_request(&request, ctx, rt)
         } else {
             ServeResponse::failure(request.id.clone(), UNAUTHORIZED)
         };
-        let mut out =
-            serde_json::to_string(&response).map_err(|e| format!("encode response: {e}"))?;
-        out.push('\n');
-        writer
-            .write_all(out.as_bytes())
-            .map_err(|e| format!("write failed: {e}"))?;
-        writer.flush().map_err(|e| format!("flush failed: {e}"))?;
+        write_response(&mut writer, &response)?;
         if !authorized {
             return Err(format!(
                 "rejected command `{}`: {UNAUTHORIZED}",
@@ -248,6 +253,32 @@ fn handle_client(
 
 const UNAUTHORIZED: &str = "unauthorized: missing or invalid serve token";
 
+fn write_response(writer: &mut TcpStream, response: &ServeResponse) -> Result<(), String> {
+    let mut out = serde_json::to_string(response).map_err(|e| format!("encode response: {e}"))?;
+    out.push('\n');
+    writer
+        .write_all(out.as_bytes())
+        .map_err(|e| format!("write failed: {e}"))?;
+    writer.flush().map_err(|e| format!("flush failed: {e}"))?;
+    Ok(())
+}
+
+/// Bind `127.0.0.1:preferred`. If that port is taken, bind an ephemeral loopback port.
+pub(crate) fn bind_loopback(preferred: u16) -> Result<TcpListener, String> {
+    let preferred_addr = SocketAddr::from((Ipv4Addr::LOCALHOST, preferred));
+    match TcpListener::bind(preferred_addr) {
+        Ok(listener) => Ok(listener),
+        Err(err) => {
+            tracing::warn!(
+                "[serve] {preferred_addr} unavailable ({err}); binding an ephemeral loopback port"
+            );
+            let fallback = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+            TcpListener::bind(fallback)
+                .map_err(|bind_err| format!("failed to bind serve socket {fallback}: {bind_err}"))
+        }
+    }
+}
+
 fn dispatch_serve_request(
     request: &ServeRequest,
     ctx: &AppContext,
@@ -260,6 +291,8 @@ fn dispatch_serve_request(
                 "mode": "serve",
                 "ok": true,
                 "version": env!("CARGO_PKG_VERSION"),
+                "commandAddr": super::endpoints::command_addr(),
+                "eventAddr": super::endpoints::event_addr(),
             }),
         );
     }
@@ -290,7 +323,9 @@ fn dispatch_serve_request(
 
 #[cfg(test)]
 mod tests {
-    use super::{tray_branch_enabled, HG_SERVE_HEADLESS_ENV};
+    use std::net::{Ipv4Addr, SocketAddr, TcpListener};
+
+    use super::{bind_loopback, tray_branch_enabled, HG_SERVE_HEADLESS_ENV};
 
     #[test]
     fn headless_flag_skips_tray_branch() {
@@ -306,5 +341,16 @@ mod tests {
             !tray_branch_enabled(Some("1")),
             "HG_SERVE_HEADLESS=1 skips tray::start and the GUI spawn inside it"
         );
+    }
+
+    #[test]
+    fn occupied_preferred_port_binds_another_loopback_port() {
+        let held = TcpListener::bind(SocketAddr::from((Ipv4Addr::LOCALHOST, 0))).expect("hold");
+        let preferred = held.local_addr().expect("held addr").port();
+        let bound = bind_loopback(preferred).expect("fallback");
+        let actual = bound.local_addr().expect("bound addr");
+        assert!(actual.ip().is_loopback());
+        assert_ne!(actual.port(), preferred);
+        assert_ne!(preferred, 0);
     }
 }

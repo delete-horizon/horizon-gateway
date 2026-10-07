@@ -62,7 +62,9 @@ pub(crate) fn is_local_ip(ip: IpAddr) -> bool {
 
 /// Serve IPC ports. Never reachable through the proxy for non-loopback peers.
 pub(crate) fn is_control_port(port: u16) -> bool {
-    port == SERVE_TCP_PORT || port == SERVE_EVENT_PORT
+    port == SERVE_TCP_PORT
+        || port == SERVE_EVENT_PORT
+        || crate::serve::endpoints::recorded_control_ports().contains(&port)
 }
 
 fn canonical(ip: IpAddr) -> IpAddr {

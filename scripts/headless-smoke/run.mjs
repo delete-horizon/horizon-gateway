@@ -2,7 +2,7 @@
  * Shared headless daemon smoke. OS entry scripts supply a profile.
  *
  *   HG_SERVE_HEADLESS=1 horizon-gateway-serve
- *     → wait for 127.0.0.1:17345
+ *     → wait for serve.endpoints.json, then that command address
  *     → hgc create_mock_rule + start_local_proxy
  *     → HTTP via proxy port 8888
  *     → hgc get_api_logs / get_api_log_detail
@@ -12,8 +12,11 @@
  * Windows and macOS assert the same scenario and the headless line in serve.log.
  *
  * Data dir is a temp directory (`HG_DATA_DIR`), not the developer data dir.
- * Control and proxy ports are still fixed (17345 / 17346 / 8888). If one is
- * already taken this script exits; it does not kill another process.
+ * Serve prefers 127.0.0.1:17345 and :17346, and writes the bound addresses to
+ * `serve.endpoints.json`. If a preferred port is taken it binds another
+ * loopback port. This script still refuses to start when 17345, 17346, or
+ * 8888 is already open, so it does not attach to someone else's process.
+ * The proxy data port stays 8888.
  */
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
@@ -280,6 +283,29 @@ function readServeLog(dataDir) {
   }
 }
 
+function readEndpoints(dataDir) {
+  const endpointsPath = path.join(dataDir, "serve.endpoints.json");
+  try {
+    const parsed = JSON.parse(readFileSync(endpointsPath, "utf8"));
+    const command = parsed.commandAddr;
+    const event = parsed.eventAddr;
+    if (typeof command !== "string" || typeof event !== "string") {
+      return null;
+    }
+    return { command, event };
+  } catch {
+    return null;
+  }
+}
+
+function portOf(addr) {
+  const match = /:(\d+)$/.exec(addr);
+  if (!match) {
+    return null;
+  }
+  return Number.parseInt(match[1], 10);
+}
+
 async function waitForServe(child, dataDir) {
   const deadline = Date.now() + 60_000;
   while (Date.now() < deadline) {
@@ -289,13 +315,22 @@ async function waitForServe(child, dataDir) {
           `stderr:\n${child.stderrText ?? ""}\nlog:\n${readServeLog(dataDir)}`,
       );
     }
-    if (await portOpen(IPC_PORT)) {
+    const endpoints = readEndpoints(dataDir);
+    const commandPort = endpoints ? portOf(endpoints.command) : null;
+    const eventPort = endpoints ? portOf(endpoints.event) : null;
+    if (
+      commandPort &&
+      eventPort &&
+      (await portOpen(commandPort)) &&
+      (await portOpen(eventPort))
+    ) {
+      ok(`endpoints command=${endpoints.command} event=${endpoints.event}`);
       return;
     }
     await sleep(200);
   }
   fail(
-    `timed out waiting for 127.0.0.1:${IPC_PORT}.\n` +
+    `timed out waiting for serve.endpoints.json and its sockets.\n` +
       `stderr:\n${child.stderrText ?? ""}\nlog:\n${readServeLog(dataDir)}`,
   );
 }

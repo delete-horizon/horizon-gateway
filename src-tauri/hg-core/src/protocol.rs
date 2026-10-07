@@ -22,6 +22,9 @@ pub const SERVE_EVENT_PORT: u16 = 17346;
 pub const APP_IDENTIFIER: &str = "com.lurain.horizon-gateway";
 /// Per-session IPC token written by serve into the app data dir (owner-only on unix).
 pub const SERVE_TOKEN_FILE: &str = "serve.token";
+/// Bound control sockets for this boot. Clients prefer this file and fall back to
+/// [`SERVE_TCP_ADDR`] / [`SERVE_EVENT_ADDR`] when it is missing.
+pub const SERVE_ENDPOINTS_FILE: &str = "serve.endpoints.json";
 
 /// `<platform data dir>/<APP_IDENTIFIER>/serve.token`, given the platform data dir.
 pub fn serve_token_path(platform_data_dir: &std::path::Path) -> std::path::PathBuf {
@@ -59,7 +62,23 @@ pub struct ServeEndpoints {
     /// e.g. `127.0.0.1:54321`
     pub command_addr: String,
     pub event_addr: String,
+    /// Proxy listen address once the data plane is up. Absent until then.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub proxy_addr: Option<String>,
     pub updated_at: String,
+}
+
+impl ServeEndpoints {
+    /// Load a published endpoint record. Missing or unreadable files yield `None`
+    /// so callers can fall back to the fixed loopback addresses.
+    pub fn load(path: &std::path::Path) -> Option<Self> {
+        let text = std::fs::read_to_string(path).ok()?;
+        let endpoints = serde_json::from_str::<Self>(&text).ok()?;
+        if endpoints.command_addr.is_empty() || endpoints.event_addr.is_empty() {
+            return None;
+        }
+        Some(endpoints)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -243,6 +262,7 @@ mod tests {
             pid: 42,
             command_addr: "127.0.0.1:12345".into(),
             event_addr: "127.0.0.1:12346".into(),
+            proxy_addr: None,
             updated_at: "2026-01-01T00:00:00Z".into(),
         };
         let json = serde_json::to_string(&ep).unwrap();
