@@ -1,16 +1,19 @@
 //! Per-session IPC token. Serve writes it to `<app data>/serve.token` (owner-only) after
 //! binding its sockets; GUI and CLI read it and send it with every request.
+//!
+//! The directory is [`crate::runtime::paths::resolve_app_data_dir`]. `HG_DATA_DIR` overrides
+//! it for tests. When that variable is unset, the file is still
+//! `<platform data dir>/<APP_IDENTIFIER>/serve.token`.
 
 use std::path::PathBuf;
 
 use rand::RngCore;
 
+use crate::runtime::paths::resolve_app_data_dir;
 use crate::runtime::private_file::write_private_file;
 
 pub fn token_path() -> Result<PathBuf, String> {
-    let base =
-        dirs::data_dir().ok_or_else(|| "failed to resolve platform data directory".to_string())?;
-    Ok(hg_core::serve_token_path(&base))
+    Ok(resolve_app_data_dir()?.join(hg_core::SERVE_TOKEN_FILE))
 }
 
 /// 32 random bytes, hex encoded.

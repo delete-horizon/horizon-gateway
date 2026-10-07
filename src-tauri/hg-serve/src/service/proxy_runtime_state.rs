@@ -17,7 +17,14 @@ pub struct ProxyRuntimeStateService;
 
 impl ProxyRuntimeStateService {
     fn state_file_path() -> Option<PathBuf> {
-        dirs::data_dir().map(|d| d.join("horizon-gateway").join("proxy_runtime.json"))
+        // `HG_DATA_DIR` isolates the whole smoke run. The default path stays
+        // `<platform data dir>/horizon-gateway/proxy_runtime.json`.
+        if crate::runtime::paths::app_data_dir_overridden() {
+            return crate::runtime::paths::resolve_app_data_dir()
+                .ok()
+                .map(|dir| dir.join("proxy_runtime.json"));
+        }
+        dirs::data_dir().map(|dir| dir.join("horizon-gateway").join("proxy_runtime.json"))
     }
 
     pub fn save_state(port: u16, reverse_http_port: Option<u16>, reverse_https_port: Option<u16>) {
