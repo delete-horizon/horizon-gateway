@@ -78,17 +78,34 @@ jobs:
         working-directory: src-tauri
         run: cargo test --workspace
 
-  # PR 2 of docs/CORE_EXTRACTION_PLAN.md: headless daemon + hgc, no display.
-  # Fixed ports 17345/17346/8888 (and setup 13030) are still hardcoded; a busy
-  # port fails this job. Port discovery is plan PR 3.
+  # Headless daemon + hgc on each OS. The scenario is the same.
+  # Linux also checks that the child has no DISPLAY. Fixed ports
+  # 17345/17346/8888 are still hardcoded; a busy port fails the job.
   serve-headless-smoke:
-    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            script: scripts/smoke-headless-serve-linux.mjs
+            serve_bin: src-tauri/target/debug/horizon-gateway-serve
+            hgc_bin: src-tauri/target/debug/hgc
+          - os: windows-latest
+            script: scripts/smoke-headless-serve-windows.mjs
+            serve_bin: src-tauri/target/debug/horizon-gateway-serve.exe
+            hgc_bin: src-tauri/target/debug/hgc.exe
+          - os: macos-latest
+            script: scripts/smoke-headless-serve-macos.mjs
+            serve_bin: src-tauri/target/debug/horizon-gateway-serve
+            hgc_bin: src-tauri/target/debug/hgc
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Install system dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
@@ -97,11 +114,8 @@ jobs:
         working-directory: src-tauri
         run: cargo build -p horizon-gateway-serve -p hgc
 
-      - name: Headless daemon smoke (no display)
+      - name: Headless daemon smoke
         env:
-          HG_SERVE_BIN: src-tauri/target/debug/horizon-gateway-serve
-          HG_HGC_BIN: src-tauri/target/debug/hgc
-        run: |
-          unset DISPLAY
-          unset WAYLAND_DISPLAY
-          node scripts/smoke-headless-serve.mjs
+          HG_SERVE_BIN: ${{ matrix.serve_bin }}
+          HG_HGC_BIN: ${{ matrix.hgc_bin }}
+        run: node ${{ matrix.script }}
