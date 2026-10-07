@@ -119,7 +119,7 @@ pub async fn run_proxy(
     Ok((handle, bound))
 }
 
-/// Reverse HTTP listener: no system proxy. Client connects directly (e.g. hosts 127.0.0.1 dev.modetour.local, then http://dev.modetour.local:port).
+/// Reverse HTTP listener: no system proxy. Client connects directly (e.g. hosts 127.0.0.1 dev.example.local, then http://dev.example.local:port).
 /// Requests are origin-form (GET /path); routing by Host header.
 /// `forward_proxy_port`: port of the main (forward) proxy, for PAC generation.
 #[allow(clippy::too_many_arguments)]
@@ -176,7 +176,7 @@ pub async fn run_reverse_proxy_http(
     Ok(handle)
 }
 
-/// Reverse HTTPS listener: TLS termination by Host (SNI), then forward by Host. Use https://dev.modetour.local:port with hosts.
+/// Reverse HTTPS listener: TLS termination by Host (SNI), then forward by Host. Use https://dev.example.local:port with hosts.
 /// `forward_proxy_port`: port of the main (forward) proxy, for PAC generation.
 #[allow(clippy::too_many_arguments)]
 pub async fn run_reverse_proxy_https(

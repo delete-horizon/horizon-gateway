@@ -16,15 +16,15 @@ fn build_pac_js_contains_proxy() {
 fn reserved_annotation_polls_are_internal() {
     assert!(is_horizon_gateway_internal(
         "/.horizon-gateway/api/annotations",
-        "https://www.modetour.dev/.horizon-gateway/api/annotations",
+        "https://www.example.dev/.horizon-gateway/api/annotations",
     ));
     assert!(is_horizon_gateway_internal(
         "/.horizon-gateway/api/annotations/stream",
-        "https://auth.modetour.dev/.horizon-gateway/api/annotations/stream",
+        "https://auth.example.dev/.horizon-gateway/api/annotations/stream",
     ));
     assert!(is_horizon_gateway_internal(
         ".horizon-gateway/api/annotations",
-        "https://www.modetour.dev/.horizon-gateway/api/annotations",
+        "https://www.example.dev/.horizon-gateway/api/annotations",
     ));
 }
 
@@ -32,11 +32,11 @@ fn reserved_annotation_polls_are_internal() {
 fn origin_apis_are_not_internal() {
     assert!(!is_horizon_gateway_internal(
         "/User/Me",
-        "https://b2c-api.modetour.dev/User/Me",
+        "https://b2c-api.example.dev/User/Me",
     ));
     assert!(!is_horizon_gateway_internal(
         "/api/annotations",
-        "https://www.modetour.dev/api/annotations"
+        "https://www.example.dev/api/annotations"
     ));
 }
 
@@ -45,7 +45,7 @@ fn normalize_strips_query_and_missing_slash() {
     assert_eq!(
         normalize_horizon_gateway_path(
             ".horizon-gateway/api/annotations",
-            "https://www.modetour.dev/.horizon-gateway/api/annotations?x=1",
+            "https://www.example.dev/.horizon-gateway/api/annotations?x=1",
         ),
         "/.horizon-gateway/api/annotations"
     );

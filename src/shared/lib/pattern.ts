@@ -11,7 +11,7 @@ function globToRegExp(pattern: string): RegExp {
   return new RegExp(regexStr);
 }
 
-/** `*.modetour.*` / exact host / `*` */
+/** `*.example.*` / exact host / `*` */
 function matchSingleHostGlob(pattern: string, actualHost: string): boolean {
   const host = cleanHost(actualHost);
   const patt = cleanHost(pattern);
@@ -51,9 +51,9 @@ function matchHostExclusion(pattern: string, actualHost: string): boolean {
  * Matches actualHost against hostPattern (or domain as fallback).
  * Supports:
  * - Empty/undefined/'*' => matches any host
- * - Wildcards like `*.modetour.dev`, `*.modetour.*`
+ * - Wildcards like `*.example.dev`, `*.example.*`
  * - Exclusions: `!api`, `!api*`, `!*.api.*`
- * - Multiple patterns separated by comma `,` (e.g. `*.modetour.*, !api`)
+ * - Multiple patterns separated by comma `,` (e.g. `*.example.*, !api`)
  * - Fallback to domain exact/contains check if no pattern is specified
  */
 export function matchHostPattern(

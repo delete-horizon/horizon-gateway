@@ -62,7 +62,7 @@ Fetch UI/UX guides and filter by domain or path pattern using `--query`:
 
 ```bash
 # Get all guides for a specific domain
-horizon-gateway cli run get_annotations '{}' --query "data[?domain=='modetour.dev'].{id,selector,role,description,host_pattern,path_pattern}"
+horizon-gateway cli run get_annotations '{}' --query "data[?domain=='example.dev'].{id,selector,role,description,host_pattern,path_pattern}"
 
 # Get guide by specific ID
 horizon-gateway cli run get_annotations '{}' --query "data[?id=='g-101']"
@@ -72,7 +72,7 @@ horizon-gateway cli run get_annotations '{}' --query "data[?id=='g-101']"
 Register a new UI/UX guide for a selector / element:
 
 ```bash
-horizon-gateway cli run add_annotation '{"id":"g-101","selector":"#submit-btn","role":"Submit Button","description":"Prevent duplicate clicks with 3s lock","tagName":"BUTTON","thumbnail":"","content":"","domain":"modetour.dev","url":"https://modetour.dev/checkout","timestamp":1770685200}'
+horizon-gateway cli run add_annotation '{"id":"g-101","selector":"#submit-btn","role":"Submit Button","description":"Prevent duplicate clicks with 3s lock","tagName":"BUTTON","thumbnail":"","content":"","domain":"example.dev","url":"https://example.dev/checkout","timestamp":1770685200}'
 ```
 
 #### 3. Update Guide
@@ -126,7 +126,7 @@ sequenceDiagram
 
 ### 구현 메모 (2026-08-10)
 
-- `--query`는 JMESPath가 아님. 올바른 예: `data[domain==modetour.dev].{id,selector,role,description}`
+- `--query`는 JMESPath가 아님. 올바른 예: `data[domain==example.dev].{id,selector,role,description}`
 - `update_annotation`은 `id` + `role` + `description` 필수
 - `pathPattern` 쿼리는 exact equality (glob 아님)
 - 스킬 frontmatter `description`에 UI/UX guides / annotations 트리거 키워드 추가됨

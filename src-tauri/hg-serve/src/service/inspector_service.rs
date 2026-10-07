@@ -373,19 +373,19 @@ mod tests {
     #[test]
     fn extract_path_from_url_strips_query_and_hash() {
         assert_eq!(
-            InspectorService::extract_path_from_url("https://modetour.dev/checkout?x=1#top"),
+            InspectorService::extract_path_from_url("https://example.dev/checkout?x=1#top"),
             Some("/checkout".to_string())
         );
         assert_eq!(
-            InspectorService::extract_path_from_url("https://modetour.dev/products/123"),
+            InspectorService::extract_path_from_url("https://example.dev/products/123"),
             Some("/products/123".to_string())
         );
         assert_eq!(
-            InspectorService::extract_path_from_url("https://modetour.dev"),
+            InspectorService::extract_path_from_url("https://example.dev"),
             None
         );
         assert_eq!(
-            InspectorService::extract_path_from_url("https://modetour.dev/"),
+            InspectorService::extract_path_from_url("https://example.dev/"),
             Some("/".to_string())
         );
     }
@@ -410,7 +410,7 @@ mod tests {
             "data": [{
                 "id": "g-keep",
                 "role": "Keep",
-                "hostPattern": "*.modetour.*"
+                "hostPattern": "*.example.*"
             }]
         });
         std::fs::write(&ann_path, serde_json::to_string(&valid).unwrap()).unwrap();

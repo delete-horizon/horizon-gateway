@@ -165,7 +165,7 @@
 
 - **로컬 역방향 프록시 타임아웃 및 스트리밍 안정화**: 로컬 업스트림 라우트(`local_origin`)에 대해 충분한 600초 타임아웃을 적용하여 무거운 Next.js RSC 컴파일 및 비동기 데이터 페칭 중 조기 502 Bad Gateway 타임아웃 발생 방지.
 - **POST 요청 포워딩 및 HTTP Request Smuggling 오류 해결**: 요청 바디 버퍼링 포워딩 및 중복 `Transfer-Encoding` / `Content-Length` 헤더 전달 제외를 통해 Node.js / Next.js `llhttp` 파서의 소켓 강제 종료(`HPE_INVALID_CONTENT_LENGTH`) 해결.
-- **리다이렉트 Location 헤더 자동 변환**: Next.js 로컬 리다이렉트(`302/303`) 응답의 `http://localhost:3000/...` 또는 `http://127.0.0.1:3000/...` 헤더를 가상 호스트 도메인(`https://www.modetour.dev/...`)으로 자동 치환하여 브라우저의 프록시 이탈 방지.
+- **리다이렉트 Location 헤더 자동 변환**: Next.js 로컬 리다이렉트(`302/303`) 응답의 `http://localhost:3000/...` 또는 `http://127.0.0.1:3000/...` 헤더를 가상 호스트 도메인(`https://www.example.dev/...`)으로 자동 치환하여 브라우저의 프록시 이탈 방지.
 - **Localhost IPv6 DNS 지연 방지**: Windows IPv6 `::1` 조회 지연을 방지하기 위해 `target_host: "localhost"`를 `127.0.0.1`로 정규화하고, 명시적 포트(예: `localhost:3000`) 요청 시 첫 번째 라우트로 오라우팅되지 않도록 보존.
 - **Windows 인앱 업데이트 UAC 권한 상승 및 파일 잠금 방지**: `hooks.nsh`에 `NSIS_HOOK_PREINSTALL`을 추가하여 업데이트 설치 전 백그라운드 프로세스(`horizon-gateway-serve.exe`, `hgc.exe`) 및 `WinDivert` 드라이버를 강제 종료하고, NSIS `installMode: "perMachine"`을 지정하여 UAC 관리자 권한 상승을 보장하도록 개선.
 

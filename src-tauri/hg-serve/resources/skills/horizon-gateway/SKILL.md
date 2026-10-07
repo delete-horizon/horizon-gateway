@@ -68,7 +68,7 @@ After `hgc init`, `<skill-dir>` is typically `~/.cursor/skills/horizon-gateway` 
 2. **Drill down** by `--id` with `--fields response_body --truncate 500`.
 
 ```bash
-node .agents/skills/horizon-gateway/scripts/logs.mjs --host modetour.dev --status 500 --limit 5
+node .agents/skills/horizon-gateway/scripts/logs.mjs --host example.dev --status 500 --limit 5
 node .agents/skills/horizon-gateway/scripts/logs.mjs --id <uuid> --fields response_body --truncate 1000
 ```
 
@@ -174,7 +174,7 @@ hgc get_annotations '{}' --query "data[lastValidation.status==broken].{id,role,l
 hgc get_annotations '{}' --query "data[lastValidation.status==weak].{id,role,locators}"
 
 # Filter by exact domain
-hgc get_annotations '{}' --query "data[domain==modetour.dev].{id,selector,role,description,pathPattern}"
+hgc get_annotations '{}' --query "data[domain==example.dev].{id,selector,role,description,pathPattern}"
 ```
 
 #### 2. Add / Upsert Guide
@@ -185,7 +185,7 @@ hgc get_annotations '{}' --query "data[domain==modetour.dev].{id,selector,role,d
 - `selector` is synced automatically from `locators` (e.g. `[data-testid="submit"]`).
 
 ```bash
-hgc add_annotation '{"role":"Submit Button","description":"Prevent duplicate clicks with 3s lock","url":"https://modetour.dev/checkout","locators":[{"strategy":"testid","value":"submit"}]}'
+hgc add_annotation '{"role":"Submit Button","description":"Prevent duplicate clicks with 3s lock","url":"https://example.dev/checkout","locators":[{"strategy":"testid","value":"submit"}]}'
 ```
 
 #### 3. Update Guide
@@ -197,7 +197,7 @@ hgc add_annotation '{"role":"Submit Button","description":"Prevent duplicate cli
 hgc update_annotation '{"id":"g-101","description":"Lock 5s and show success toast"}'
 
 # Update role & url (pathPattern auto-filled to /checkout)
-hgc update_annotation '{"id":"g-101","role":"Submit Button","url":"https://modetour.dev/checkout"}'
+hgc update_annotation '{"id":"g-101","role":"Submit Button","url":"https://example.dev/checkout"}'
 ```
 
 Running GUI watches `inspector_annotations.json` and emits `annotations-updated` within ~1s after CLI writes, so the Policies UI refreshes without restart.
@@ -224,10 +224,10 @@ Manage domain list for script injection:
 
 ```bash
 # Add domain to injection list
-hgc add_injection_domain '{"domain":"modetour.dev"}'
+hgc add_injection_domain '{"domain":"example.dev"}'
 
 # Remove domain from injection list
-hgc remove_injection_domain '{"domain":"modetour.dev"}'
+hgc remove_injection_domain '{"domain":"example.dev"}'
 
 # Get full injection domain list
 hgc get_injection_domains '{}'

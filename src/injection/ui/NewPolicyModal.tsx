@@ -208,7 +208,7 @@ export function NewPolicyModal({ s }: { s: State }) {
               value={s.hostPattern}
               onChange={(e) => s.setHostPattern(e.target.value)}
               onCompositionEnd={(e) => s.setHostPattern(e.currentTarget.value)}
-              placeholder="예: *.modetour.*, !api"
+              placeholder="예: *.example.*, !api"
               style={{
                 backgroundColor: "var(--wt-bg-card)",
                 border: "1px solid var(--wt-border)",

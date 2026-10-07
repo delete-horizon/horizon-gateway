@@ -1,5 +1,5 @@
 /**
- * Apply workspace plan migration + backfill Modetour FE to pro for the test purchase.
+ * Apply workspace plan migration + backfill Example FE to pro for the test purchase.
  * Uses Supabase Management API SQL (requires SUPABASE_ACCESS_TOKEN).
  */
 import { createClient } from "@supabase/supabase-js";
@@ -50,7 +50,7 @@ console.log("Applying migration...");
 await runSql(sql);
 console.log("Migration OK");
 
-console.log("Backfilling Modetour FE → pro (test purchase)...");
+console.log("Backfilling Example FE → pro (test purchase)...");
 await runSql(`
   update public.workspaces
   set plan = 'pro',

@@ -152,13 +152,13 @@ mod tests {
         let json = r##"{
             "id": "g-1",
             "role": "GA Event 정책",
-            "hostPattern": "*.modetour.*",
-            "domain": "www.modetour.dev",
+            "hostPattern": "*.example.*",
+            "domain": "www.example.dev",
             "locators": [{"strategy": "css", "value": "#x"}]
         }"##;
         let ann: Annotation = serde_json::from_str(json).unwrap();
         assert_eq!(ann.role, "GA Event 정책");
-        assert_eq!(ann.host_pattern.as_deref(), Some("*.modetour.*"));
+        assert_eq!(ann.host_pattern.as_deref(), Some("*.example.*"));
         assert_eq!(ann.locators.len(), 1);
         assert_eq!(ann.locators[0].strategy, LocatorStrategy::Css);
     }

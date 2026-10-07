@@ -48,10 +48,10 @@ export const policiesKo = {
   domainLabel: "캡처 호스트 (출처)",
   hostPatternLabel: "호스트 매칭 패턴 (Host Pattern)",
   pathPatternLabel: "경로 매칭 패턴 (Path Pattern)",
-  hostPatternPlaceholder: "예: *.modetour.*, !api",
+  hostPatternPlaceholder: "예: *.example.*, !api",
   pathPatternPlaceholder: "예: /products/*, /checkout (** = 전체 하위 경로)",
   patternHelp:
-    "적용은 Host Pattern만 사용합니다. * 는 와일드카드, ! 는 제외입니다. 예: *.modetour.*, !api — domain/url은 캡처 출처입니다.",
+    "적용은 Host Pattern만 사용합니다. * 는 와일드카드, ! 는 제외입니다. 예: *.example.*, !api — domain/url은 캡처 출처입니다.",
   featureLinkInsert: "기능 링크 삽입",
   featureLinkHint: "[[ 검색으로 기능 링크 삽입",
   featureLinkMocking: "모킹",

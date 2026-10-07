@@ -1339,7 +1339,7 @@ export function PoliciesView() {
                     value={editForm.domain}
                     onChange={(e) => setEditField("domain", e.target.value)}
                     onCompositionEnd={(e) => setEditField("domain", e.currentTarget.value)}
-                    placeholder="www.modetour.com"
+                    placeholder="www.example.com"
                     className="h-8 text-xs font-mono"
                   />
                 </label>

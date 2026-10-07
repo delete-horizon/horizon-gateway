@@ -74,7 +74,7 @@ fn loopback_hosts_are_detected() {
         "example.com",
         "example.com:443",
         "192.168.0.10:3000",
-        "dev.modetour.local",
+        "dev.example.local",
         "[2001:db8::1]:443",
         "",
     ] {

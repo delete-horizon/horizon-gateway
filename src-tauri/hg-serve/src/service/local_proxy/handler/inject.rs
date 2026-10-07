@@ -343,7 +343,7 @@ mod tests {
         assert!(is_horizon_gateway_shell_host("asset.localhost"));
         assert!(is_horizon_gateway_shell_host("ipc.localhost"));
         assert!(!is_horizon_gateway_shell_host("localhost"));
-        assert!(!is_horizon_gateway_shell_host("modetour.dev"));
+        assert!(!is_horizon_gateway_shell_host("example.dev"));
     }
 }
 

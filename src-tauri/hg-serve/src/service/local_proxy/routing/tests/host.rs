@@ -8,7 +8,7 @@ fn host_key_strips_port() {
 #[test]
 fn route_domain_to_host_from_url() {
     assert_eq!(
-        route_domain_to_host("https://dev.modetour.local/path"),
-        "dev.modetour.local"
+        route_domain_to_host("https://dev.example.local/path"),
+        "dev.example.local"
     );
 }
