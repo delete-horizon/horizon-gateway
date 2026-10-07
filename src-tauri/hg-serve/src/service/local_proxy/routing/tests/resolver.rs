@@ -90,14 +90,14 @@ fn test_resolve_target_localhost_normalized() {
     let route = LocalRoute {
         id: 1,
         domain_id: 1,
-        domain: "www.modetour.dev".to_string(),
+        domain: "www.example.dev".to_string(),
         target_host: "localhost".to_string(),
         target_port: 3000,
         enabled: true,
     };
-    let uri: Uri = "http://www.modetour.dev/test".parse().unwrap();
+    let uri: Uri = "http://www.example.dev/test".parse().unwrap();
     let (target_uri, _pass_host, _target_host_value, local_origin) =
-        resolve_target(&uri, Some("www.modetour.dev"), &[route], "http");
+        resolve_target(&uri, Some("www.example.dev"), &[route], "http");
 
     assert!(local_origin.is_some());
     let (host, port, path) = local_origin.unwrap();
@@ -137,12 +137,12 @@ fn test_resolve_connect_target_localhost_normalized() {
     let route = LocalRoute {
         id: 1,
         domain_id: 1,
-        domain: "www.modetour.dev".to_string(),
+        domain: "www.example.dev".to_string(),
         target_host: "localhost".to_string(),
         target_port: 3000,
         enabled: true,
     };
-    let result = resolve_connect_target("www.modetour.dev", &[route]);
+    let result = resolve_connect_target("www.example.dev", &[route]);
     assert!(result.is_some());
     let (host, port) = result.unwrap();
     assert_eq!(

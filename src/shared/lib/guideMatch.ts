@@ -25,7 +25,7 @@ export function isAllGuideHostFilter(selected: string): boolean {
   return selected.trim() === "" || selected.trim().toUpperCase() === GUIDE_HOST_FILTER_ALL;
 }
 
-/** Exact hostname only — substring `includes` matches `bp-www.modetour.dev` for seed `www.modetour.dev`. */
+/** Exact hostname only — substring `includes` matches `bp-www.example.dev` for seed `www.example.dev`. */
 export function resolveGuideHostFilterSeed(seed: string, hosts: readonly string[]): string {
   const normalized = seed.trim().toLowerCase();
   if (!normalized) {

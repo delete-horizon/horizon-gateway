@@ -6,7 +6,7 @@ use super::host::{route_domain_scheme, route_domain_to_host};
 /// (`target_uri_string`, `pass_through_host`, `target_host_header`, `local_origin`).
 /// When local route matches, `local_origin` = `Some((target_host`, `target_port`, `path_and_query`))
 /// so we can connect directly and send request in origin-form (GET /path HTTP/1.1).
-/// Route domain can be hostname (dev.modetour.local) or URL (<https://dev.modetour.local>/); we match by host.
+/// Route domain can be hostname (dev.example.local) or URL (<https://dev.example.local>/); we match by host.
 pub(crate) fn resolve_target(
     uri: &Uri,
     host_from_header: Option<&str>,

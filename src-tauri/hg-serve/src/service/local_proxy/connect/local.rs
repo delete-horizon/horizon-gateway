@@ -13,7 +13,7 @@ use super::super::state::ProxyState;
 use super::super::tls::DynamicCertResolver;
 
 /// TLS-terminate CONNECT and forward HTTP to local backend.
-/// Sends `original_host` (e.g. dev.modetour.local) so backend that expects that Host returns 200.
+/// Sends `original_host` (e.g. dev.example.local) so backend that expects that Host returns 200.
 pub(crate) async fn handle_connect_tunnel_local(
     mut client: TcpStream,
     target_host: String,

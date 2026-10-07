@@ -60,7 +60,7 @@ pub struct DeleteAnnotationPayload {
 pub const ADD_ANNOTATION_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "add_annotation",
     description: "UX 인스펙터 정책(주석)을 추가/업데이트합니다.",
-    payload_example: r#"{"role": "Submit Button", "description": "Prevent duplicate clicks with 3s lock", "domain": "modetour.dev", "url": "https://modetour.dev/checkout", "locators": [{"strategy": "testid", "value": "submit"}]}"#,
+    payload_example: r#"{"role": "Submit Button", "description": "Prevent duplicate clicks with 3s lock", "domain": "example.dev", "url": "https://example.dev/checkout", "locators": [{"strategy": "testid", "value": "submit"}]}"#,
     category: "inspector",
     gui_only: false,
 };
@@ -163,7 +163,7 @@ pub struct ImportAnnotationsPayload {
 pub const IMPORT_ANNOTATIONS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "import_annotations",
     description: "UX 인스펙터 정책 목록을 일괄 임포트합니다.",
-    payload_example: r#"{"annotations": [{"role": "Submit Button", "description": "desc", "domain": "modetour.dev", "url": "https://modetour.dev/checkout"}]}"#,
+    payload_example: r#"{"annotations": [{"role": "Submit Button", "description": "desc", "domain": "example.dev", "url": "https://example.dev/checkout"}]}"#,
     category: "inspector",
     gui_only: false,
 };
@@ -236,7 +236,7 @@ pub struct SingleDomainPayload {
 pub const ADD_INJECTION_DOMAIN_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "add_injection_domain",
     description: "UI 인스펙터 스크립트 주입 도메인을 추가합니다.",
-    payload_example: r#"{"domain": "modetour.dev"}"#,
+    payload_example: r#"{"domain": "example.dev"}"#,
     category: "inspector",
     gui_only: false,
 };
@@ -257,7 +257,7 @@ pub const REMOVE_INJECTION_DOMAIN_CLI_INFO: crate::cli::CliCommandInfo =
     crate::cli::CliCommandInfo {
         name: "remove_injection_domain",
         description: "UI 인스펙터 스크립트 주입 도메인을 제거합니다.",
-        payload_example: r#"{"domain": "modetour.dev"}"#,
+        payload_example: r#"{"domain": "example.dev"}"#,
         category: "inspector",
         gui_only: false,
     };

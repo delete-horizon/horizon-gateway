@@ -221,7 +221,7 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
               value={hostPattern}
               onChange={(e) => commitHostPattern(e.target.value)}
               onCompositionEnd={(e) => commitHostPattern(e.currentTarget.value)}
-              placeholder="예: *.modetour.*, !api"
+              placeholder="예: *.example.*, !api"
               style={{
                 backgroundColor: "var(--wt-bg-card)",
                 border: "1px solid var(--wt-border)",

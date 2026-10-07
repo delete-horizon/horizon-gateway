@@ -48,10 +48,10 @@ export const policiesEn = {
   domainLabel: "Capture host (origin)",
   hostPatternLabel: "Host Pattern",
   pathPatternLabel: "Path Pattern",
-  hostPatternPlaceholder: "e.g. *.modetour.*, !api",
+  hostPatternPlaceholder: "e.g. *.example.*, !api",
   pathPatternPlaceholder: "e.g. /products/*, /checkout (** = recursive)",
   patternHelp:
-    "Matching uses Host Pattern only. * is a wildcard, ! excludes. Example: *.modetour.*, !api — domain/url is capture origin.",
+    "Matching uses Host Pattern only. * is a wildcard, ! excludes. Example: *.example.*, !api — domain/url is capture origin.",
   featureLinkInsert: "Insert feature link",
   featureLinkHint: "Type [[ to search feature links",
   featureLinkMocking: "Mocking",
