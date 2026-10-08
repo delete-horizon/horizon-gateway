@@ -671,7 +671,11 @@ pub fn dispatch_headless(
             Ok(serde_json::to_value(result).unwrap())
         }
         "save_root_ca" => {
-            Err("gui_only: `save_root_ca` requires the Horizon Gateway GUI.".to_string())
+            let result = runtime.block_on(command::settings_commands::save_root_ca_svc(
+                None,
+                &ctx.ca_service,
+            ))?;
+            Ok(serde_json::to_value(result).unwrap())
         }
         "download_api_schema" => {
             let parsed: command::api_log_commands::DownloadApiSchemaPayload =

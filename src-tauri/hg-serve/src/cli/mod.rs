@@ -837,5 +837,11 @@ mod parity_tests {
                 );
             }
         }
+        let save_root_ca = CLI_COMMANDS
+            .iter()
+            .find(|info| info.name == "save_root_ca")
+            .expect("save_root_ca");
+        assert!(!save_root_ca.gui_only);
+        assert!(!save_root_ca.description.contains("[GUI]"));
     }
 }

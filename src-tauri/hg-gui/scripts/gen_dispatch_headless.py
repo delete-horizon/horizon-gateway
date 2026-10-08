@@ -33,7 +33,6 @@ GUI_ONLY = {
     "open_window",
     "open_inspector_window",
     "open_annotation_dialog",
-    "save_root_ca",
 }
 
 
