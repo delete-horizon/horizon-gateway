@@ -1,8 +1,10 @@
 // Supabase Edge Function (Deno): Lemon Squeezy subscription webhook receiver.
 //
-// Verifies the Lemon Squeezy webhook signature, then updates `workspaces.status` /
-// `workspaces.seat_limit` from `subscription_*` events, matched via the
-// `checkout[custom][workspace_id]` value echoed back as `meta.custom_data.workspace_id`.
+// Verifies the Lemon Squeezy webhook signature, records the raw body in
+// `webhook_events` (sha256 hex id) so a replay returns 200 without reprocessing,
+// then updates `workspaces.status` / `workspaces.seat_limit` from `subscription_*`
+// events, matched via the `checkout[custom][workspace_id]` value echoed back as
+// `meta.custom_data.workspace_id`.
 //
 // Required secrets (set via `supabase secrets set`):
 //   - LEMON_SQUEEZY_WEBHOOK_SECRET — the signing secret configured on the LS webhook
@@ -62,7 +64,8 @@ function timingSafeEqual(a: string, b: string): boolean {
 }
 
 async function verifySignature(rawBody: string, signatureHeader: string | null): Promise<boolean> {
-  if (!signatureHeader || !LEMON_SQUEEZY_WEBHOOK_SECRET) {
+  const signature = signatureHeader?.trim().toLowerCase() ?? "";
+  if (!signature || !LEMON_SQUEEZY_WEBHOOK_SECRET) {
     return false;
   }
   const key = await crypto.subtle.importKey(
@@ -73,7 +76,12 @@ async function verifySignature(rawBody: string, signatureHeader: string | null):
     ["sign"],
   );
   const computed = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody));
-  return timingSafeEqual(toHex(computed), signatureHeader);
+  return timingSafeEqual(toHex(computed), signature);
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return toHex(digest);
 }
 
 interface LemonSqueezyPayload {
@@ -110,6 +118,18 @@ Deno.serve(async (req) => {
   }
 
   const eventName = payload.meta?.event_name ?? "";
+  const eventId = await sha256Hex(rawBody);
+  const { error: insertError } = await supabase
+    .from("webhook_events")
+    .insert({ id: eventId, event_name: eventName });
+  if (insertError) {
+    if (insertError.code === "23505") {
+      return new Response("duplicate", { status: 200 });
+    }
+    console.error("webhook_events insert failed:", insertError.message);
+    return new Response("insert failed", { status: 500 });
+  }
+
   if (!eventName.startsWith("subscription_")) {
     return new Response(`ignored event: ${eventName}`, { status: 200 });
   }
