@@ -151,11 +151,17 @@ hgc mcp --allow-body
 
 ### MCP
 
-`hgc mcp` speaks MCP `2026-07-28` on stdio and calls the local core through the same control socket and token as the CLI. The protocol version must match.
+`hgc mcp` speaks MCP `2026-07-28` on stdio and calls the local core through the same control socket and token as the CLI. `hgc init --project` writes a read-only entry (`"args": ["mcp"]`) into `.cursor/mcp.json`, `.mcp.json`, and `.gemini/settings.json`. If a `horizon-gateway` entry is already there, that entry is left as it is.
 
-By default the server exposes read-only tools: proxy status, routes, mocks, domains, proxy config, and recent traffic summaries. Summaries include method, host, path (query values redacted), status, size, and timing. They omit headers and bodies, so `Authorization` and `Cookie` are not returned. One captured body is a separate tool, capped at 4 KB and marked untrusted. It is hidden unless you pass `--allow-body` or set `allowBody` in `hgc-mcp.json` in the app data directory.
+With no flags, these read-only tools are available: `get_status`, `list_routes`, `list_mocks`, `list_domains`, `list_traffic`, `get_config`. `list_traffic` returns id, method, host, path, status code, size, and capture time. Query values in the path are replaced with `REDACTED`. Headers and bodies are not returned.
 
-Creating, updating, or deleting mocks and routes, and starting or stopping the proxy, require `--allow-write` or `"allowWrite": true` in that file. PAC changes, remote-access toggles, token management, and certificate install are not exposed.
+`--allow-body` and `--allow-write` are off by default. Pass the flag, or set `allowBody` or `allowWrite` to true in `hgc-mcp.json` in the app data directory. A flag only turns its switch on.
+
+`--allow-body` adds `get_traffic_body`. One call returns one body, request or response, for one log id, up to 4 KB, and marks it `UNTRUSTED CONTENT`. It is off by default because a response body from an arbitrary site can carry prompt injection.
+
+`--allow-write` adds `create_mock`, `update_mock`, `delete_mock`, `create_route`, `update_route`, `delete_route`, `start_proxy`, and `stop_proxy`. It is off by default because those tools change the user's proxy, mocks, and routes.
+
+PAC, remote access, tokens, certificate install, proxy settings updates, and the Cloudflare tunnel are never exposed, under any flag.
 
 Cursor (`.cursor/mcp.json`):
 
@@ -196,7 +202,7 @@ Gemini CLI (`.gemini/settings.json`):
 }
 ```
 
-Add `"--allow-write"` or `"--allow-body"` to `args` only when that agent should be allowed to change state or read a captured body. `server.json` at the repository root is the MCP Registry document. Publishing still needs an installable package entry (npm with `mcpName`, OCI, NuGet, or an MCPB file plus `fileSha256`). `hgc` ships with the desktop build, so the registry file has no `packages` entry yet.
+Add `"--allow-write"` or `"--allow-body"` to `args` only for an agent that should change the proxy or read a captured body. `server.json` at the repository root is the MCP Registry document. Publishing still needs an installable package entry (npm with `mcpName`, OCI, NuGet, or an MCPB file plus `fileSha256`). `hgc` ships with the desktop build, so the registry file has no `packages` entry yet.
 
 ---
 
