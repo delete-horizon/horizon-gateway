@@ -111,3 +111,68 @@ jobs:
           # 중요: 위에서 생성된 Release ID를 그대로 사용합니다.
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
+
+  # 3. SHA256SUMS for installer and updater binaries.
+  # Included: every asset publish uploaded, except the exclusions below.
+  # Excluded: *.sig (Tauri minisign signatures) and latest.json (updater manifest).
+  # A previous SHA256SUMS is not an input, so a re-run does not hash itself.
+  # Line format: "<64 lowercase hex><two spaces><filename>", LC_ALL=C sorted by filename.
+  # Uses the runner's gh. No extra action, so nothing new to pin.
+  sha256sums:
+    needs: publish
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          gh release download "${GITHUB_REF_NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --dir release-assets \
+            --clobber
+          echo "Downloaded assets:"
+          find release-assets -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort
+
+      - name: Write SHA256SUMS
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-assets
+          files=()
+          mapfile -d '' files < <(
+            find . -maxdepth 1 -type f \
+              ! -name '*.sig' \
+              ! -name 'latest.json' \
+              ! -name 'SHA256SUMS' \
+              -printf '%f\0' \
+            | LC_ALL=C sort -z
+          )
+          if ((${#files[@]} == 0)); then
+            echo "No installer or updater assets to hash" >&2
+            exit 1
+          fi
+          sha256sum -- "${files[@]}" > SHA256SUMS
+          if grep -qvE '^[0-9a-f]{64}  .+$' SHA256SUMS; then
+            echo "SHA256SUMS is not in '<hash>  <filename>' form" >&2
+            cat SHA256SUMS >&2
+            exit 1
+          fi
+          cut -c67- SHA256SUMS | LC_ALL=C sort -c
+          echo "SHA256SUMS ($(wc -l < SHA256SUMS) files):"
+          cat SHA256SUMS
+
+      - name: Upload SHA256SUMS
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release upload "${GITHUB_REF_NAME}" \
+            release-assets/SHA256SUMS \
+            --repo "${GITHUB_REPOSITORY}" \
+            --clobber
