@@ -63,7 +63,9 @@ export const settingsEn = {
   corsOff: "Off",
   remoteAccessTitle: "Allow other devices",
   remoteAccessDesc:
-    "Let LAN / Tailscale devices (mobile, team) use the proxy and setup page. Off keeps it on this computer only. Restart the app to apply.",
+    "Let LAN devices, and Tailscale when you use it, reach the proxy and setup page. Off keeps it on this computer only. Restart the app to apply.",
+  remoteAccessOn: "On",
+  remoteAccessOff: "Off",
   tlsBypassTitle: "TLS bypass seed",
   tlsBypassDesc: "These hosts always tunnel (no decrypt). One host per line.",
   tlsBypassPlaceholder: "okta.com\nlogin.microsoftonline.com",

@@ -11,6 +11,8 @@ const INSPECTOR_COPY = {
     subtitle: "인젝션 가이드를 설정하고 브라우저에서 새로운 요소를 캡처합니다.",
     statusActive: "워치타워 프록시가 활성화되어 있습니다.",
     statusInactive: "프록시가 실행 중이 아닙니다. 인스펙터 기능을 사용하려면 프록시를 켜주세요.",
+    proxyInactiveDetail:
+      "현재 프록시가 꺼져 있어 브라우저에서 요소를 선택하거나 캡처할 수 없습니다. 설정에서 프록시를 시작한 뒤 다시 시도하세요.",
     capturedTitle: "새 가이드 정의",
     rolePlaceholder: "요소 명칭 (예: 메인 로그인 버튼)",
     descPlaceholder: "기능 정의 및 가이드 내용을 입력하세요.",
@@ -31,6 +33,8 @@ const INSPECTOR_COPY = {
     subtitle: "Configure injection guides and capture UI elements from browser.",
     statusActive: "Horizon Gateway Proxy is active.",
     statusInactive: "Proxy is not running. Please start the proxy to use the inspector.",
+    proxyInactiveDetail:
+      "The proxy is off, so elements cannot be selected or captured in the browser. Start the proxy in Settings and try again.",
     capturedTitle: "Define New Guide",
     rolePlaceholder: "Element Title (e.g. Main Login Button)",
     descPlaceholder: "Enter functional definitions and guide details.",

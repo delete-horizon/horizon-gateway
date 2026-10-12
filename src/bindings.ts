@@ -151,6 +151,7 @@ export const commands = {
 	getMockingStatus: () => typedError<ApiResponse<MockingSettings>, string>(__TAURI_INVOKE("get_mocking_status")),
 	setScenarioEnabled: (id: string, enabled: boolean) => typedError<Scenario[], string>(__TAURI_INVOKE("set_scenario_enabled", { id, enabled })),
 	getTailscaleIp: () => typedError<ApiResponse<string | null>, string>(__TAURI_INVOKE("get_tailscale_ip")),
+	getRemoteAccessHosts: () => typedError<ApiResponse<RemoteAccessHosts>, string>(__TAURI_INVOKE("get_remote_access_hosts")),
 	startCloudflareTunnel: () => typedError<ApiResponse<string>, string>(__TAURI_INVOKE("start_cloudflare_tunnel")),
 	stopCloudflareTunnel: () => typedError<ApiResponse<null>, string>(__TAURI_INVOKE("stop_cloudflare_tunnel")),
 	checkAdbStatus: () => typedError<ApiResponse<AdbStatus>, string>(__TAURI_INVOKE("check_adb_status")),
@@ -185,6 +186,13 @@ export type AdbStatus = {
 	found: boolean,
 	path: string | null,
 	devices: string[],
+};
+
+export type RemoteAccessHosts = {
+	tailscale_ip: string | null,
+	lan_ips: string[],
+	allow_remote_access: boolean,
+	setup_port: number,
 };
 
 export type AddLocalRoutePayload = {

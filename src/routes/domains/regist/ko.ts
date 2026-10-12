@@ -11,7 +11,7 @@ export const ko: TranslationSchema = {
   noGroupDefault: "그룹 없음 (기본값)",
   groupTip: "팁: 사이드바의 그룹 섹션에서 그룹을 관리할 수 있습니다.",
   importUrls: "URL 가져오기",
-  placeholder: "example.com\napi.service.io, dev.test.com",
+  placeholder: "example.com\napi.example.com, www.example.com",
   uploadJson: "JSON 업로드",
   export: "내보내기",
   parseBtn: "파싱 및 추가",

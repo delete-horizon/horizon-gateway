@@ -30,7 +30,7 @@ import {
   Trash2,
   Tv,
 } from "lucide-react";
-import { themeAtom } from "@/entities/app";
+import { languageAtom, themeAtom } from "@/entities/app";
 import {
   flowToReactFlow,
   type PipelineExecutionReport,
@@ -51,8 +51,15 @@ import {
   validateJsonSchema,
 } from "@/entities/sandbox";
 import { TsCodeEditor } from "@/shared/ui/ts-code-editor/TsCodeEditor";
+import { en as flowEn } from "../i18n/flow-en";
+import { ko as flowKo } from "../i18n/flow-ko";
 import { LivePreviewer } from "./LivePreviewer";
 import { SchemaEditorModal } from "./SchemaEditorModal";
+
+function useFlowCopy() {
+  const lang = useAtomValue(languageAtom);
+  return lang === "ko" ? flowKo : flowEn;
+}
 
 if (typeof window !== "undefined") {
   (window as unknown as { CryptoJS: unknown }).CryptoJS = CryptoJS;
@@ -71,6 +78,7 @@ export interface FlowNodeData {
 
 // 1. API Node Component
 function ApiNodeComponent({ data }: { data: FlowNodeData }) {
+  const t = useFlowCopy();
   const isRunning = data.isRunning;
   const isSuccess = data.isSuccess;
   const isError = data.isError;
@@ -91,7 +99,7 @@ function ApiNodeComponent({ data }: { data: FlowNodeData }) {
       <Handle type="target" position={Position.Top} className="w-2.5 h-2.5 bg-primary" />
       <div className="flex items-center gap-2 mb-1.5 pb-1 border-b border-base-200">
         <Globe className="w-4 h-4 text-success" />
-        <span className="text-xs font-bold text-base-content/80">API Request</span>
+        <span className="text-xs font-bold text-base-content/80">{t.apiRequest}</span>
       </div>
       <div className="space-y-1">
         <div className="text-[11px] font-bold font-mono">
@@ -117,6 +125,7 @@ function ApiNodeComponent({ data }: { data: FlowNodeData }) {
 
 // 2. Crypto Node Component
 function CryptoNodeComponent({ data }: { data: FlowNodeData }) {
+  const t = useFlowCopy();
   const isRunning = data.isRunning;
   const isSuccess = data.isSuccess;
   const isError = data.isError;
@@ -136,7 +145,7 @@ function CryptoNodeComponent({ data }: { data: FlowNodeData }) {
       <Handle type="target" position={Position.Top} className="w-2.5 h-2.5 bg-primary" />
       <div className="flex items-center gap-2 mb-1.5 pb-1 border-b border-base-200">
         <Lock className="w-4 h-4 text-primary" />
-        <span className="text-xs font-bold text-base-content/80">Crypto Tool</span>
+        <span className="text-xs font-bold text-base-content/80">{t.cryptoTool}</span>
       </div>
       <div className="text-[10px] font-mono font-bold text-primary/80 uppercase">
         {(data.config?.action as string) || "base64Encode"}
@@ -148,6 +157,7 @@ function CryptoNodeComponent({ data }: { data: FlowNodeData }) {
 
 // 3. Schema Validation Node Component
 function SchemaNodeComponent({ data }: { data: FlowNodeData }) {
+  const t = useFlowCopy();
   const isRunning = data.isRunning;
   const isSuccess = data.isSuccess;
   const isError = data.isError;
@@ -167,9 +177,9 @@ function SchemaNodeComponent({ data }: { data: FlowNodeData }) {
       <Handle type="target" position={Position.Top} className="w-2.5 h-2.5 bg-primary" />
       <div className="flex items-center gap-2 mb-1.5 pb-1 border-b border-base-200">
         <FileCode className="w-4 h-4 text-warning" />
-        <span className="text-xs font-bold text-base-content/80">Schema Valid</span>
+        <span className="text-xs font-bold text-base-content/80">{t.schemaValid}</span>
       </div>
-      <div className="text-[10px] font-semibold text-base-content/60">Payload vs Schema</div>
+      <div className="text-[10px] font-semibold text-base-content/60">{t.payloadVsSchema}</div>
       <Handle type="source" position={Position.Bottom} className="w-2.5 h-2.5 bg-primary" />
     </div>
   );
@@ -177,6 +187,7 @@ function SchemaNodeComponent({ data }: { data: FlowNodeData }) {
 
 // 4. Preview Node Component
 function PreviewNodeComponent({ data }: { data: FlowNodeData & { previewData?: unknown } }) {
+  const t = useFlowCopy();
   const isRunning = data.isRunning;
   const isSuccess = data.isSuccess;
   const isError = data.isError;
@@ -199,7 +210,7 @@ function PreviewNodeComponent({ data }: { data: FlowNodeData & { previewData?: u
       <Handle type="target" position={Position.Top} className="w-2.5 h-2.5 bg-primary" />
       <div className="flex items-center gap-2 mb-1.5 pb-1 border-b border-base-200">
         <Tv className="w-4 h-4 text-secondary" />
-        <span className="text-xs font-bold text-base-content/80">UI Preview</span>
+        <span className="text-xs font-bold text-base-content/80">{t.uiPreview}</span>
       </div>
       {isSuccess && code ? (
         <div className="w-full h-[200px] border border-base-200 rounded-lg overflow-hidden bg-white mt-1.5 relative">
@@ -207,7 +218,7 @@ function PreviewNodeComponent({ data }: { data: FlowNodeData & { previewData?: u
         </div>
       ) : (
         <div className="text-[10px] font-semibold text-base-content/60 py-8 text-center italic bg-base-200/30 rounded-lg border border-dashed border-base-300 mt-1.5">
-          {isRunning ? "실행 중..." : "파이프라인 실행 후 UI 렌더링"}
+          {isRunning ? t.running : t.previewIdle}
         </div>
       )}
     </div>
@@ -216,6 +227,7 @@ function PreviewNodeComponent({ data }: { data: FlowNodeData & { previewData?: u
 
 // 5. Mapper Node Component
 function MapperNodeComponent({ data }: { data: FlowNodeData }) {
+  const t = useFlowCopy();
   const isRunning = data.isRunning;
   const isSuccess = data.isSuccess;
   const isError = data.isError;
@@ -235,10 +247,10 @@ function MapperNodeComponent({ data }: { data: FlowNodeData }) {
       <Handle type="target" position={Position.Top} className="w-2.5 h-2.5 bg-primary" />
       <div className="flex items-center gap-2 mb-1.5 pb-1 border-b border-base-200">
         <Shuffle className="w-4 h-4 text-info" />
-        <span className="text-xs font-bold text-base-content/80">Data Mapper</span>
+        <span className="text-xs font-bold text-base-content/80">{t.dataMapper}</span>
       </div>
       <div className="text-[10px] font-semibold text-base-content/60">
-        {(data.config?.mappings as unknown[])?.length || 0} mappings defined
+        {t.mappingsDefined((data.config?.mappings as unknown[])?.length || 0)}
       </div>
       <Handle type="source" position={Position.Bottom} className="w-2.5 h-2.5 bg-primary" />
     </div>
@@ -247,6 +259,7 @@ function MapperNodeComponent({ data }: { data: FlowNodeData }) {
 
 // 6. Custom Script Node Component
 function ScriptNodeComponent({ data }: { data: FlowNodeData }) {
+  const t = useFlowCopy();
   const isRunning = data.isRunning;
   const isSuccess = data.isSuccess;
   const isError = data.isError;
@@ -267,15 +280,15 @@ function ScriptNodeComponent({ data }: { data: FlowNodeData }) {
       <Handle type="target" position={Position.Top} className="w-2.5 h-2.5 bg-primary" />
       <div className="flex items-center gap-2 mb-1.5 pb-1 border-b border-base-200">
         <FileCode className="w-4 h-4 text-accent" />
-        <span className="text-xs font-bold text-base-content/80">JS Script Node</span>
+        <span className="text-xs font-bold text-base-content/80">{t.jsScriptNode}</span>
       </div>
       <div className="text-[10px] font-semibold text-base-content/60">
         {isRunning ? (
-          "실행 중..."
+          t.running
         ) : elapsedMs !== null && elapsedMs !== undefined ? (
-          <span className="text-success font-bold">{elapsedMs}ms 완료</span>
+          <span className="text-success font-bold">{t.doneMs(elapsedMs)}</span>
         ) : (
-          "대기 중"
+          t.waiting
         )}
       </div>
       <Handle type="source" position={Position.Bottom} className="w-2.5 h-2.5 bg-primary" />
@@ -362,6 +375,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
   const savedCryptoPresets = useAtomValue(savedCryptoPresetsAtom);
   const savedComponents = useAtomValue(savedComponentsAtom);
   const theme = useAtomValue(themeAtom);
+  const t = useFlowCopy();
 
   // Map persisted data into React Flow state
   const initialNodes = useMemo(() => flowToReactFlow(persistedFlow).nodes, [persistedFlow]);
@@ -624,7 +638,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
       }
 
       if (order.length !== flowNodes.length) {
-        throw new Error("파이프라인 그래프에 순환 참조(Cycle)가 존재합니다.");
+        throw new Error(t.cycle);
       }
 
       return order;
@@ -667,7 +681,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
         } catch (e) {
           const err = e as Error;
           const elapsed = Date.now() - nodeStart;
-          const errorMsg = `변수 치환 오류: ${err.message || String(e)}`;
+          const errorMsg = t.interpolateError(err.message || String(e));
           results.push({
             nodeId,
             success: false,
@@ -684,7 +698,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
             ),
           );
           pipelineSuccess = false;
-          pipelineError = `Pipeline aborted at node '${node.data.label}': ${errorMsg}`;
+          pipelineError = t.abortedAt(String(node.data.label ?? node.id), errorMsg);
           break;
         }
 
@@ -714,7 +728,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                   }).code || "";
               } catch (e: unknown) {
                 const message = e instanceof Error ? e.message : String(e);
-                throw new Error(`컴파일 에러: ${message}`);
+                throw new Error(t.compileError(message));
               }
 
               const runFn = new Function("exports", transpiled);
@@ -723,9 +737,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
 
               const defaultExport = exportsObj.default;
               if (typeof defaultExport !== "function") {
-                throw new Error(
-                  "Default export가 함수가 아닙니다. 'export default function(payload, key, iv) { ... }' 형태로 내보내주세요.",
-                );
+                throw new Error(t.cryptoExport);
               }
 
               const customResult = await defaultExport(payload, key, iv);
@@ -789,7 +801,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                 }).code || "";
             } catch (e: unknown) {
               const message = e instanceof Error ? e.message : String(e);
-              throw new Error(`컴파일 에러: ${message}`);
+              throw new Error(t.compileError(message));
             }
 
             // Create inputs object containing outputs of all previous nodes
@@ -809,9 +821,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
 
             const defaultExport = exportsObj.default;
             if (typeof defaultExport !== "function") {
-              throw new Error(
-                "Default export가 함수가 아닙니다. 'export default function(inputs) { ... }' 형태로 내보내주세요.",
-              );
+              throw new Error(t.scriptExport);
             }
 
             const scriptResult = await defaultExport(inputs);
@@ -822,7 +832,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
             }
             nodeSuccess = true;
           } else {
-            throw new Error(`지원하지 않는 노드 유형입니다: ${node.type}`);
+            throw new Error(t.unsupportedNode(String(node.type)));
           }
         } catch (e) {
           const err = e as Error;
@@ -863,7 +873,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
           const errorPolicy = interpolatedConfig?.errorPolicy || "fastFail";
           if (errorPolicy !== "continueOnError") {
             pipelineSuccess = false;
-            pipelineError = `Pipeline aborted at node '${node.data.label}': ${nodeError}`;
+            pipelineError = t.abortedAt(String(node.data.label ?? node.id), nodeError ?? "");
             break;
           }
         } else {
@@ -979,44 +989,44 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
         <div className="flex items-center justify-between p-3 bg-base-200 border-b border-base-300 shrink-0 z-10">
           <div className="flex gap-2">
             <button className="btn btn-xs btn-outline btn-ghost flex items-center gap-1" onClick={() => addNode("api")}>
-              <Plus className="w-3.5 h-3.5 text-success" /> API 노드
+              <Plus className="w-3.5 h-3.5 text-success" /> {t.addApi}
             </button>
             <button
               className="btn btn-xs btn-outline btn-ghost flex items-center gap-1"
               onClick={() => addNode("crypto")}
             >
-              <Plus className="w-3.5 h-3.5 text-primary" /> Crypto 노드
+              <Plus className="w-3.5 h-3.5 text-primary" /> {t.addCrypto}
             </button>
             <button
               className="btn btn-xs btn-outline btn-ghost flex items-center gap-1"
               onClick={() => addNode("schema")}
             >
-              <Plus className="w-3.5 h-3.5 text-warning" /> Schema 노드
+              <Plus className="w-3.5 h-3.5 text-warning" /> {t.addSchema}
             </button>
             <button
               className="btn btn-xs btn-outline btn-ghost flex items-center gap-1"
               onClick={() => addNode("mapper")}
             >
-              <Plus className="w-3.5 h-3.5 text-info" /> Mapper 노드
+              <Plus className="w-3.5 h-3.5 text-info" /> {t.addMapper}
             </button>
             <button
               className="btn btn-xs btn-outline btn-ghost flex items-center gap-1"
               onClick={() => addNode("preview")}
             >
-              <Plus className="w-3.5 h-3.5 text-secondary" /> Preview 노드
+              <Plus className="w-3.5 h-3.5 text-secondary" /> {t.addPreview}
             </button>
             <button
               className="btn btn-xs btn-outline btn-ghost flex items-center gap-1"
               onClick={() => addNode("script")}
             >
-              <Plus className="w-3.5 h-3.5 text-accent" /> JS 스크립트 노드
+              <Plus className="w-3.5 h-3.5 text-accent" /> {t.addScript}
             </button>
           </div>
 
           <div className="flex gap-2">
             {selectedNodeId && (
               <button className="btn btn-xs btn-error btn-outline flex items-center gap-1" onClick={deleteSelectedNode}>
-                <Trash2 className="w-3.5 h-3.5" /> 삭제
+                <Trash2 className="w-3.5 h-3.5" /> {t.delete}
               </button>
             )}
             <button
@@ -1024,7 +1034,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
               onClick={handleExecute}
               disabled={executing || nodes.length === 0}
             >
-              <Play className="w-3.5 h-3.5" /> {executing ? "실행 중..." : "파이프라인 실행"}
+              <Play className="w-3.5 h-3.5" /> {executing ? t.running : t.run}
             </button>
           </div>
         </div>
@@ -1054,15 +1064,15 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
             <span className="flex items-center gap-1.5">
               {report.success ? (
                 <span className="text-success flex items-center gap-1 font-bold">
-                  <CheckCircle className="w-4 h-4" /> 성공
+                  <CheckCircle className="w-4 h-4" /> {t.success}
                 </span>
               ) : (
                 <span className="text-error flex items-center gap-1 font-bold">
-                  <AlertCircle className="w-4 h-4" /> 중단됨
+                  <AlertCircle className="w-4 h-4" /> {t.aborted}
                 </span>
               )}
-              <span className="text-base-content/50">|</span>총 시간:{" "}
-              <strong className="text-primary">{report.elapsedMs}ms</strong>
+              <span className="text-base-content/50">|</span>
+              {t.totalTime} <strong className="text-primary">{report.elapsedMs}ms</strong>
               {report.error && (
                 <>
                   <span className="text-base-content/50">|</span>
@@ -1081,7 +1091,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
             {/* Header */}
             <div className="border-b border-base-200 pb-2 mb-3 shrink-0 flex items-center justify-between">
               <div>
-                <span className="font-bold text-xs text-base-content/50 uppercase">설정 (Properties)</span>
+                <span className="font-bold text-xs text-base-content/50 uppercase">{t.properties}</span>
                 <h4 className="font-bold text-sm text-base-content/85 truncate">{activeNode.data.label}</h4>
               </div>
               <span className="text-[10px] bg-base-200 px-2 py-0.5 rounded text-mono">{activeNode.id}</span>
@@ -1094,9 +1104,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                 <div className="space-y-3 text-xs">
                   {/* Import Request Config */}
                   <div className="flex flex-col gap-1.5 p-2 bg-base-200/50 rounded-lg mb-2">
-                    <label className="font-bold text-[9px] text-base-content/50 uppercase">
-                      설정 가져오기 (Import Request)
-                    </label>
+                    <label className="font-bold text-[9px] text-base-content/50 uppercase">{t.importRequest}</label>
                     <div className="flex gap-1.5 flex-wrap">
                       <button
                         className="btn btn-[10px] h-7 min-h-7 btn-outline btn-primary flex-1 py-0 px-2"
@@ -1112,7 +1120,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                           }
                         }}
                       >
-                        📥 현재 테스터 설정
+                        {t.currentTester}
                       </button>
 
                       {apiClientHistory.length > 0 && (
@@ -1135,7 +1143,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                           }}
                         >
                           <option value="" disabled>
-                            📜 최근 히스토리...
+                            {t.recentHistory}
                           </option>
                           {apiClientHistory.slice(0, 10).map((h) => (
                             <option key={h.id} value={h.id}>
@@ -1164,7 +1172,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <label className="font-semibold text-base-content/75">요청 URL</label>
+                    <label className="font-semibold text-base-content/75">{t.requestUrl}</label>
                     <input
                       type="text"
                       className="input input-bordered input-xs font-mono w-full"
@@ -1196,9 +1204,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                 <div className="space-y-3">
                   <div className="flex flex-col gap-1.5 p-2 bg-base-200/50 rounded-lg text-xs">
                     <div className="flex items-center justify-between">
-                      <label className="font-semibold text-[10px] text-base-content/65 uppercase">
-                        암복호화 프리셋 불러오기
-                      </label>
+                      <label className="font-semibold text-[10px] text-base-content/65 uppercase">{t.loadPreset}</label>
                     </div>
                     <select
                       className="select select-bordered select-xs w-full text-xs font-bold focus:outline-none"
@@ -1220,7 +1226,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                         }
                       }}
                     >
-                      <option value="">-- 프리셋 선택 --</option>
+                      <option value="">{t.selectPreset}</option>
                       {savedCryptoPresets.map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.name} ({p.action})
@@ -1251,7 +1257,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                   <div className="flex flex-col gap-1.5 p-2 bg-base-200/50 rounded-lg">
                     <div className="flex items-center justify-between">
                       <label className="font-semibold text-[10px] text-base-content/65 uppercase">
-                        저장된 JSON 스키마에서 가져오기
+                        {t.importSchema}
                       </label>
                       <div className="flex gap-1.5">
                         <button
@@ -1272,7 +1278,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                             })
                           }
                         >
-                          [+ 생성]
+                          {t.create}
                         </button>
                         {Boolean(activeNode.data.config?.schemaId) && (
                           <button
@@ -1297,7 +1303,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                               )
                             }
                           >
-                            [/ 편집]
+                            {t.edit}
                           </button>
                         )}
                       </div>
@@ -1322,7 +1328,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                         }
                       }}
                     >
-                      <option value="">-- 스키마 선택 --</option>
+                      <option value="">{t.selectSchema}</option>
                       {savedJsonSchemas.map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.name}
@@ -1331,7 +1337,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="font-semibold text-base-content/75">Payload 데이터</label>
+                    <label className="font-semibold text-base-content/75">{t.payloadData}</label>
                     <textarea
                       rows={4}
                       className="textarea textarea-bordered textarea-xs font-mono w-full"
@@ -1342,7 +1348,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="font-semibold text-base-content/75">검증할 JSON Schema</label>
+                    <label className="font-semibold text-base-content/75">{t.schemaToValidate}</label>
                     <textarea
                       rows={6}
                       className="textarea textarea-bordered textarea-xs font-mono w-full"
@@ -1394,7 +1400,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                     <div className="space-y-3 text-xs flex flex-col h-full overflow-hidden">
                       <div className="flex items-center justify-between shrink-0">
                         <label className="font-semibold text-base-content/75 flex items-center gap-1">
-                          <Shuffle className="w-3.5 h-3.5 text-info" /> Mappings 정의 (Target ➔ Source)
+                          <Shuffle className="w-3.5 h-3.5 text-info" /> {t.mappingsTitle}
                         </label>
                         <div className="flex gap-1.5">
                           {report && (
@@ -1403,7 +1409,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                               className="btn btn-xs btn-outline btn-info flex items-center gap-1 font-bold text-[10px]"
                               onClick={autoImportKeys}
                             >
-                              자동 가져오기
+                              {t.autoImport}
                             </button>
                           )}
                           <button
@@ -1419,7 +1425,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                               });
                             }}
                           >
-                            <Plus className="w-3 h-3" /> 추가
+                            <Plus className="w-3 h-3" /> {t.add}
                           </button>
                         </div>
                       </div>
@@ -1438,7 +1444,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                             <div className="flex-1 space-y-1.5 min-w-0">
                               <div>
                                 <span className="text-[9px] font-bold text-base-content/50 uppercase tracking-wider">
-                                  Target Key (속성명)
+                                  {t.targetKey}
                                 </span>
                                 <TsCodeEditor
                                   value={m.targetKey}
@@ -1464,7 +1470,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                               </div>
                               <div>
                                 <span className="text-[9px] font-bold text-base-content/50 uppercase tracking-wider">
-                                  Source Value (표현식)
+                                  {t.sourceValue}
                                 </span>
                                 <TsCodeEditor
                                   value={m.sourceValue}
@@ -1502,9 +1508,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                           </div>
                         ))}
                         {((activeNode.data.config?.mappings as unknown[]) || []).length === 0 && (
-                          <div className="text-center py-6 text-base-content/40 italic">
-                            정의된 매핑이 없습니다. 상단의 추가 버튼을 눌러 속성을 매핑해 보세요.
-                          </div>
+                          <div className="text-center py-6 text-base-content/40 italic">{t.noMappings}</div>
                         )}
                       </div>
 
@@ -1512,7 +1516,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                       {report && (
                         <div className="pt-2 border-t border-base-200 shrink-0 space-y-1">
                           <label className="font-semibold text-[10px] text-base-content/65 uppercase flex items-center gap-1">
-                            ✨ 실시간 매핑 미리보기 (Live Preview)
+                            {t.liveMapping}
                           </label>
                           {(() => {
                             const previewResult = resolveInterpolatedValue(
@@ -1546,7 +1550,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                   <div className="grid grid-cols-2 gap-2 bg-base-200/50 p-2 rounded-xl shrink-0">
                     <div className="flex flex-col gap-1">
                       <label className="font-semibold text-[10px] text-base-content/65 uppercase">
-                        컴포넌트 불러오기
+                        {t.loadComponent}
                       </label>
                       <select
                         className="select select-bordered select-xs w-full text-xs font-bold focus:outline-none"
@@ -1564,7 +1568,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                           e.target.value = ""; // reset
                         }}
                       >
-                        <option value="">-- 컴포넌트 선택 --</option>
+                        <option value="">{t.selectComponent}</option>
                         {savedComponents.map((c) => (
                           <option key={c.id} value={c.id}>
                             {c.name}
@@ -1577,7 +1581,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center justify-between">
                         <label className="font-semibold text-[10px] text-base-content/65 uppercase">
-                          검증용 스키마 선택
+                          {t.selectValidationSchema}
                         </label>
                         <div className="flex gap-1.5">
                           <button
@@ -1592,7 +1596,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                               })
                             }
                           >
-                            [+ 생성]
+                            {t.create}
                           </button>
                           {Boolean(activeNode.data.config?.schemaId) && (
                             <button
@@ -1611,7 +1615,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                                 )
                               }
                             >
-                              [/ 편집]
+                              {t.edit}
                             </button>
                           )}
                         </div>
@@ -1626,7 +1630,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                           });
                         }}
                       >
-                        <option value="">-- 스키마 미지정 --</option>
+                        <option value="">{t.noSchema}</option>
                         {savedJsonSchemas.map((s) => (
                           <option key={s.id} value={s.id}>
                             {s.name}
@@ -1637,7 +1641,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                   </div>
 
                   <div className="flex flex-col gap-1 shrink-0 h-[260px]">
-                    <label className="font-semibold text-base-content/75">React 컴포넌트 소스코드</label>
+                    <label className="font-semibold text-base-content/75">{t.reactSource}</label>
                     {(() => {
                       let schemaText = "";
                       if (activeNode.data.config.schemaId) {
@@ -1706,7 +1710,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                   {/* Inline Live Previewer inside config panel */}
                   <div className="flex-1 min-h-[300px] border border-base-200 rounded-xl overflow-hidden flex flex-col mt-2">
                     <div className="bg-base-200/50 p-2 border-b border-base-200 text-[10px] font-bold text-base-content/60 flex items-center justify-between shrink-0">
-                      <span>🖥️ 실시간 렌더링 결과 (Live Preview)</span>
+                      <span>{t.liveRender}</span>
                       <span className="badge badge-outline badge-xs text-primary">Dynamic Props</span>
                     </div>
                     <div className="flex-1 bg-white relative">
@@ -1759,12 +1763,12 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                 <div className="space-y-3 text-xs flex flex-col h-full overflow-hidden">
                   <div className="flex flex-col gap-1 shrink-0">
                     <label className="font-semibold text-base-content/75 flex items-center gap-1">
-                      <FileCode className="w-3.5 h-3.5 text-accent" /> Custom JS 스크립트 작성
+                      <FileCode className="w-3.5 h-3.5 text-accent" /> {t.customJs}
                     </label>
                     <p className="text-[10px] text-base-content/50 leading-relaxed">
-                      `export default async function(inputs)` 형태로 작성합니다.
+                      {t.customJsHint1}
                       <br />
-                      `inputs` 객체에서 이전 노드의 결과(예: `inputs.api_1.body`)를 조회할 수 있습니다.
+                      {t.customJsHint2}
                     </p>
                   </div>
                   <div className="flex-1 min-h-[300px] flex flex-col gap-1">
@@ -1781,7 +1785,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
 
               {/* Common Config: Error Policy */}
               <div className="flex flex-col gap-1 pt-2 border-t border-base-200">
-                <label className="font-semibold text-xs text-base-content/75">에러 대응 정책 (Error Policy)</label>
+                <label className="font-semibold text-xs text-base-content/75">{t.errorPolicy}</label>
                 <select
                   className="select select-bordered select-xs w-full text-xs"
                   value={(activeNode.data.config?.errorPolicy as string) || "fastFail"}
@@ -1789,9 +1793,9 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                     updateNodeConfig(activeNode.id, { ...activeNode.data.config, errorPolicy: e.target.value })
                   }
                 >
-                  <option value="fastFail">실패 시 즉시 중단 (Fast Fail)</option>
-                  <option value="continueOnError">에러 발생 시에도 계속 실행</option>
-                  <option value="retry">최대 3회 재시도 (Retry)</option>
+                  <option value="fastFail">{t.fastFail}</option>
+                  <option value="continueOnError">{t.continueOnError}</option>
+                  <option value="retry">{t.retry}</option>
                 </select>
               </div>
 
@@ -1799,11 +1803,9 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
               {variableCandidates.length > 0 && (
                 <div className="pt-3 border-t border-base-200 space-y-2">
                   <label className="font-semibold text-xs text-base-content/75 flex items-center gap-1">
-                    <HelpCircle className="w-3.5 h-3.5 text-primary" /> 변수 매핑 주소 복사
+                    <HelpCircle className="w-3.5 h-3.5 text-primary" /> {t.copyMapping}
                   </label>
-                  <div className="text-[10px] text-base-content/50 leading-relaxed mb-2">
-                    이전 노드의 데이터를 매핑하려면 아래 주소 중 하나를 복사하여 필요한 필드에 입력하세요:
-                  </div>
+                  <div className="text-[10px] text-base-content/50 leading-relaxed mb-2">{t.copyMappingHint}</div>
                   <div className="space-y-2 max-h-[150px] overflow-y-auto">
                     {variableCandidates.map((c) => {
                       const runRes = report?.results.find((r) => r.nodeId === c.id);
@@ -1838,12 +1840,12 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                                 className="btn btn-[10px] btn-ghost btn-xs text-primary/80 uppercase hover:bg-base-300 font-bold"
                                 onClick={() => navigator.clipboard.writeText(pathStr)}
                               >
-                                복사
+                                {t.copy}
                               </button>
                             </div>
                             {resolvedVal !== "" && (
                               <div className="text-[9px] text-base-content/60 bg-base-300/40 p-1 rounded font-mono truncate max-w-full">
-                                <span className="font-semibold text-base-content/40 mr-1">현재값:</span>
+                                <span className="font-semibold text-base-content/40 mr-1">{t.currentValue}</span>
                                 {resolvedVal}
                               </div>
                             )}
@@ -1858,11 +1860,11 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
               {/* Execution Result view */}
               {report && (
                 <div className="pt-3 border-t border-base-200 space-y-2 text-xs">
-                  <label className="font-semibold text-xs text-base-content/75">노드 실행 결과</label>
+                  <label className="font-semibold text-xs text-base-content/75">{t.nodeResult}</label>
                   {(() => {
                     const nodeRes = report.results.find((r: NodeExecutionResult) => r.nodeId === activeNode.id);
                     if (!nodeRes) {
-                      return <div className="text-base-content/40 italic">미실행</div>;
+                      return <div className="text-base-content/40 italic">{t.notRun}</div>;
                     }
                     return (
                       <div className="space-y-2">
@@ -1871,9 +1873,9 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                             <span
                               className={`badge badge-xs font-bold ${nodeRes.success ? "badge-success text-success-content" : "badge-error text-error-content"}`}
                             >
-                              {nodeRes.success ? "성공" : "실패"}
+                              {nodeRes.success ? t.succeeded : t.failed}
                             </span>
-                            <span className="text-[10px] text-base-content/50">{nodeRes.elapsedMs}ms 소요</span>
+                            <span className="text-[10px] text-base-content/50">{t.elapsed(nodeRes.elapsedMs)}</span>
                           </div>
 
                           {/* Tabs for Input / Output */}
@@ -1909,7 +1911,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                           <div className="space-y-1">
                             <div className="flex justify-between items-center">
                               <span className="text-[10px] text-base-content/50 uppercase font-semibold">
-                                실제 적용된 입력 (Interpolated)
+                                {t.interpolatedInput}
                               </span>
                             </div>
                             <textarea
@@ -1931,14 +1933,14 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                               outputObj = nodeRes.output;
                             }
                             if (outputObj === null || outputObj === "null") {
-                              return <div className="text-base-content/40 italic">출력값 없음</div>;
+                              return <div className="text-base-content/40 italic">{t.noOutput}</div>;
                             }
 
                             return (
                               <div className="space-y-1">
                                 <div className="flex justify-between items-center">
                                   <span className="text-[10px] text-base-content/50 uppercase font-semibold">
-                                    출력 데이터 (JSON)
+                                    {t.outputData}
                                   </span>
                                   <div className="flex gap-1.5">
                                     {onExportPreviewData && (
@@ -1952,7 +1954,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                                           onExportPreviewData(previewVal);
                                         }}
                                       >
-                                        프리뷰로 내보내기 <ArrowRight className="w-3 h-3" />
+                                        {t.exportPreview} <ArrowRight className="w-3 h-3" />
                                       </button>
                                     )}
                                     <button
@@ -1966,7 +1968,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                                         )
                                       }
                                     >
-                                      복사
+                                      {t.copy}
                                     </button>
                                   </div>
                                 </div>
@@ -1993,7 +1995,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-base-content/40 italic text-sm">
             <Settings className="w-12 h-12 text-base-content/20 mb-3 animate-spin duration-3000" />
-            작업 캔버스에서 노드를 선택하시면 속성 및 데이터 매핑 창이 활성화됩니다.
+            {t.selectNodeHint}
           </div>
         )}
       </div>
