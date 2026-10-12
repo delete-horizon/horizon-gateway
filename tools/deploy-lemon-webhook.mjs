@@ -7,7 +7,6 @@ import { readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import { resolve } from "node:path";
 
 const PROJECT_REF = "fcngkhnadezrggqgwhuk";
-const WEBHOOK_SECRET_FALLBACK = "37206aa1150002bf3e9ebe34680249556c0f7cde";
 
 function loadEnv(path) {
   const raw = readFileSync(path, "utf8");
@@ -28,7 +27,7 @@ function loadEnv(path) {
 const envFile = loadEnv(resolve(process.cwd(), ".env"));
 const accessToken = envFile.SUPABASE_ACCESS_TOKEN;
 const serviceRole = envFile.SUPABASE_SERVICE_ROLE_KEY;
-const webhookSecret = envFile.LEMON_SQUEEZY_WEBHOOK_SECRET || WEBHOOK_SECRET_FALLBACK;
+const webhookSecret = envFile.LEMON_SQUEEZY_WEBHOOK_SECRET;
 
 if (!accessToken) {
   console.error("Missing SUPABASE_ACCESS_TOKEN");
@@ -36,6 +35,10 @@ if (!accessToken) {
 }
 if (!serviceRole) {
   console.error("Missing SUPABASE_SERVICE_ROLE_KEY");
+  process.exit(1);
+}
+if (!webhookSecret) {
+  console.error("Missing LEMON_SQUEEZY_WEBHOOK_SECRET");
   process.exit(1);
 }
 

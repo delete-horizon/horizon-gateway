@@ -503,6 +503,24 @@ export type Database = {
         };
         Relationships: [];
       };
+      webhook_events: {
+        Row: {
+          id: string;
+          event_name: string;
+          received_at: string;
+        };
+        Insert: {
+          id: string;
+          event_name: string;
+          received_at?: string;
+        };
+        Update: {
+          id?: string;
+          event_name?: string;
+          received_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
