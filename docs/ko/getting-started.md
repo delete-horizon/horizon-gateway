@@ -141,7 +141,7 @@ API 로그 보관 기본값은 14일입니다. 7일, 30일, 90일, 무제한 중
 hgc init                  # 전역 설치 (에이전트 자동 감지)
 hgc init --target cursor  # 지정한 에이전트
 hgc init --target all     # 지원하는 에이전트 전부
-hgc init --project        # 현재 저장소: .agents/skills/horizon-gateway/
+hgc init --project        # .agents/skills, .claude/skills, .windsurf/skills, 읽기 전용 MCP 설정
 hgc init --print          # 설치하지 않고 SKILL.md만 출력
 ```
 

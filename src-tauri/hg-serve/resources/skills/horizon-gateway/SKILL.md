@@ -20,11 +20,13 @@ Run once so your agent discovers Horizon Gateway automatically:
 hgc init                  # global install (auto-detect agent)
 hgc init --target cursor  # specific agent
 hgc init --target all     # all supported agents
-hgc init --project        # current repo: .agents/skills/horizon-gateway/
+hgc init --project        # .agents/skills, plus .claude/skills and .windsurf/skills, and read-only MCP configs
 hgc init --print          # print SKILL.md without installing
 ```
 
 Supported `--target` values: `auto`, `all`, `cursor`, `claude`, `codex`, `gemini`, `copilot`, `windsurf`.
+
+`hgc init --project` writes this skill to `.agents/skills/horizon-gateway/` and links it for agents that do not read that directory (`.claude/skills/horizon-gateway/`, `.windsurf/skills/horizon-gateway/`). It also writes a read-only MCP client entry for Cursor (`.cursor/mcp.json`), Claude Code (`.mcp.json`), and Gemini CLI (`.gemini/settings.json`). The server command is `hgc mcp` on stdio. Mock, route, and proxy changes stay off unless `--allow-write` is added; captured bodies stay off unless `--allow-body` is added.
 
 Without this skill, bootstrap from the binary:
 

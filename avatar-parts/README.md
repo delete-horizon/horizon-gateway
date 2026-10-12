@@ -13,7 +13,7 @@ Do not persist slot index numbers. Equipped kits store **string ids**. Adding a 
 
 ## Loop
 
-1. Read this file and `.agents/skills/avatar-parts/SKILL.md`.
+1. Read this file and `.dev/skills/avatar-parts/SKILL.md`.
 2. Copy a nearby `{slot}-{id}.json` in the same slot.
 3. Change `id`, `ko`, `en`, `shop`, optional `set`, and the 24 glyph rows.
 4. Save as `{slot}-{id}.json` (filename must match `slot` + `id`).

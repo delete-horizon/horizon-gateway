@@ -1,5 +1,7 @@
+use super::mcp::merge_mcp_servers;
 use super::{cli_eprintln, cli_println};
 use serde::Serialize;
+use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -8,6 +10,19 @@ const LOGS_MJS: &str = include_str!("../../resources/skills/horizon-gateway/scri
 
 const SKILL_DIR_NAME: &str = "horizon-gateway";
 const PROJECT_SKILL_REL: &str = ".agents/skills/horizon-gateway";
+
+/// Project skill directories for agents that do not read `.agents/skills/`.
+/// Cursor, Codex, Gemini CLI, and Copilot read the canonical copy.
+const PROJECT_SKILL_LINKS: &[(&str, &str)] = &[
+    ("claude", ".claude/skills/horizon-gateway"),
+    ("windsurf", ".windsurf/skills/horizon-gateway"),
+];
+
+const PROJECT_MCP_FILES: &[(&str, &str)] = &[
+    ("cursor-mcp", ".cursor/mcp.json"),
+    ("claude-mcp", ".mcp.json"),
+    ("gemini-mcp", ".gemini/settings.json"),
+];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AgentTarget {
@@ -112,21 +127,11 @@ pub fn execute_init(args: &[String]) {
     let mut skipped = Vec::new();
 
     if options.project {
-        let project_dir = std::env::current_dir()
-            .map(|cwd| cwd.join(PROJECT_SKILL_REL))
-            .unwrap_or_else(|_| PathBuf::from(PROJECT_SKILL_REL));
-        match write_skill_bundle(&project_dir, options.force, options.check) {
-            Ok(status) => installed.push(InstalledPath {
-                target: "project".to_string(),
-                path: project_dir.to_string_lossy().into_owned(),
-                status,
-            }),
-            Err(e) => skipped.push(InstalledPath {
-                target: "project".to_string(),
-                path: project_dir.to_string_lossy().into_owned(),
-                status: e,
-            }),
-        }
+        let root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        let (mut project_installed, mut project_skipped) =
+            install_project_at(&root, options.force, options.check);
+        installed.append(&mut project_installed);
+        skipped.append(&mut project_skipped);
     }
 
     if !options.project {
@@ -304,6 +309,150 @@ fn write_skill_bundle(dest: &Path, force: bool, check: bool) -> Result<String, S
     })
 }
 
+fn install_project_at(
+    root: &Path,
+    force: bool,
+    check: bool,
+) -> (Vec<InstalledPath>, Vec<InstalledPath>) {
+    let mut installed = Vec::new();
+    let mut skipped = Vec::new();
+    let project_dir = root.join(PROJECT_SKILL_REL);
+    match write_skill_bundle(&project_dir, force, check) {
+        Ok(status) => installed.push(InstalledPath {
+            target: "project".to_string(),
+            path: project_dir.to_string_lossy().into_owned(),
+            status,
+        }),
+        Err(err) => skipped.push(InstalledPath {
+            target: "project".to_string(),
+            path: project_dir.to_string_lossy().into_owned(),
+            status: err,
+        }),
+    }
+    for (target, rel) in PROJECT_SKILL_LINKS {
+        let dest = root.join(rel);
+        match link_project_skill(&dest, rel, force, check) {
+            Ok(status) => installed.push(InstalledPath {
+                target: (*target).to_string(),
+                path: dest.to_string_lossy().into_owned(),
+                status,
+            }),
+            Err(err) => skipped.push(InstalledPath {
+                target: (*target).to_string(),
+                path: dest.to_string_lossy().into_owned(),
+                status: err,
+            }),
+        }
+    }
+    for (target, rel) in PROJECT_MCP_FILES {
+        let path = root.join(rel);
+        match write_project_mcp(&path, check) {
+            Ok(status) => installed.push(InstalledPath {
+                target: (*target).to_string(),
+                path: path.to_string_lossy().into_owned(),
+                status,
+            }),
+            Err(err) => skipped.push(InstalledPath {
+                target: (*target).to_string(),
+                path: path.to_string_lossy().into_owned(),
+                status: err,
+            }),
+        }
+    }
+    (installed, skipped)
+}
+
+fn link_project_skill(dest: &Path, rel: &str, force: bool, check: bool) -> Result<String, String> {
+    let relative = relative_skill_link(rel);
+    if check {
+        return Ok(if dest.exists() {
+            "present".to_string()
+        } else {
+            "missing".to_string()
+        });
+    }
+    if dest.symlink_metadata().is_ok() {
+        if dest.is_symlink() {
+            if dest.read_link().ok().as_deref() == Some(Path::new(&relative)) && !force {
+                return Ok("up_to_date".to_string());
+            }
+            fs::remove_file(dest).map_err(|err| format!("remove link failed: {err}"))?;
+        } else if dest.is_dir() && !force {
+            return write_skill_bundle(dest, false, false);
+        } else {
+            remove_any(dest)?;
+        }
+    }
+    if let Some(parent) = dest.parent() {
+        fs::create_dir_all(parent).map_err(|err| format!("mkdir failed: {err}"))?;
+    }
+    match symlink_dir(Path::new(&relative), dest) {
+        Ok(()) => Ok("linked".to_string()),
+        Err(_) => write_skill_bundle(dest, force, false),
+    }
+}
+
+fn relative_skill_link(rel: &str) -> String {
+    let depth = Path::new(rel)
+        .parent()
+        .map_or(0, |parent| parent.components().count());
+    let mut parts = vec![".."; depth];
+    parts.extend([".agents", "skills", "horizon-gateway"]);
+    parts.join("/")
+}
+
+fn write_project_mcp(path: &Path, check: bool) -> Result<String, String> {
+    let mut root = if path.exists() {
+        let text =
+            fs::read_to_string(path).map_err(|err| format!("read mcp config failed: {err}"))?;
+        serde_json::from_str::<Value>(&text)
+            .map_err(|err| format!("mcp config is not JSON: {err}"))?
+    } else {
+        serde_json::json!({})
+    };
+    if root
+        .get("mcpServers")
+        .and_then(|servers| servers.get("horizon-gateway"))
+        .is_some()
+    {
+        return Ok("present".to_string());
+    }
+    if check {
+        return Ok("missing".to_string());
+    }
+    let status = merge_mcp_servers(&mut root)?;
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            fs::create_dir_all(parent).map_err(|err| format!("mkdir failed: {err}"))?;
+        }
+    }
+    let text =
+        serde_json::to_string_pretty(&root).map_err(|err| format!("encode mcp config: {err}"))?;
+    fs::write(path, format!("{text}\n"))
+        .map_err(|err| format!("write mcp config failed: {err}"))?;
+    Ok(status.to_string())
+}
+
+fn remove_any(path: &Path) -> Result<(), String> {
+    let meta = fs::symlink_metadata(path).map_err(|err| format!("stat failed: {err}"))?;
+    if meta.is_symlink() || meta.is_file() {
+        fs::remove_file(path).map_err(|err| format!("remove failed: {err}"))
+    } else {
+        fs::remove_dir_all(path).map_err(|err| format!("remove failed: {err}"))
+    }
+}
+
+fn symlink_dir(target: &Path, dest: &Path) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink(target, dest)
+    }
+    #[cfg(windows)]
+    {
+        std::os::windows::fs::symlink_dir(target, dest)
+    }
+}
+
 pub fn is_any_skill_outdated() -> bool {
     let home = match home_dir() {
         Some(h) => h,
@@ -407,5 +556,77 @@ mod tests {
     fn embedded_skill_has_frontmatter() {
         assert!(SKILL_MD.contains("name: horizon-gateway"));
         assert!(LOGS_MJS.contains("getHorizonGatewayLogsDir"));
+    }
+
+    #[test]
+    fn project_init_links_claude_and_writes_read_only_mcp() {
+        let dir = tempfile::tempdir().expect("temp");
+        let root = dir.path();
+        fs::create_dir_all(root.join(".gemini")).expect("gemini dir");
+        fs::write(
+            root.join(".gemini/settings.json"),
+            "{\n  \"theme\": \"dark\",\n  \"mcpServers\": { \"other\": { \"command\": \"other\" } }\n}\n",
+        )
+        .expect("settings");
+        fs::create_dir_all(root.join(".cursor")).expect("cursor");
+        fs::write(
+            root.join(".cursor/mcp.json"),
+            "{\n  \"mcpServers\": {\n    \"horizon-gateway\": {\n      \"command\": \"hgc\",\n      \"args\": [\"mcp\", \"--allow-write\"]\n    }\n  }\n}\n",
+        )
+        .expect("cursor mcp");
+
+        let (installed, skipped) = install_project_at(root, false, false);
+        assert!(skipped.is_empty(), "{skipped:?}");
+        assert!(root
+            .join(".agents/skills/horizon-gateway/SKILL.md")
+            .is_file());
+        assert!(root
+            .join(".agents/skills/horizon-gateway/scripts/logs.mjs")
+            .is_file());
+        let claude = root.join(".claude/skills/horizon-gateway");
+        assert!(claude.is_symlink() || claude.join("SKILL.md").is_file());
+        if claude.is_symlink() {
+            assert_eq!(
+                claude.read_link().expect("link").to_string_lossy(),
+                "../../.agents/skills/horizon-gateway"
+            );
+        }
+        assert!(root.join(".windsurf/skills/horizon-gateway").exists());
+
+        let claude_mcp: Value =
+            serde_json::from_str(&fs::read_to_string(root.join(".mcp.json")).expect("mcp"))
+                .expect("json");
+        assert_eq!(
+            claude_mcp["mcpServers"]["horizon-gateway"]["args"],
+            serde_json::json!(["mcp"])
+        );
+        let gemini: Value = serde_json::from_str(
+            &fs::read_to_string(root.join(".gemini/settings.json")).expect("gemini"),
+        )
+        .expect("json");
+        assert_eq!(gemini["theme"], "dark");
+        assert_eq!(gemini["mcpServers"]["other"]["command"], "other");
+        assert_eq!(
+            gemini["mcpServers"]["horizon-gateway"]["args"],
+            serde_json::json!(["mcp"])
+        );
+        let cursor: Value = serde_json::from_str(
+            &fs::read_to_string(root.join(".cursor/mcp.json")).expect("cursor"),
+        )
+        .expect("json");
+        assert_eq!(
+            cursor["mcpServers"]["horizon-gateway"]["args"][1],
+            "--allow-write"
+        );
+
+        let (again, skipped_again) = install_project_at(root, false, false);
+        assert!(skipped_again.is_empty(), "{skipped_again:?}");
+        assert!(
+            again
+                .iter()
+                .any(|item| item.target == "claude" && item.status == "up_to_date")
+                || again.iter().any(|item| item.target == "claude")
+        );
+        let _ = installed;
     }
 }

@@ -8,8 +8,9 @@ Desktop MITM proxy, mock, and domain inspector (Tauri v2 + React). This file is 
 | :--- | :--- | :--- |
 | `src/` | Desktop UI | `src/INDEX.md` |
 | `src-tauri/` | Rust crates | `src-tauri/INDEX.md` |
-| `avatar-parts/` | Overlay pixel SKUs (ASCII JSON) | `avatar-parts/README.md`, skill `avatar-parts` |
-| `.agents/skills/` | Agent CLI / UI conventions | `horizon-gateway`, `watchtower-ui`, `avatar-parts` — do not rewrite |
+| `avatar-parts/` | Overlay pixel SKUs (ASCII JSON) | `avatar-parts/README.md`, `.dev/skills/avatar-parts` |
+| `.agents/skills/` | Published agent skill (`npx skills` / `hgc init`) | `horizon-gateway` |
+| `.dev/skills/` | Internal dev skills, not installed by `npx skills` | `watchtower-ui`, `avatar-parts` |
 | `website/` | Marketing Astro site | `pnpm web:dev` / `pnpm web:build` |
 
 Git root is this directory. Do not import `workspaces/{mesh,foundry,heroes}`.
@@ -24,4 +25,4 @@ From this repo:
 
 Local Supabase (Team / auth / RLS): see `supabase/README.md`. From the workspace root, `pnpm dev:gateway:tauri` starts local Supabase when `VITE_SUPABASE_URL` is localhost.
 
-UI changes: follow `watchtower-ui` (section title outside the card). Network/proxy/mock/logs: `horizon-gateway` skill (`hgc`, `scripts/logs.mjs`).
+UI changes: follow `.dev/skills/watchtower-ui` (section title outside the card). Network/proxy/mock/logs: `horizon-gateway` skill (`hgc`, `scripts/logs.mjs`).
