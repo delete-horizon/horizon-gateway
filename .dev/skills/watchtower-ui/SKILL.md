@@ -7,7 +7,7 @@ description: UI layout, typography, card patterns, spacing, and theme convention
 
 Cursor-style minimal UI conventions for Watchtower (Horizon Gateway). Follow these patterns when adding or refactoring UI.
 
-**Related skills:** [horizon-gateway](../horizon-gateway/SKILL.md) (CLI, API logs, proxy) · page-specific UI/UX guides via `hgc get_annotations`.
+**Related skills:** [horizon-gateway](../../../.agents/skills/horizon-gateway/SKILL.md) (CLI, API logs, proxy) · page-specific UI/UX guides via `hgc get_annotations`.
 
 ---
 

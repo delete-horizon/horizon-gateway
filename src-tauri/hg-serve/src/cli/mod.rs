@@ -1,5 +1,6 @@
 pub mod dispatch_headless;
 pub mod init;
+pub mod mcp;
 pub mod query;
 
 use crate::runtime::CommandEnv;
@@ -167,7 +168,7 @@ pub fn print_cli_error(msg: &str) {
     print_error(msg);
 }
 
-const META_COMMANDS: &[&str] = &["init", "list", "help", "run"];
+const META_COMMANDS: &[&str] = &["init", "list", "help", "mcp", "run"];
 
 /// Strip an optional `cli` prefix and treat a bare command name as `run`.
 ///
@@ -194,9 +195,10 @@ fn print_usage() {
     let output = serde_json::json!({
         "success": true,
         "data": {
-            "usage": "hgc init | list | help <command> | [run] <command> [payload]",
+            "usage": "hgc init | mcp | list | help <command> | [run] <command> [payload]",
             "examples": [
                 "hgc init",
+                "hgc mcp",
                 "hgc list",
                 "hgc help get_proxy_status",
                 "hgc get_proxy_status '{}'",
@@ -270,7 +272,7 @@ pub fn execute_cli(args: &[String], mode: CliExecutionMode<'_>) -> i32 {
     }
 
     let command = &args[0];
-    if command != "init" && init::is_any_skill_outdated() {
+    if command != "init" && command != "mcp" && init::is_any_skill_outdated() {
         cli_eprintln("[horizon-gateway] Notice: Installed agent skill is outdated. Run `hgc init` to update.");
     }
 
@@ -279,6 +281,7 @@ pub fn execute_cli(args: &[String], mode: CliExecutionMode<'_>) -> i32 {
             init::execute_init(&args[1..]);
             0
         }
+        "mcp" => mcp::execute_mcp(&args[1..]),
         "list" => {
             let output = serde_json::json!({
                 "success": true,
@@ -811,6 +814,11 @@ mod parity_tests {
 
     #[test]
     fn normalize_keeps_meta_commands() {
+        assert_eq!(normalize_args(&s(&["mcp"])), s(&["mcp"]));
+        assert_eq!(
+            normalize_args(&s(&["mcp", "--allow-write"])),
+            s(&["mcp", "--allow-write"])
+        );
         assert_eq!(normalize_args(&s(&["list"])), s(&["list"]));
         assert_eq!(
             normalize_args(&s(&["help", "get_api_logs"])),

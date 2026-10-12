@@ -162,7 +162,7 @@ Windows 설치는 머신 단위라 설치할 때 권한 상승이 있습니다. 
 ## AI 에이전트 (`hgc`)
 
 ```bash
-# 현재 프로젝트에 AI 에이전트 스킬을 넣습니다
+# 현재 프로젝트에 스킬과 읽기 전용 MCP 설정을 넣습니다
 hgc init --project
 
 # 사용할 수 있는 명령을 봅니다
@@ -173,7 +173,63 @@ hgc help get_domains
 
 # 명령을 바로 실행합니다
 hgc run get_domains '{}'
+
+# stdio MCP 서버입니다. 기본은 읽기 전용입니다.
+hgc mcp
+hgc mcp --allow-write
+hgc mcp --allow-body
 ```
+
+`hgc init --project`는 `.agents/skills/horizon-gateway`에 스킬을 쓰고, Claude Code용 `.claude/skills/horizon-gateway`과 Windsurf용 `.windsurf/skills/horizon-gateway`로 연결합니다. Cursor, Codex, Gemini CLI, Copilot은 `.agents/skills`를 읽습니다. 같은 명령이 Cursor(`.cursor/mcp.json`), Claude Code(`.mcp.json`), Gemini CLI(`.gemini/settings.json`)에 읽기 전용 MCP 항목을 추가합니다.
+
+### MCP
+
+`hgc mcp`는 stdio에서 MCP `2026-07-28`로 말하고, CLI와 같은 제어 소켓과 로컬 토큰으로 코어에 접속합니다. 프로토콜 버전이 다르면 거부합니다.
+
+기본 도구는 읽기 전용입니다. 프록시 상태, 라우트, 목, 도메인, 설정, 최근 트래픽 요약입니다. 요약은 method, host, 쿼리 값이 가려진 path, status, size, timing만 담고 헤더와 본문은 넣지 않습니다. `Authorization`과 `Cookie`는 나오지 않습니다. 본문 하나는 id로 따로 읽으며 4KB에서 자르고 신뢰할 수 없는 내용으로 표시합니다. `--allow-body` 또는 앱 데이터 디렉터리 `hgc-mcp.json`의 `allowBody`가 없으면 이 도구는 목록에 없습니다.
+
+목과 라우트의 생성·수정·삭제, 프록시 시작·중지는 `--allow-write` 또는 `allowWrite: true`가 필요합니다. PAC 설정, 원격 접근 전환, 토큰 관리, 인증서 설치는 MCP로 열지 않습니다.
+
+Cursor (`.cursor/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "horizon-gateway": {
+      "command": "hgc",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Claude Code (`.mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "horizon-gateway": {
+      "command": "hgc",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Gemini CLI (`.gemini/settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "horizon-gateway": {
+      "command": "hgc",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+상태를 바꾸거나 캡처 본문을 읽혀도 될 때만 `args`에 `"--allow-write"` 또는 `"--allow-body"`를 넣습니다. 저장소 루트의 `server.json`은 MCP Registry용 문서입니다. 레지스트리에 올리려면 설치 가능한 패키지 항목(npm의 `mcpName`, OCI, NuGet, 또는 `fileSha256`이 있는 MCPB)이 더 필요합니다. `hgc`는 데스크톱 빌드에 포함되므로 `packages`는 아직 비어 있습니다.
 
 Windows PowerShell에서 JSON을 넘기는 방법은 [시작 가이드의 hgc 절](./docs/ko/getting-started.md#hgc)에 있습니다.
 

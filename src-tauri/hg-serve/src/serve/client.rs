@@ -2,7 +2,7 @@ use std::io::{BufRead, Write};
 use std::net::TcpStream;
 use std::time::Duration;
 
-use hg_core::{ServeRequest, ServeResponse};
+use hg_core::{ServeRequest, ServeResponse, PROTOCOL_VERSION};
 
 use super::endpoints::command_addr;
 use serde_json::Value;
@@ -20,10 +20,31 @@ pub fn is_port_open(timeout: Duration) -> bool {
 }
 
 /// Dispatch a backend command through the serve IPC channel.
+///
+/// The request carries [`PROTOCOL_VERSION`] and the local serve token. A response
+/// whose protocol version does not match is rejected.
 pub fn call_command(command: &str, payload: Value) -> Result<Value, String> {
-    let request = ServeRequest::new(command, payload).with_token(super::auth::read_token());
+    call_command_at(&command_addr(), super::auth::read_token(), command, payload)
+}
 
-    let response = send_request(&request)?;
+/// Same wire path as [`call_command`], with an explicit socket and token.
+///
+/// MCP and the CLI both go through this function so the protocol check is not
+/// reimplemented per caller.
+pub fn call_command_at(
+    addr: &str,
+    token: Option<String>,
+    command: &str,
+    payload: Value,
+) -> Result<Value, String> {
+    let request = ServeRequest::new(command, payload).with_token(token);
+    let response = send_request(addr, &request)?;
+    if response.protocol_version != PROTOCOL_VERSION {
+        return Err(format!(
+            "unsupported serve protocol version {} (expected {PROTOCOL_VERSION})",
+            response.protocol_version
+        ));
+    }
     if response.ok {
         response
             .data
@@ -35,8 +56,8 @@ pub fn call_command(command: &str, payload: Value) -> Result<Value, String> {
     }
 }
 
-fn send_request(request: &ServeRequest) -> Result<ServeResponse, String> {
-    let endpoint = command_addr();
+fn send_request(addr: &str, request: &ServeRequest) -> Result<ServeResponse, String> {
+    let endpoint = addr;
     let addr: std::net::SocketAddr = endpoint
         .parse()
         .map_err(|e| format!("invalid serve address {endpoint}: {e}"))?;

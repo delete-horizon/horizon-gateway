@@ -101,10 +101,10 @@ Sizes are decimal megabytes of those release files. The same release also has up
 
 ## AI Agent Integration
 
-`hgc` is a separate console program. It does not request administrator rights. `hgc init --project` writes a skill to `.agents/skills/horizon-gateway` in the current directory. Agent targets are cursor, claude, codex, gemini, copilot, and windsurf.
+`hgc` is a separate console program. It does not request administrator rights. `hgc init --project` writes this skill to `.agents/skills/horizon-gateway` and links it into `.claude/skills/horizon-gateway` and `.windsurf/skills/horizon-gateway`. Cursor, Codex, Gemini CLI, and Copilot read the `.agents/skills` copy. The same command adds a read-only MCP server entry for Cursor, Claude Code, and Gemini CLI. The server is `hgc mcp` on stdio.
 
 ```bash
-# Initialize AI agent skills in the current project
+# Initialize the skill and read-only MCP configs in the current project
 hgc init --project
 
 # List all available internal commands
@@ -115,7 +115,61 @@ hgc help get_domains
 
 # Execute a command directly
 hgc run get_domains '{}'
+
+# MCP server for an agent (stdio). Read-only unless flagged.
+hgc mcp
+hgc mcp --allow-write
+hgc mcp --allow-body
 ```
+
+### MCP
+
+`hgc mcp` speaks MCP `2026-07-28` on stdio and calls the local core through the same control socket and token as the CLI. The protocol version must match.
+
+By default the server exposes read-only tools: proxy status, routes, mocks, domains, proxy config, and recent traffic summaries. Summaries include method, host, path (query values redacted), status, size, and timing. They omit headers and bodies, so `Authorization` and `Cookie` are not returned. One captured body is a separate tool, capped at 4 KB and marked untrusted. It is hidden unless you pass `--allow-body` or set `allowBody` in `hgc-mcp.json` in the app data directory.
+
+Creating, updating, or deleting mocks and routes, and starting or stopping the proxy, require `--allow-write` or `"allowWrite": true` in that file. PAC changes, remote-access toggles, token management, and certificate install are not exposed.
+
+Cursor (`.cursor/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "horizon-gateway": {
+      "command": "hgc",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Claude Code (`.mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "horizon-gateway": {
+      "command": "hgc",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Gemini CLI (`.gemini/settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "horizon-gateway": {
+      "command": "hgc",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Add `"--allow-write"` or `"--allow-body"` to `args` only when that agent should be allowed to change state or read a captured body. `server.json` at the repository root is the MCP Registry document. Publishing still needs an installable package entry (npm with `mcpName`, OCI, NuGet, or an MCPB file plus `fileSha256`). `hgc` ships with the desktop build, so the registry file has no `packages` entry yet.
 
 ---
 

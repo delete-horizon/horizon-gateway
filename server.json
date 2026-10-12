@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.delete-horizon/horizon-gateway",
+  "title": "Horizon Gateway",
+  "description": "Read-only tools for the local Horizon Gateway proxy, routes, mocks, and traffic.",
+  "version": "2.8.15",
+  "websiteUrl": "https://gateway.delete-horizon.com",
+  "repository": {
+    "url": "https://github.com/delete-horizon/horizon-gateway",
+    "source": "github",
+    "id": "1153265292"
+  },
+  "_meta": {
+    "io.modelcontextprotocol.registry/publisher-provided": {
+      "transport": "stdio",
+      "command": "hgc",
+      "args": ["mcp"],
+      "note": "hgc ships with the desktop build. Registry publish still needs an npm (mcpName), OCI, NuGet, or MCPB package entry with fileSha256. Do not add --allow-write or --allow-body to the default install."
+    }
+  }
+}
