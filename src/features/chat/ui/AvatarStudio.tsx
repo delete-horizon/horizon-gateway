@@ -1,4 +1,3 @@
-import { listen } from "@tauri-apps/api/event";
 import { useAtomValue } from "jotai";
 import { Copy, Pencil, Plus, RefreshCw, Save, User } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -20,6 +19,7 @@ import {
   type StudioPart,
   setGlyphCell,
 } from "@/entities/chat";
+import { listen } from "@/shared/lib/tauri/client";
 import { AVATAR_EDITOR_OPEN_EVENT, openAvatarDressWindow } from "@/shared/lib/tauri/openChatWindow";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";

@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { listen } from "@tauri-apps/api/event";
 import { useEffect } from "react";
 import { TeamWorkspaceShell } from "@/entities/team";
 import { commands } from "@/shared/api";
+import { listen } from "@/shared/lib/tauri/client";
 import { openAvatarDressWindow } from "@/shared/lib/tauri/openChatWindow";
 
 function menuFromOpenPath(path: string): "avatar" | null {

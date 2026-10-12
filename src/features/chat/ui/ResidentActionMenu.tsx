@@ -1,4 +1,3 @@
-import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useState } from "react";
@@ -16,6 +15,7 @@ import {
 } from "@/entities/chat";
 import { activeWorkspaceIdAtom } from "@/entities/team";
 import { commands, unwrap } from "@/shared/api";
+import { listen } from "@/shared/lib/tauri/client";
 
 export const RESIDENT_ACTION_EVENT = "resident-action-target";
 
