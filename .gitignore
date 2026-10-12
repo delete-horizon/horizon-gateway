@@ -9,6 +9,9 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+/mcp-publisher
+/mcp-publisher_*.tar.gz
+/registry_*_checksums.txt
 *.local
 .env
 .env.*

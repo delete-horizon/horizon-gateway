@@ -5,14 +5,17 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: read
+
 jobs:
   # 0. Fail fast if git tag != package/tauri/Cargo versions (prevents latest.json lying)
   verify-version:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
       - name: verify tag matches package / tauri.conf / Cargo.toml
@@ -27,14 +30,14 @@ jobs:
     outputs:
       release_id: ${{ steps.create_release.outputs.id }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
       - name: create release
         id: create_release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           # 푸시된 태그 이름을 사용하여 Draft를 만듭니다.
           tag_name: ${{ github.ref_name }}
@@ -45,6 +48,7 @@ jobs:
           prerelease: false
 
   # 2. 빌드 및 에셋 업로드 (매트릭스)
+  # macOS hgc is built inside the desktop bundle and is not uploaded for MCPB.
   publish:
     needs: [verify-version, create-release] # 버전 검증 + 릴리스 생성 완료 대기
     permissions:
@@ -55,37 +59,40 @@ jobs:
         include:
           - platform: "macos-latest"
             args: "--target aarch64-apple-darwin"
+            mcpb: ""
           - platform: "macos-latest"
             args: "--target x86_64-apple-darwin"
+            mcpb: ""
           - platform: "ubuntu-22.04"
             args: ""
+            mcpb: "linux"
           - platform: "windows-latest"
             args: ""
+            mcpb: "windows"
 
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # Re-check on each runner so a bad matrix job cannot upload mismatched artifacts
       - name: verify tag matches package / tauri.conf / Cargo.toml
         run: node scripts/verify-release-version.mjs "${{ github.ref_name }}"
 
-      # 1. pnpm 설치 (새로 추가된 부분!)
       - name: install pnpm
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 10.26.0
 
-      # 2. Node.js 설정 및 pnpm 캐시 활성화
       - name: setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
-          cache: 'pnpm' # 매번 다운로드하지 않도록 캐싱 추가
+          cache: "pnpm"
 
       - name: install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
         with:
+          toolchain: stable
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: install dependencies (ubuntu only)
@@ -94,11 +101,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 
-      # 3. 이제 정상적으로 실행됩니다!
       - name: install frontend dependencies
         run: pnpm install
 
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -108,18 +114,85 @@ jobs:
           # Official WinDivert x64 redistributable (dll/lib/sys) for dynamic link on Windows
           WINDIVERT_PATH: ${{ github.workspace }}/src-tauri/hg-gui/resources/windivert
         with:
-          # 중요: 위에서 생성된 Release ID를 그대로 사용합니다.
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
 
-  # 3. SHA256SUMS for installer and updater binaries.
-  # Included: every asset publish uploaded, except the exclusions below.
+      - name: Stage hgc for the MCPB bundle
+        if: matrix.mcpb == 'linux' || matrix.mcpb == 'windows'
+        run: node scripts/stage-hgc-for-mcpb.mjs mcpb-staging
+
+      - name: Upload Linux hgc for the MCPB bundle
+        if: matrix.mcpb == 'linux'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: hgc-mcpb-linux
+          path: mcpb-staging/hgc
+          if-no-files-found: error
+
+      - name: Upload Windows hgc for the MCPB bundle
+        if: matrix.mcpb == 'windows'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: hgc-mcpb-windows
+          path: mcpb-staging/hgc.exe
+          if-no-files-found: error
+
+  # One .mcpb for Windows x64 and Linux x64. macOS stays out of the bundle.
+  package-mcpb:
+    needs: publish
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: setup node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+
+      - name: Download hgc binaries
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: hgc-mcpb-*
+          path: mcpb-inputs
+
+      - name: Pack horizon-gateway.mcpb
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          node scripts/pack-hgc-mcpb.mjs \
+            --linux mcpb-inputs/hgc-mcpb-linux/hgc \
+            --windows mcpb-inputs/hgc-mcpb-windows/hgc.exe \
+            --version "$version" \
+            --out dist/horizon-gateway.mcpb \
+            --server-json dist/server.json
+
+      - name: Upload MCPB to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release upload "${GITHUB_REF_NAME}" \
+            dist/horizon-gateway.mcpb \
+            --repo "${GITHUB_REPOSITORY}" \
+            --clobber
+
+      - name: Upload generated server.json
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: mcp-registry-server-json
+          path: dist/server.json
+          if-no-files-found: error
+
+  # 3. SHA256SUMS for installer and updater binaries, plus horizon-gateway.mcpb.
+  # Included: every asset publish and package-mcpb uploaded, except the exclusions below.
   # Excluded: *.sig (Tauri minisign signatures) and latest.json (updater manifest).
   # A previous SHA256SUMS is not an input, so a re-run does not hash itself.
   # Line format: "<64 lowercase hex><two spaces><filename>", LC_ALL=C sorted by filename.
   # Uses the runner's gh. No extra action, so nothing new to pin.
   sha256sums:
-    needs: publish
+    needs: [publish, package-mcpb]
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -137,6 +210,7 @@ jobs:
             --clobber
           echo "Downloaded assets:"
           find release-assets -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort
+          test -f release-assets/horizon-gateway.mcpb
 
       - name: Write SHA256SUMS
         shell: bash
@@ -162,6 +236,7 @@ jobs:
             cat SHA256SUMS >&2
             exit 1
           fi
+          grep -q '  horizon-gateway.mcpb$' SHA256SUMS
           cut -c67- SHA256SUMS | LC_ALL=C sort -c
           echo "SHA256SUMS ($(wc -l < SHA256SUMS) files):"
           cat SHA256SUMS
@@ -176,3 +251,61 @@ jobs:
             release-assets/SHA256SUMS \
             --repo "${GITHUB_REPOSITORY}" \
             --clobber
+
+      # The registry HEADs the .mcpb URL with no token. Draft assets are not public.
+      # This stays off until MCP_REGISTRY_PUBLISH is exactly true.
+      - name: Publish the GitHub release when registry publishing is enabled
+        if: vars.MCP_REGISTRY_PUBLISH == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release edit "${GITHUB_REF_NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --draft=false
+
+  # Official MCP Registry. Tag pushes only. Never pull_request or pull_request_target.
+  # id-token: write is only on this job. Stays off until the repo variable is true.
+  publish-mcp-registry:
+    needs: [package-mcpb, sha256sums]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && vars.MCP_REGISTRY_PUBLISH == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Download generated server.json
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: mcp-registry-server-json
+          path: dist
+
+      - name: Install mcp-publisher
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/install-mcp-publisher.sh
+
+      - name: Wait until the MCPB URL is public
+        run: |
+          set -euo pipefail
+          url="$(jq -r '.packages[0].identifier' dist/server.json)"
+          echo "checking ${url}"
+          for _attempt in 1 2 3 4 5 6; do
+            code="$(curl -sS -o /dev/null -w '%{http_code}' -I "${url}" || true)"
+            echo "HEAD ${code}"
+            if [ "${code}" = "200" ] || [ "${code}" = "302" ]; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "MCPB URL is not publicly reachable. Draft release assets fail the registry HEAD check." >&2
+          exit 1
+
+      - name: Authenticate to MCP Registry
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish server to MCP Registry
+        run: ./mcp-publisher publish dist/server.json

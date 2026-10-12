@@ -68,6 +68,12 @@ function main() {
 		writeFileSync(cargoPath, cargo);
 	}
 
+	const serverPath = join(ROOT, "server.json");
+	let serverJson = readFileSync(serverPath, "utf8");
+	serverJson = serverJson.replaceAll(`"version": "${current}"`, `"version": "${next}"`);
+	serverJson = serverJson.replaceAll(`/download/v${current}/`, `/download/v${next}/`);
+	writeFileSync(serverPath, serverJson);
+
 	const appMetaPath = join(ROOT, "src", "shared", "lib", "appMeta.ts");
 	let appMeta = readFileSync(appMetaPath, "utf8");
 	appMeta = appMeta.replace(
