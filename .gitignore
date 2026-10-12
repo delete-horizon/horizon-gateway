@@ -11,6 +11,9 @@ dist
 dist-ssr
 *.local
 .env
+.env.*
+!.env.example
+!.env.sample
 .turbo/
 .tanstack/
 
@@ -39,6 +42,23 @@ src-tauri/hg-serve/resources/horizon-gateway-serve*
 # Tauri signing keys (never commit private key!)
 .tauri/
 *.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+*.keystore
+
+# Local config and credential dumps
+config.local.*
+credentials.json
+secrets.json
+*.secret
 
 # AI Agent workspace config and scratch files
 .gemini/

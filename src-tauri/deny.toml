@@ -1,0 +1,21 @@
+# Advisory and source checks for the src-tauri workspace.
+# CI runs `cargo deny check advisories sources`.
+# A license allow-list is not set; that needs a separate policy decision.
+
+[advisories]
+yanked = "warn"
+# Transitive unmaintained crates come from Tauri and other upstreams.
+# Direct workspace dependencies are still rejected.
+unmaintained = "workspace"
+ignore = [
+  { id = "RUSTSEC-2026-0118", reason = "hickory-proto 0.25 has no patched release; 0.26 is outside the 0.25 requirement" },
+  { id = "RUSTSEC-2026-0119", reason = "fix is hickory-proto >=0.26.1, a breaking upgrade from the direct 0.25 dependency" },
+  { id = "RUSTSEC-2026-0194", reason = "quick-xml fix is >=0.41; plist 1.8 via Tauri still requires 0.38" },
+  { id = "RUSTSEC-2026-0195", reason = "quick-xml fix is >=0.41; plist 1.8 via Tauri still requires 0.38" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
