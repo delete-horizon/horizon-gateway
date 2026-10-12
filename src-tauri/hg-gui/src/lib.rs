@@ -10,6 +10,7 @@ mod logging;
 pub mod serve;
 
 mod command {
+    pub mod system_proxy_commands;
     pub mod window_commands;
     pub mod windows_update;
 }
@@ -19,6 +20,7 @@ use comm_overlay::{
     set_comm_overlay_tool, show_comm_bubble, sync_comm_residents, take_overlay_resident_click,
     take_overlay_resident_context,
 };
+use command::system_proxy_commands::{clear_system_pac, set_system_pac};
 use command::window_commands::{
     app_shell_role, capture_app_screenshot, clear_incoming_cards, dismiss_incoming_card,
     ensure_serve_running, fit_resident_composer, list_incoming_cards,
@@ -48,6 +50,8 @@ pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         open_inspector_window,
         open_annotation_dialog,
         quit_app,
+        set_system_pac,
+        clear_system_pac,
         prepare_for_update,
         ensure_serve_running,
         install_windows_update,
@@ -191,6 +195,15 @@ fn run_inner(is_workspace: bool, context: tauri::Context<tauri::Wry>) {
 
             if !is_cli_mode {
                 crate::serve::start_event_forwarder(app.handle().clone());
+            }
+
+            // macOS: the tray must be created on this process's main thread.
+            // Tauri runs `setup` there. Workspace does not install a second icon.
+            // Serve never starts a tray, so this is the only place that constraint lives.
+            if crate::serve::shell_owns_system_tray(is_workspace) {
+                if let Err(err) = crate::serve::install_system_tray(app.handle()) {
+                    tracing::warn!("[gui] system tray: {err}");
+                }
             }
 
             Ok(())

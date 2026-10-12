@@ -1,15 +1,6 @@
 fn clear_system_pac() {
-    #[cfg(windows)]
-    {
-        use winreg::enums::{HKEY_CURRENT_USER, KEY_SET_VALUE};
-        use winreg::RegKey;
-        if let Ok(hkcu) = RegKey::predef(HKEY_CURRENT_USER).open_subkey_with_flags(
-            "Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings",
-            KEY_SET_VALUE,
-        ) {
-            let _ = hkcu.delete_value("AutoConfigURL");
-            let _ = hkcu.set_value("ProxyEnable", &0u32);
-        }
+    if let Err(err) = super::system_proxy::SystemProxyService::clear_pac_url() {
+        tracing::warn!("[gui] clear system PAC: {err}");
     }
 }
 

@@ -10,6 +10,8 @@ const GUI_ONLY_COMMANDS: &[&str] = &[
     "open_annotation_dialog",
     "open_external_url",
     "quit_app",
+    "set_system_pac",
+    "clear_system_pac",
     "prepare_for_update",
     "ensure_serve_running",
     "install_windows_update",
@@ -55,6 +57,14 @@ mod tests {
     fn quit_app_stays_in_gui() {
         assert!(is_gui_only("quit_app"));
         assert!(!should_forward("quit_app"));
+    }
+
+    #[test]
+    fn system_pac_commands_stay_in_the_shell() {
+        for cmd in ["set_system_pac", "clear_system_pac"] {
+            assert!(is_gui_only(cmd), "{cmd} must stay in the shell");
+            assert!(!should_forward(cmd), "{cmd} must not forward to serve");
+        }
     }
 
     #[test]

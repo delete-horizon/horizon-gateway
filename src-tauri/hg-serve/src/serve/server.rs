@@ -30,12 +30,12 @@ pub fn run_serve() -> i32 {
 }
 
 /// Env var that selects headless process mode. Desktop sidecar spawn does not set this.
+/// The process shape is the same either way: this binary never starts a tray.
+/// The flag only keeps the log line the headless CI smoke looks for.
 const HG_SERVE_HEADLESS_ENV: &str = "HG_SERVE_HEADLESS";
 
-/// Desktop `serve_loop` calls `tray::start()` (GUI spawn lives only there).
-/// `HG_SERVE_HEADLESS=1` is the only value that skips that branch.
-fn tray_branch_enabled(env_value: Option<&str>) -> bool {
-    env_value != Some("1")
+fn headless_flag_set(env_value: Option<&str>) -> bool {
+    env_value == Some("1")
 }
 
 fn serve_loop(rt: tokio::runtime::Runtime) -> Result<(), String> {
@@ -140,37 +140,18 @@ fn serve_loop(rt: tokio::runtime::Runtime) -> Result<(), String> {
         });
     }
 
-    // `HG_SERVE_HEADLESS=1` (CI / containers): skip `tray::start()`. GUI spawn
-    // (`find_gui_exe` / `open_gui`) runs only from the tray. `accept_loop` stays
-    // on this thread on every OS so the process remains alive without a display.
-    // Unset or any other value keeps the desktop blocks below unchanged.
-    if !tray_branch_enabled(std::env::var(HG_SERVE_HEADLESS_ENV).ok().as_deref()) {
+    // The desktop shell owns the tray, including the macOS main-thread constraint.
+    // This process only accepts IPC, on every OS. `HG_SERVE_HEADLESS=1` does not
+    // change that shape; it keeps the log line the CI smoke asserts.
+    if headless_flag_set(std::env::var(HG_SERVE_HEADLESS_ENV).ok().as_deref()) {
         tracing::info!(
             "[serve] headless: tray and GUI spawn skipped; IPC accept loop holds the process"
         );
-        accept_loop(listener, ctx, rt, token);
-        return Ok(());
+    } else {
+        tracing::info!("[serve] desktop shell owns the tray; IPC accept loop holds the process");
     }
-
-    #[cfg(not(windows))]
-    {
-        let ctx_ipc = Arc::clone(&ctx);
-        let rt_ipc = Arc::clone(&rt);
-        std::thread::Builder::new()
-            .name("serve-ipc".into())
-            .spawn(move || accept_loop(listener, ctx_ipc, rt_ipc, token))
-            .map_err(|e| format!("failed to start serve IPC thread: {e}"))?;
-        // macOS requires the tray event loop on the main thread.
-        super::tray::start();
-        return Ok(());
-    }
-
-    #[cfg(windows)]
-    {
-        super::tray::start();
-        accept_loop(listener, ctx, rt, token);
-        return Ok(());
-    }
+    accept_loop(listener, ctx, rt, token);
+    Ok(())
 }
 
 fn accept_loop(
@@ -279,6 +260,14 @@ pub(crate) fn bind_loopback(preferred: u16) -> Result<TcpListener, String> {
     }
 }
 
+fn shutdown_serve_process() {
+    let _ = crate::command::local_route_commands::stop_local_proxy_svc(None);
+    let _ = crate::command::transparent_proxy_commands::stop_transparent_proxy_svc();
+    super::events::publish_event("serve-stopping", ());
+    std::thread::sleep(std::time::Duration::from_millis(250));
+    std::process::exit(0);
+}
+
 fn dispatch_serve_request(
     request: &ServeRequest,
     ctx: &AppContext,
@@ -298,10 +287,11 @@ fn dispatch_serve_request(
     }
 
     if request.command == "shutdown_serve" {
-        // Reply first so the GUI can observe success, then exit this elevated process.
+        // Reply first so the GUI can observe success, then exit this process.
+        // OS PAC is cleared by the shell before it asks serve to stop.
         std::thread::spawn(|| {
             std::thread::sleep(std::time::Duration::from_millis(100));
-            super::tray::quit_serve();
+            shutdown_serve_process();
         });
         return ServeResponse::success(
             request.id.clone(),
@@ -325,21 +315,22 @@ fn dispatch_serve_request(
 mod tests {
     use std::net::{Ipv4Addr, SocketAddr, TcpListener};
 
-    use super::{bind_loopback, tray_branch_enabled, HG_SERVE_HEADLESS_ENV};
+    use super::{bind_loopback, headless_flag_set, HG_SERVE_HEADLESS_ENV};
 
     #[test]
-    fn headless_flag_skips_tray_branch() {
+    fn default_path_matches_headless_without_a_tray() {
         assert_eq!(HG_SERVE_HEADLESS_ENV, "HG_SERVE_HEADLESS");
+        assert!(!headless_flag_set(None));
+        assert!(!headless_flag_set(Some("")));
+        assert!(!headless_flag_set(Some("0")));
+        assert!(!headless_flag_set(Some("true")));
+        assert!(headless_flag_set(Some("1")));
+
+        let src = include_str!("server.rs");
+        let tray_start = ["tray", "::start"].concat();
         assert!(
-            tray_branch_enabled(None),
-            "unset keeps the desktop tray path"
-        );
-        assert!(tray_branch_enabled(Some("")));
-        assert!(tray_branch_enabled(Some("0")));
-        assert!(tray_branch_enabled(Some("true")));
-        assert!(
-            !tray_branch_enabled(Some("1")),
-            "HG_SERVE_HEADLESS=1 skips tray::start and the GUI spawn inside it"
+            !src.contains(&tray_start),
+            "serve must not start a tray; the desktop shell owns it"
         );
     }
 

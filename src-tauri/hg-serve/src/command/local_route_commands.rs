@@ -8,7 +8,6 @@ use crate::service::domain_service::DomainService;
 use crate::service::local_proxy;
 use crate::service::local_route_service::LocalRouteService;
 use crate::service::proxy_settings_service::ProxySettingsService;
-use crate::service::system_proxy_service::SystemProxyService;
 use std::fmt::Write;
 use std::io;
 use std::sync::atomic::{AtomicU16, Ordering};
@@ -604,11 +603,8 @@ pub async fn start_local_proxy_svc(
     let mut guard = PROXY_HANDLES.lock().map_err(|e| e.to_string())?;
     *guard = handles;
 
-    // Set system PAC URL
-    let pac_url = format!("http://127.0.0.1:{port}/.horizon-gateway/proxy.pac");
-    if let Err(e) = SystemProxyService::set_pac_url(&pac_url) {
-        eprintln!("Failed to set system proxy: {e}");
-    }
+    // OS PAC is applied by the desktop shell when it sees `proxy-status-changed`.
+    // This process only owns the listener. PAC stays unchanged until that shell is up.
 
     let payload = ProxyStatusPayload {
         running: true,
@@ -709,8 +705,7 @@ pub fn stop_local_proxy_svc(app: Option<()>) -> Result<ApiResponse<ProxyStatusPa
         h.abort();
     }
 
-    // Clear system PAC URL
-    let _ = SystemProxyService::clear_pac_url();
+    // The desktop shell clears OS PAC when it receives the stopped status.
     crate::service::proxy_runtime_state::ProxyRuntimeStateService::clear_state();
 
     let _ = PROXY_PORT.swap(0, Ordering::Relaxed);
@@ -822,7 +817,9 @@ pub fn set_https_decrypt_host_svc(
 
 // ── Auto-start (called from setup hook) ────────────────────────────────
 
-/// Start the proxy using persisted settings. Designed to be called once from the Tauri setup hook.
+/// Open the proxy listener from persisted settings. Does not change OS PAC.
+/// The desktop shell applies PAC after `proxy-status-changed`, or when it
+/// syncs status after subscribing. Until that shell is up, PAC is untouched.
 #[allow(clippy::too_many_arguments)]
 pub async fn auto_start_proxy(
     app_handle: Option<()>,
@@ -948,12 +945,6 @@ pub async fn auto_start_proxy(
     let mut guard = PROXY_HANDLES.lock().map_err(|e| e.to_string())?;
     *guard = handles;
 
-    // Set system PAC URL
-    let pac_url = format!("http://127.0.0.1:{port}/.horizon-gateway/proxy.pac");
-    if let Err(e) = SystemProxyService::set_pac_url(&pac_url) {
-        tracing::warn!("[auto-start] Failed to set system proxy: {e}");
-    }
-
     emit_proxy_status(app_handle.as_ref(), &current_proxy_status());
 
     let mut msg = format!("[auto-start] Proxy on {bound_addr}");
@@ -965,6 +956,26 @@ pub async fn auto_start_proxy(
     }
     eprintln!("{msg}");
     Ok(())
+}
+
+#[cfg(test)]
+mod system_integration_tests {
+    #[test]
+    fn listener_commands_do_not_touch_the_os_proxy() {
+        let src = include_str!("local_route_commands.rs");
+        let set_pac = ["set_", "pac_url"].concat();
+        let clear_pac = ["clear_", "pac_url"].concat();
+        let service = ["System", "ProxyService"].concat();
+        assert!(!src.contains(&set_pac), "serve must not set the OS PAC URL");
+        assert!(
+            !src.contains(&clear_pac),
+            "serve must not clear the OS PAC URL"
+        );
+        assert!(
+            !src.contains(&service),
+            "OS proxy settings stay in the desktop shell"
+        );
+    }
 }
 
 #[cfg(test)]

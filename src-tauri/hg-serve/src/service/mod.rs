@@ -17,7 +17,6 @@ pub mod pipeline_library_service;
 pub mod pipeline_runner;
 pub mod proxy_runtime_state;
 pub mod proxy_settings_service;
-pub mod system_proxy_service;
 pub mod transparent_proxy_service;
 pub mod tunnel_service;
 pub mod usb_service;

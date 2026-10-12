@@ -2,29 +2,11 @@ use std::{env, fs, path::PathBuf};
 
 fn main() {
     embed_inspector_js();
-    copy_tray_icon();
     #[cfg(windows)]
     {
         embed_admin_manifest();
         copy_windivert_sidecars();
     }
-}
-
-fn copy_tray_icon() {
-    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let src = manifest_dir
-        .join("..")
-        .join("hg-gui")
-        .join("icons")
-        .join("icon.ico");
-    println!("cargo:rerun-if-changed=../hg-gui/icons/icon.ico");
-    if !src.is_file() {
-        return;
-    }
-    let Some(dir) = profile_output_dir() else {
-        return;
-    };
-    let _ = fs::copy(&src, dir.join("icon.ico"));
 }
 
 /// `windivert` links `WinDivert.dll` dynamically. The loader only searches next
@@ -57,6 +39,7 @@ fn copy_windivert_sidecars() {
     }
 }
 
+#[cfg(windows)]
 fn profile_output_dir() -> Option<PathBuf> {
     let out_dir = env::var("OUT_DIR").ok()?;
     let mut dir = PathBuf::from(out_dir);
