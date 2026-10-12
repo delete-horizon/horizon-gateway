@@ -20,6 +20,16 @@ use super::super::reserved::{
 };
 use super::super::state::ProxyState;
 
+/// `delay_ms` from the injection mock editor. `None` when the field is absent.
+pub(crate) fn json_delay_ms(payload: &serde_json::Value) -> Option<u64> {
+    let value = payload.get("delay_ms")?;
+    value.as_u64().or_else(|| match value.as_i64() {
+        Some(n) if n <= 0 => Some(0),
+        Some(n) => u64::try_from(n).ok(),
+        None => None,
+    })
+}
+
 /// Handled API / reserved-path requests. `Err(req)` means the caller should continue the pipeline.
 pub(crate) async fn try_handle_api(
     state: &Arc<ProxyState>,
@@ -286,6 +296,7 @@ pub(crate) async fn try_handle_api(
                             None,
                             None,
                             Some(enabled),
+                            None,
                         );
                     }
                 } else if let Some(id) = payload.get("id").and_then(|v| v.as_str()) {
@@ -299,6 +310,7 @@ pub(crate) async fn try_handle_api(
                         None,
                         None,
                         Some(enabled),
+                        None,
                     );
                 }
                 let _ = state.emit("mock-rules-updated", ());
@@ -355,6 +367,7 @@ pub(crate) async fn try_handle_api(
                         .ok()
                     })
                     .unwrap_or_default();
+                let delay_ms = json_delay_ms(&payload);
 
                 if let Some(rule_id) = id {
                     state.mocking_service.update_mock_rule(
@@ -367,6 +380,7 @@ pub(crate) async fn try_handle_api(
                         Some(response_headers),
                         response_body,
                         Some(enabled),
+                        delay_ms,
                     );
                 } else {
                     state.mocking_service.create_mock_rule(
@@ -379,6 +393,7 @@ pub(crate) async fn try_handle_api(
                         response_headers,
                         response_body,
                         enabled,
+                        delay_ms.unwrap_or(0),
                     );
                 }
                 let _ = state.emit("mock-rules-updated", ());

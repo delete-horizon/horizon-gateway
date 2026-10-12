@@ -1,4 +1,4 @@
-use crate::model::mock_rule::MockRule;
+use crate::model::mock_rule::{clamp_mock_delay_ms, MockRule};
 use crate::model::mocking_settings::MockingSettings;
 use crate::model::scenario::Scenario;
 use crate::storage::versioned::{load_versioned, save_versioned};
@@ -271,6 +271,7 @@ impl MockingService {
         response_headers: std::collections::HashMap<String, String>,
         response_body: Option<String>,
         enabled: bool,
+        delay_ms: u64,
     ) -> MockRule {
         let resolved_scenario_id = scenario_id
             .filter(|id| !id.is_empty())
@@ -287,6 +288,7 @@ impl MockingService {
             response_headers: Self::sanitize_headers(response_headers),
             response_body,
             enabled,
+            delay_ms: clamp_mock_delay_ms(delay_ms),
         };
         list.push(rule.clone());
         self.save_mock_rules(&list);
@@ -305,6 +307,7 @@ impl MockingService {
         response_headers: Option<std::collections::HashMap<String, String>>,
         response_body: Option<String>,
         enabled: Option<bool>,
+        delay_ms: Option<u64>,
     ) -> Option<MockRule> {
         let mut list = self.mock_rules.lock().unwrap();
         let mut updated = None;
@@ -333,6 +336,9 @@ impl MockingService {
                 }
                 if let Some(e) = enabled {
                     r.enabled = e;
+                }
+                if let Some(delay) = delay_ms {
+                    r.delay_ms = clamp_mock_delay_ms(delay);
                 }
                 updated = Some(r.clone());
                 break;
@@ -431,6 +437,7 @@ mod tests {
             headers,
             Some(r#"{"ok":true}"#.to_string()),
             true,
+            15,
         );
 
         assert_eq!(rule.scenario_id, scenario.id);
@@ -451,12 +458,14 @@ mod tests {
                 None,
                 None,
                 Some(false),
+                None,
             )
             .unwrap();
 
         assert_eq!(updated.url_pattern, "/api/test2");
         assert_eq!(updated.response_status, 201);
         assert!(!updated.enabled);
+        assert_eq!(updated.delay_ms, 15);
 
         // Cascade delete: Deleting scenario should delete its rules
         service.delete_scenario(scenario.id.clone());
@@ -488,6 +497,7 @@ mod tests {
             headers,
             None,
             true,
+            0,
         );
         assert_eq!(rule.scenario_id, default.id);
     }
@@ -508,5 +518,104 @@ mod tests {
         let settings = service.set_enabled(false);
         assert!(!settings.enabled);
         assert!(!service.get_settings().enabled);
+    }
+
+    #[test]
+    fn delay_is_clamped_when_stored_and_survives_reload() {
+        let dir = tempdir().unwrap();
+        let scenarios_path = dir.path().join("scenarios.json");
+        let rules_path = dir.path().join("rules.json");
+        let settings_path = dir.path().join("settings.json");
+
+        let service = MockingService::new(
+            scenarios_path.clone(),
+            rules_path.clone(),
+            settings_path.clone(),
+        );
+        let rule = service.create_mock_rule(
+            "Slow".to_string(),
+            None,
+            None,
+            "GET".to_string(),
+            "/slow".to_string(),
+            200,
+            HashMap::new(),
+            None,
+            true,
+            u64::MAX,
+        );
+        assert_eq!(rule.delay_ms, crate::model::mock_rule::MAX_MOCK_DELAY_MS);
+
+        let lowered = service
+            .update_mock_rule(
+                rule.id.clone(),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                Some(40),
+            )
+            .unwrap();
+        assert_eq!(lowered.delay_ms, 40);
+
+        let unchanged = service
+            .update_mock_rule(
+                rule.id.clone(),
+                Some("Slow renamed".to_string()),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+        assert_eq!(unchanged.delay_ms, 40);
+
+        let reloaded = MockingService::new(scenarios_path, rules_path, settings_path);
+        let stored = reloaded
+            .get_mock_rules()
+            .into_iter()
+            .find(|r| r.id == rule.id)
+            .unwrap();
+        assert_eq!(stored.delay_ms, 40);
+        assert_eq!(stored.name, "Slow renamed");
+    }
+
+    #[test]
+    fn legacy_rule_file_without_delay_loads_as_zero() {
+        let dir = tempdir().unwrap();
+        let rules_path = dir.path().join("rules.json");
+        let legacy = r#"{
+            "schema_version": 2,
+            "data": [{
+                "id": "legacy",
+                "name": "Legacy",
+                "scenario_id": "s-legacy",
+                "host": null,
+                "method": "GET",
+                "url_pattern": "/legacy",
+                "response_status": 200,
+                "response_headers": {},
+                "response_body": null,
+                "enabled": true
+            }]
+        }"#;
+        std::fs::write(&rules_path, legacy).unwrap();
+
+        let service = MockingService::new(
+            dir.path().join("scenarios.json"),
+            rules_path,
+            dir.path().join("settings.json"),
+        );
+        let rules = service.get_mock_rules();
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].delay_ms, 0);
     }
 }
