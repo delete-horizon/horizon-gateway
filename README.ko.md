@@ -150,17 +150,27 @@ Windows 설치는 머신 단위라 설치할 때 권한 상승이 있습니다. 
 
 ## 다운로드 검증
 
-릴리스의 `SHA256SUMS`는 설치 파일과 업데이터 바이너리(`.exe`, `.dmg`, `.deb`, `.rpm`, `.AppImage`, `.app.tar.gz`)의 SHA-256입니다. `.sig`는 앱 업데이트용 minisign 서명이며, `latest.json`은 업데이트 목록입니다. 이 둘은 `SHA256SUMS`에 없습니다. 각 줄은 `<해시>  <파일 이름>`(공백 두 칸)이고, 파일 이름 순으로 정렬되어 있습니다.
+`SHA256SUMS`는 [v2.8.15](https://github.com/delete-horizon/horizon-gateway/releases/tag/v2.8.15) 다음 릴리스부터 첨부됩니다. v2.8.15와 그 이전 릴리스에는 이 파일이 없습니다.
+
+`SHA256SUMS`는 설치 파일과 업데이터 바이너리(`.exe`, `.dmg`, `.deb`, `.rpm`, `.AppImage`, `.app.tar.gz`)의 SHA-256입니다. `.sig`는 앱 업데이트용 minisign 서명이며, `latest.json`은 업데이트 목록입니다. 이 둘은 `SHA256SUMS`에 없습니다. 각 줄은 `<해시>  <파일 이름>`(공백 두 칸)이고, 파일 이름 순으로 정렬되어 있습니다.
 
 `SHA256SUMS`와 확인하려는 파일을 같은 폴더에 받습니다.
 
-Linux와 macOS에서는 GNU `sha256sum`을 씁니다. macOS에는 `brew install coreutils`로 설치합니다.
+Linux:
 
 ```bash
 sha256sum -c SHA256SUMS --ignore-missing
 ```
 
 `--ignore-missing`은 폴더에 있는 파일만 검사하고, 받지 않은 이름은 건너뜁니다.
+
+macOS에서는 기본으로 들어 있는 `shasum`으로 받은 파일만 검사합니다. `<version>`은 앞의 `v`를 뺀 릴리스 버전으로 바꿉니다. 파일 이름 앞의 공백은 공백 두 칸 형식의 그 줄만 고릅니다. Apple Silicon:
+
+```bash
+grep ' horizon-gateway_<version>_aarch64.dmg$' SHA256SUMS | shasum -a 256 -c -
+```
+
+Intel은 같은 명령에서 `horizon-gateway_<version>_x64.dmg`를 씁니다.
 
 Windows PowerShell:
 
