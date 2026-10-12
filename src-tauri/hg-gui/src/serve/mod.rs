@@ -6,6 +6,8 @@ mod events_client;
 mod forward;
 mod router;
 mod spawn;
+mod system_proxy;
+mod system_tray;
 mod tray;
 
 pub use client::{call_command, invoke_args_to_payload, ping};
@@ -16,4 +18,6 @@ pub use router::wrap_invoke_handler;
 pub use spawn::{
     hgc_exe_path, hub_exe_path, serve_exe_path, spawn_gui_companion, workspace_exe_path,
 };
+pub use system_proxy::SystemProxyService;
+pub use system_tray::{install_system_tray, shell_owns_system_tray};
 pub use tray::kill_serve_process;

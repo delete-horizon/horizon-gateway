@@ -17,7 +17,8 @@ const SERVE_IPC_PROBE: &str = "127.0.0.1:17345";
 /// How the GUI should attach to hg-serve at process start.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ServeEnsureMode {
-    /// Installed/release app: reconnect so tray and proxy keep running.
+    /// Installed/release app: reconnect so the proxy listener keeps running.
+    /// The tray lives in this shell, not in serve.
     ReuseIfReachable,
     /// `tauri dev` / debug: kill leftover serve (frees 8888/17345) and spawn fresh.
     KillAndSpawnFresh,

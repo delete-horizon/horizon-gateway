@@ -68,7 +68,11 @@ fn forward_events(app: &AppHandle) -> Result<(), String> {
         .write_all(hello.as_bytes())
         .map_err(|e| format!("send hello: {e}"))?;
 
-    // Signal GUI that serve backend event connection is established and ready
+    // Signal GUI that serve backend event connection is established and ready.
+    // Serve may already have opened the listener and emitted `proxy-status-changed`
+    // before this subscribe. Sync PAC from the current status without clearing it
+    // when the listener is not up yet.
+    super::system_proxy::sync_pac_if_proxy_running();
     let _ = app.emit("serve-ready", ());
     tracing::info!("[gui] serve event stream connected; emitted serve-ready");
 
@@ -113,6 +117,10 @@ fn forward_events(app: &AppHandle) -> Result<(), String> {
                 } else {
                     let _ = app.emit("chat-frame-received", evt.payload);
                 }
+            }
+            "proxy-status-changed" => {
+                super::system_proxy::apply_proxy_status_payload(&evt.payload, true);
+                let _ = app.emit(&evt.event, evt.payload);
             }
             _ => {
                 let _ = app.emit(&evt.event, evt.payload);

@@ -255,6 +255,8 @@ roadmap 문구와 코드를 대조하면 오늘 위치가 다르다. 목표 위�
 - PAC 설정 (`SystemProxyService`) 호출을 GUI command로 옮기고, serve의 `auto_start_proxy`는 listener만 연다. 데스크톱은 이벤트를 받아 shell이 PAC를 켠다. 회귀: 오늘 auto-start가 PAC까지 하므로, shell이 떠 있기 전에는 PAC가 바뀌지 않는다. release에서 serve가 GUI보다 먼저 PAC를 켜는 동작을 이 PR의 검증 항목으로 적는다.
 - tray를 `hg-gui`로 옮긴다. serve 기본 경로는 PR 1 headless와 같아진다. 데스크톱은 shell이 tray를 가진다. macOS 메인 스레드 제약은 shell 프로세스에만 남는다.
 - Windows: `requireAdministrator`를 transparent proxy를 켤 때만 쓰는 helper로 분리할 수 있는지 조사한다. 분리 방법이 불명확하면 daemon manifest는 이 PR에서 바꾸지 않고 리스크로 남긴다 (5장).
+- 진행 (2026-10-12): `SystemProxyService`는 `hg-gui`에 있다. `set_system_pac` / `clear_system_pac`는 GUI command이고 serve로 포워드되지 않는다. `auto_start_proxy`, `start_local_proxy`, `stop_local_proxy`는 listener와 `proxy-status-changed`만 담당한다. shell(Hub와 workspace)이 그 이벤트를 받으면 PAC를 켜거나 지운다. 이벤트 스트림에 붙을 때 프록시가 이미 떠 있으면 `get_proxy_status`로 PAC를 맞추고, 아직 안 떠 있으면 지우지 않는다. shell이 뜨기 전에는 PAC가 바뀌지 않는다. Linux의 set/clear는 OS를 바꾸지 않고 성공만 반환한다. 트레이는 Hub shell만 만든다. macOS 메인 스레드 제약은 Tauri `setup`에만 있다. serve는 OS와 무관하게 `accept_loop`가 프로세스를 살리고, `HG_SERVE_HEADLESS=1`이든 아니든 트레이를 띄우지 않는다. 그 환경 변수가 켜져 있을 때의 로그 문구는 CI 스모크가 찾는 문장 그대로다. Windows `requireAdministrator`는 바꾸지 않았다. WinDivert 핸들, NAT, 필터, `WinDivert.dll`/`.sys`가 serve 프로세스 안에 있다. transparent proxy만 승격하는 helper는 별도 exe, UAC spawn, 제어 채널이 필요하고 그 경계는 이 PR에서 설계하지 않았다. daemon manifest는 release `requireAdministrator`, debug `asInvoker` 그대로다.
+- 검증 (release에서 serve가 GUI보다 먼저 PAC를 켜던 동작): 이전 release는 `horizon-gateway-serve`가 `auto_start_proxy` 안에서 PAC를 켰다. GUI는 그 다음 `ensure_running`(release는 `ReuseIfReachable`)으로 붙었고, 창이 열리기 전에 OS PAC가 이미 바뀌어 있었다. 이 PR 이후 serve만 띄우면 listener는 열리고 OS PAC는 그대로다. Hub shell이 뜬 뒤에 `http://127.0.0.1:{port}/.horizon-gateway/proxy.pac`가 설정된다. shell이 `quit_app` 또는 트레이 Quit으로 serve를 끄면 PAC를 지운다. `HG_SERVE_HEADLESS`와 `hgc`만 있는 세션은 PAC를 바꾸지 않는다. 외부 접속(`allow_remote_access`) 기본값은 꺼진 그대로다.
 
 ### PR 6 — React adapter
 
@@ -280,7 +282,10 @@ PR 2의 스모크가 CI에서 초록이면 roadmap Phase 1의 “컨테이너에
 - **이미 쪼개져 있다는 점을 무시하고 crate를 다시 나누는 일.** `hg-core` / `hg-serve` / `hg-gui` / `hgc`가 그 분할이다. 새 `core` crate로 파일을 옮기는 PR은 동작 이득 없이 sidecar 이름, `externalBin`, skill, `smoke:*` 스크립트를 깨뜨린다.
 - **고정 포트.** `17345`/`17346`과 proxy 기본 `8888` (`hg-gui` `ensure.rs`의 `PROXY_PORT_PROBE`)이 호스트에 이미 있으면 headless 기동이 실패한다. `ServeEndpoints` 이전에는 인스턴스 하나를 전제한다. `smoke-serve-dual-attach.mjs`도 그 포트를 하드코드한다.
 - **Windows admin manifest.** release daemon을 CI나 비관리자 계정에서 띄울 수 있는지는 이 환경에서 확인하지 않았다. debug는 `asInvoker`다.
-- **tray event loop.** non-Windows headless가 `tao` 없이 안정적인지는 PR 1–2에서 확인해야 한다. 코드만으로는 DISPLAY 없는 서버에서 `EventLoop::run`이 실패하는지 알 수 없다.
+- **Windows admin manifest (PR 5).** release `horizon-gateway-serve`의 `requireAdministrator`는 유지한다. WinDivert는 드라이버 핸들을 연 프로세스에 관리자 권한이 필요하고, 그 핸들은 프로세스 밖으로 넘길 수 없다. helper로 나누려면 패킷 루프와 NAT를 serve 밖으로 빼고, asInvoker daemon이 helper만 승격해 띄운 뒤 허용 목록·중지·종료를 넘기는 채널이 있어야 한다. 사이드카(`WinDivert.dll`, `WinDivert64.sys`) 위치와 helper가 죽었을 때의 정리도 정해지지 않았다. 그래서 이 PR은 manifest를 바꾸지 않는다. debug는 `asInvoker`라 headless CI는 UAC 없이 돈다. release serve를 비관리자 계정에서 띄우는 문제는 남아 있다.
+- **PAC는 shell이 뜬 뒤에만 바뀐다 (PR 5).** serve auto-start는 listener만 연다. release에서 serve가 GUI보다 먼저 PAC를 켜던 동작은 없다. shell이 없는 동안의 stop도 PAC를 지우지 않는다. 확인 절차는 4장 PR 5의 검증 항목.
+- **Linux 시스템 프록시 (PR 5).** shell의 `SystemProxyService`는 Linux에서 여전히 성공만 반환한다. headless serve는 이 함수를 호출하지 않는다. 컨테이너 로그의 성공을 “OS 프록시가 켜졌다”로 읽으면 안 된다.
+- **tray event loop.** non-Windows headless가 `tao` 없이 안정적인지는 PR 1–2에서 확인해야 한다. 코드만으로는 DISPLAY 없는 서버에서 `EventLoop::run`이 실패하는지 알 수 없다. PR 5에서 serve는 `tao`와 `tray-icon`을 링크하지 않는다. 트레이는 Hub shell의 Tauri `setup`(메인 스레드)만 만든다. headless 프로세스는 그 이벤트 루프를 돌리지 않는다.
 - **`hgc` 이중 경로.** one-shot은 daemon의 메모리 상태(떠 있는 proxy, monitor 캐시)를 보지 않는다. 에이전트 문서가 “GUI 없이 된다”고만 하면 CI 시나리오와 어긋난다.
 - **`save_root_ca` 회귀.** 위 2장의 경로대로면 데스크톱의 인증서 저장 버튼은 이미 serve에서 에러다. PR 4 전에 UI를 고친 것처럼 보이면 안 된다. 이 조사는 앱을 실행해 버튼을 누르지 않았다.
 - **CA 키를 workspace export에 넣으면 안 된다.** `SettingsExport`가 이미 제외한다. 원격 attach나 이후 P2P에서도 키와 `serve.token`은 데이터 디렉터리 밖에 나가지 않아야 한다 (roadmap 보안 리스크와 같음).
