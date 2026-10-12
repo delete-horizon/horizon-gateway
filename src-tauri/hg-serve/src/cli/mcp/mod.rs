@@ -44,6 +44,7 @@ struct McpFileConfig {
 struct LiveCore;
 
 impl LiveCore {
+    /// Local control socket and local token. Remote attach is not used.
     fn call(command: &str, payload: Value) -> Result<Value, String> {
         crate::serve::call_command(command, payload)
     }

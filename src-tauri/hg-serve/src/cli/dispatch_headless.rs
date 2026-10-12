@@ -1102,6 +1102,11 @@ pub fn dispatch_headless(
             Some(tokens) => Ok(serde_json::to_value(tokens).unwrap()),
             None => Ok(Value::Null),
         },
+        "get_remote_attach_status" => Ok(crate::serve::remote::status_json()),
+        "reissue_remote_token" => {
+            crate::serve::remote::reissue_global()?;
+            Ok(serde_json::json!({ "reissued": true }))
+        }
         _ => Err(format!("Unknown command: {cmd_name}. Run `hgc list`.")),
     }
 }

@@ -274,6 +274,17 @@ Gemini CLI (`.gemini/settings.json`):
 
 상태를 바꾸거나 캡처 본문을 읽혀도 될 때만 `args`에 `"--allow-write"` 또는 `"--allow-body"`를 넣습니다. 저장소 루트의 `server.json`은 MCP Registry용 문서입니다. 레지스트리에 올리려면 설치 가능한 패키지 항목(npm의 `mcpName`, OCI, NuGet, 또는 `fileSha256`이 있는 MCPB)이 더 필요합니다. `hgc`는 데스크톱 빌드에 포함되므로 `packages`는 아직 비어 있습니다.
 
+`hgc mcp`는 항상 로컬 제어 소켓과 로컬 토큰을 씁니다. 원격 attach를 쓰지 않습니다.
+
+### 원격 attach
+
+원격 attach는 기본으로 꺼져 있습니다. 데몬을 `--remote-attach`, `HG_SERVE_REMOTE_ATTACH=1`, 또는 데이터 디렉터리의 `remote-attach.json`으로 켭니다. 바인드 주소는 Tailscale IP를 `--remote-bind`, `HG_SERVE_REMOTE_BIND`, 또는 `remote-attach.json`의 `bind`에 넣습니다. 주소를 비우면 `0.0.0.0`으로 붙고, 모든 인터페이스에서 듣는다는 경고를 로그에 남깁니다. 원격 접속은 TLS만 허용하고, 인증서는 처음 켤 때 만든 자가서명입니다. SHA-256 지문은 `--tls-fingerprint` 또는 `HG_SERVE_TLS_FINGERPRINT`로 고정합니다. 고정값이 없으면 `hgc`가 처음 본 지문을 저장합니다. 원격 토큰은 핸드셰이크 뒤에만 보냅니다(`--remote-token-file`, `--remote-token`, `HG_SERVE_REMOTE_TOKEN`). 기본 권한은 조회와 mock·route 편집입니다. 프록시 시작/중지, PAC 설정/해제, `allow_remote_access`, 토큰 재발급은 `HG_SERVE_REMOTE_SCOPE=admin`(또는 `full`)이 있어야 합니다. `reissue_remote_token`은 이전 토큰과 붙어 있는 원격 세션을 즉시 끊고, 새 토큰은 호스트의 `serve.remote.token`에만 기록합니다.
+
+```bash
+horizon-gateway-serve --remote-attach --remote-bind 100.64.0.2
+hgc --attach 100.64.0.2:17345 --remote-token-file ./remote.token --tls-fingerprint <sha256> get_proxy_status '{}'
+```
+
 Windows PowerShell에서 JSON을 넘기는 방법은 [시작 가이드의 hgc 절](./docs/ko/getting-started.md#hgc)에 있습니다.
 
 ---

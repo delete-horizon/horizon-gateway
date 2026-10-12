@@ -65,6 +65,16 @@ pub struct ServeEndpoints {
     /// Proxy listen address once the data plane is up. Absent until then.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub proxy_addr: Option<String>,
+    /// Control socket as bound for remote attach. Absent when remote attach is off.
+    /// Local clients keep using [`Self::command_addr`], which stays on loopback.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remote_command_addr: Option<String>,
+    /// Event socket as bound for remote attach. Absent when remote attach is off.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remote_event_addr: Option<String>,
+    /// SHA-256 fingerprint of the remote-attach certificate. Not a secret.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remote_tls_fingerprint: Option<String>,
     pub updated_at: String,
 }
 
@@ -263,6 +273,9 @@ mod tests {
             command_addr: "127.0.0.1:12345".into(),
             event_addr: "127.0.0.1:12346".into(),
             proxy_addr: None,
+            remote_command_addr: None,
+            remote_event_addr: None,
+            remote_tls_fingerprint: None,
             updated_at: "2026-01-01T00:00:00Z".into(),
         };
         let json = serde_json::to_string(&ep).unwrap();
@@ -295,6 +308,14 @@ mod tests {
         assert!(SERVE_EVENT_ADDR.ends_with(&format!(":{SERVE_EVENT_PORT}")));
         let p = serve_token_path(std::path::Path::new("base"));
         assert!(p.ends_with(format!("{APP_IDENTIFIER}/{SERVE_TOKEN_FILE}")));
+    }
+
+    #[test]
+    fn endpoints_without_remote_fields_load() {
+        let legacy = r#"{"protocolVersion":1,"pid":1,"commandAddr":"127.0.0.1:1","eventAddr":"127.0.0.1:2","updatedAt":"t"}"#;
+        let ep: ServeEndpoints = serde_json::from_str(legacy).unwrap();
+        assert!(ep.remote_command_addr.is_none());
+        assert!(ep.remote_tls_fingerprint.is_none());
     }
 
     #[test]
