@@ -4,8 +4,8 @@ workspace = true
 [package]
 name = "horizon-gateway"
 version = "2.8.15"
-description = "Horizon Gateway Tauri GUI shell"
-authors = ["you"]
+description = "Local MITM proxy, API mock, and domain inspector"
+authors = ["Delete Horizon <hello@delete-horizon.com>"]
 edition = "2021"
 default-run = "horizon-gateway"
 
