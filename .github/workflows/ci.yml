@@ -229,3 +229,24 @@ jobs:
           else
             gitleaks detect --redact --no-banner --exit-code 1 --log-opts="${{ github.event.before }}..${{ github.sha }}"
           fi
+
+  # Packs a fixture MCPB from this commit and runs the MCPB validator.
+  # Release builds replace the fixtures with the Windows and Linux hgc binaries.
+  mcpb-dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+
+      - name: Check server.json and validate the MCPB
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/pack-hgc-mcpb.mjs --check
+          node scripts/pack-hgc-mcpb.mjs --dry-run
+          bash scripts/install-mcp-publisher.sh
+          ./mcp-publisher validate server.json
+          ./mcp-publisher validate dist/server.json

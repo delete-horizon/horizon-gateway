@@ -94,7 +94,7 @@ Sizes are decimal megabytes of those release files. The same release also has up
 
 `SHA256SUMS` is attached starting with the first release after [v2.8.15](https://github.com/delete-horizon/horizon-gateway/releases/tag/v2.8.15). v2.8.15 and earlier releases do not include it.
 
-`SHA256SUMS` lists SHA-256 hashes for the installer and updater binaries (`.exe`, `.dmg`, `.deb`, `.rpm`, `.AppImage`, `.app.tar.gz`). The `.sig` files are minisign signatures for the in-app updater, and `latest.json` is the updater manifest. Those two are left out of `SHA256SUMS`. Each line is `<hash>  <filename>` (two spaces), sorted by filename.
+`SHA256SUMS` lists SHA-256 hashes for the installer and updater binaries (`.exe`, `.dmg`, `.deb`, `.rpm`, `.AppImage`, `.app.tar.gz`) and, when the release attaches it, `horizon-gateway.mcpb`. The `.sig` files are minisign signatures for the in-app updater, and `latest.json` is the updater manifest. Those two are left out of `SHA256SUMS`. Each line is `<hash>  <filename>` (two spaces), sorted by filename.
 
 Download `SHA256SUMS` into the same folder as the package you want to check.
 
@@ -212,7 +212,7 @@ Gemini CLI (`.gemini/settings.json`):
 }
 ```
 
-Add `"--allow-write"` or `"--allow-body"` to `args` only for an agent that should change the proxy or read a captured body. `server.json` at the repository root is the MCP Registry document. Publishing still needs an installable package entry (npm with `mcpName`, OCI, NuGet, or an MCPB file plus `fileSha256`). `hgc` ships with the desktop build, so the registry file has no `packages` entry yet.
+Add `"--allow-write"` or `"--allow-body"` to `args` only for an agent that should change the proxy or read a captured body. `server.json` is the MCP Registry document for `io.github.delete-horizon/horizon-gateway`. Releases attach one `horizon-gateway.mcpb` for Windows x64 and Linux x64; it runs `hgc mcp` and the free desktop app must be running. macOS is not in that bundle. Use the `hgc` that ships inside the app. See [docs/mcp-registry.md](./docs/mcp-registry.md).
 
 `hgc mcp` always uses the local control socket and the local token. It does not use remote attach.
 

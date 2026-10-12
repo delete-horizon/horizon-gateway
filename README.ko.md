@@ -152,7 +152,7 @@ Windows 설치는 머신 단위라 설치할 때 권한 상승이 있습니다. 
 
 `SHA256SUMS`는 [v2.8.15](https://github.com/delete-horizon/horizon-gateway/releases/tag/v2.8.15) 다음 릴리스부터 첨부됩니다. v2.8.15와 그 이전 릴리스에는 이 파일이 없습니다.
 
-`SHA256SUMS`는 설치 파일과 업데이터 바이너리(`.exe`, `.dmg`, `.deb`, `.rpm`, `.AppImage`, `.app.tar.gz`)의 SHA-256입니다. `.sig`는 앱 업데이트용 minisign 서명이며, `latest.json`은 업데이트 목록입니다. 이 둘은 `SHA256SUMS`에 없습니다. 각 줄은 `<해시>  <파일 이름>`(공백 두 칸)이고, 파일 이름 순으로 정렬되어 있습니다.
+`SHA256SUMS`는 설치 파일과 업데이터 바이너리(`.exe`, `.dmg`, `.deb`, `.rpm`, `.AppImage`, `.app.tar.gz`)와, 릴리스에 첨부된 경우 `horizon-gateway.mcpb`의 SHA-256입니다. `.sig`는 앱 업데이트용 minisign 서명이며, `latest.json`은 업데이트 목록입니다. 이 둘은 `SHA256SUMS`에 없습니다. 각 줄은 `<해시>  <파일 이름>`(공백 두 칸)이고, 파일 이름 순으로 정렬되어 있습니다.
 
 `SHA256SUMS`와 확인하려는 파일을 같은 폴더에 받습니다.
 
@@ -272,7 +272,7 @@ Gemini CLI (`.gemini/settings.json`):
 }
 ```
 
-상태를 바꾸거나 캡처 본문을 읽혀도 될 때만 `args`에 `"--allow-write"` 또는 `"--allow-body"`를 넣습니다. 저장소 루트의 `server.json`은 MCP Registry용 문서입니다. 레지스트리에 올리려면 설치 가능한 패키지 항목(npm의 `mcpName`, OCI, NuGet, 또는 `fileSha256`이 있는 MCPB)이 더 필요합니다. `hgc`는 데스크톱 빌드에 포함되므로 `packages`는 아직 비어 있습니다.
+상태를 바꾸거나 캡처 본문을 읽혀도 될 때만 `args`에 `"--allow-write"` 또는 `"--allow-body"`를 넣습니다. `server.json`은 MCP Registry 이름 `io.github.delete-horizon/horizon-gateway`용 문서입니다. 릴리스에는 Windows x64와 Linux x64용 `horizon-gateway.mcpb` 하나가 붙고, 그 안의 명령은 `hgc mcp`입니다. 무료 데스크톱 앱이 실행 중이어야 합니다. macOS 번들은 없습니다. 앱 안에 들어 있는 `hgc`를 씁니다. [docs/mcp-registry.md](./docs/mcp-registry.md)를 보세요.
 
 `hgc mcp`는 항상 로컬 제어 소켓과 로컬 토큰을 씁니다. 원격 attach를 쓰지 않습니다.
 
