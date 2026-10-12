@@ -12,10 +12,10 @@ use crate::service::proxy_settings_service::ProxySettingsService;
 
 pub const SAVE_ROOT_CA_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "save_root_ca",
-    description: "[GUI] Root CA 인증서를 파일로 저장합니다 (저장 다이얼로그 필요).",
+    description: "Root CA 인증서 PEM을 반환합니다. 파일 경로와 OS trust는 클라이언트가 처리합니다.",
     payload_example: "{}",
     category: "settings",
-    gui_only: true,
+    gui_only: false,
 };
 
 pub async fn save_root_ca_svc(

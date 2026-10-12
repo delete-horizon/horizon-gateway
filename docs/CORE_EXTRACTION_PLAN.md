@@ -244,6 +244,8 @@ roadmap 문구와 코드를 대조하면 오늘 위치가 다르다. 목표 위�
 
 ### PR 4 — `save_root_ca`를 PEM 조회로 고치기
 
+2026-10-08 구현: `save_root_ca`는 PEM을 반환하고 `gui_only`가 아니다. 데스크톱 setup 화면이 `saveTextDownload`로 `horizon-gateway-root-ca.crt` 저장 대화상자를 연다. OS trust 자동화는 없다.
+
 - `dispatch_headless`가 `save_root_ca_svc`를 호출해 PEM을 반환하게 한다. `gui_only` 에러를 제거한다.
 - 파일 대화상자는 React + Tauri dialog (`src/shared/lib/tauri/saveDownload.ts`에 비슷한 패턴이 있다)로 shell에 둔다. core는 경로를 고르지 않는다.
 - `hgc`로 PEM을 출력할 수 있으면 headless 문서의 전제가 성립한다. OS trust 자동화는 넣지 않는다.
@@ -259,6 +261,7 @@ roadmap 문구와 코드를 대조하면 오늘 위치가 다르다. 목표 위�
 - `src/bindings.ts`의 `invoke`를 “Tauri면 기존 IPC forward, 나중엔 직접 client”인 한 모듈 뒤로 옮긴다. 이벤트 `listen`도 같다.
 - specta로 `bindings.ts`를 다시 생성하지 않는다. 생성 경로가 현재 GUI command만 안다.
 - 동작 변화 없이 데스크톱만 검증한다. web 번들은 만들지 않는다.
+- 진행 (2026-10-12): `src/shared/lib/tauri/client.ts`가 데스크톱에서 Tauri `invoke`와 `listen`을 그대로 전달한다. `bindings.ts`와 화면의 `listen`은 이 모듈만 쓴다. 직접 serve client로 바꾸는 자리는 `setCoreClient`이며, 그 구현은 넣지 않았다. `bindings.ts`는 specta로 다시 생성하지 않았다.
 
 ### PR 7 — 원격 attach (opt-in)
 

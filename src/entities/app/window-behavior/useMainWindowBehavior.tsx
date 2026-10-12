@@ -1,8 +1,8 @@
-import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useState } from "react";
 import { commands } from "@/shared/api";
+import { listen } from "@/shared/lib/tauri/client";
 import { languageAtom } from "../i18n/store";
 import { type CloseBehavior, closeBehaviorAtom, type MinimizeBehavior, minimizeBehaviorAtom } from "./store";
 import { WindowActionDialog } from "./WindowActionDialog";

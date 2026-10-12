@@ -37,6 +37,7 @@ export const policiesKo = {
   cancel: "취소",
   roleLabel: "요소 명칭",
   descLabel: "가이드 내용",
+  descPlaceholder: "설명 (Markdown 사용 가능)...",
   displayOptions: "리포트 노출 항목",
   showSelector: "Selector",
   showTag: "Tag",

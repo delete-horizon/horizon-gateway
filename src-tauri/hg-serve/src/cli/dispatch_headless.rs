@@ -671,7 +671,11 @@ pub fn dispatch_headless(
             Ok(serde_json::to_value(result).unwrap())
         }
         "save_root_ca" => {
-            Err("gui_only: `save_root_ca` requires the Horizon Gateway GUI.".to_string())
+            let result = runtime.block_on(command::settings_commands::save_root_ca_svc(
+                None,
+                &ctx.ca_service,
+            ))?;
+            Ok(serde_json::to_value(result).unwrap())
         }
         "download_api_schema" => {
             let parsed: command::api_log_commands::DownloadApiSchemaPayload =
@@ -741,6 +745,13 @@ pub fn dispatch_headless(
         }
         "get_tailscale_ip" => {
             let result = command::tunnel_commands::get_tailscale_ip_svc(&ctx.tunnel_service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "get_remote_access_hosts" => {
+            let result = command::tunnel_commands::get_remote_access_hosts_svc(
+                &ctx.tunnel_service,
+                &ctx.proxy_settings_service,
+            )?;
             Ok(serde_json::to_value(result).unwrap())
         }
         "start_cloudflare_tunnel" => {

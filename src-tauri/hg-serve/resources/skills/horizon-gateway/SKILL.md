@@ -253,7 +253,8 @@ hgc get_injection_domains '{}'
 ### CLI limits
 
 - **`hgc init` / `list` / `help` / `<command>`**: Run without the GUI (preferred for agents). No UAC.
-- **`guiOnly` commands** (`open_window`, `save_root_ca`, …): Fail in headless `hgc` with a clear error — use the desktop app.
+- **`guiOnly` commands** (`open_window`, …): Fail in headless `hgc` with a clear error — use the desktop app.
+- **`save_root_ca`**: Returns the root CA PEM in `data`. Headless `hgc` can print it. The desktop setup screen writes the file; this command does not open a dialog or install OS trust.
 - **`start_local_proxy`**: Headless not supported yet (needs GUI `AppHandle` for proxy runtime).
 - **Reading API logs**: Prefer `logs.mjs` (streaming, token-efficient).
 - **GUI open + CLI write**: Annotation file changes are picked up by the running GUI (~1s). Still avoid racing GUI and CLI saves on the same annotation at the exact same moment.

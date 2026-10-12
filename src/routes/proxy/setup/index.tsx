@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { listen } from "@tauri-apps/api/event";
 import { useAtom, useAtomValue } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { CheckCircle2, Circle, Download, RotateCcw, ShieldCheck } from "lucide-react";
@@ -8,6 +7,8 @@ import { languageAtom } from "@/entities/app";
 import { ProxyServerWarning } from "@/entities/proxy";
 import type { ProxyStatusPayload } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
+import { listen } from "@/shared/lib/tauri/client";
+import { saveTextDownload } from "@/shared/lib/tauri/saveDownload";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { toastError, toastSuccess } from "@/shared/ui/toast";
@@ -91,14 +92,24 @@ function ProxySetupPage() {
   const handleSaveCA = async () => {
     setSaving(true);
     try {
-      await commands.saveRootCa().then(unwrap);
+      const exported = await commands.saveRootCa().then(unwrap);
+      if (!exported.success || !exported.data) {
+        throw new Error(exported.message || t.certSaveFailed);
+      }
+      const saved = await saveTextDownload({
+        content: exported.data,
+        defaultPath: "horizon-gateway-root-ca.crt",
+        filters: [{ name: "Certificate", extensions: ["crt", "pem"] }],
+        mimeType: "application/x-pem-file",
+      });
+      if (saved.status === "cancelled") {
+        return;
+      }
       toastSuccess(t.certSaved);
       setChecklist((prev) => ({ ...prev, certSaved: true }));
     } catch (e) {
-      if (e !== "Save cancelled") {
-        console.error("save_root_ca:", e);
-        toastError(t.certSaveFailed);
-      }
+      console.error("save_root_ca:", e);
+      toastError(t.certSaveFailed);
     } finally {
       setSaving(false);
     }

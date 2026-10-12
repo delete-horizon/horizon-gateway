@@ -130,6 +130,7 @@ pub const CLI_COMMANDS: &[CliCommandInfo] = &[
     crate::command::settings_commands::SAVE_ROOT_CA_CLI_INFO,
     // --- Tunnel ---
     crate::command::tunnel_commands::GET_TAILSCALE_IP_CLI_INFO,
+    crate::command::tunnel_commands::GET_REMOTE_ACCESS_HOSTS_CLI_INFO,
     crate::command::tunnel_commands::START_CLOUDFLARE_TUNNEL_CLI_INFO,
     crate::command::tunnel_commands::STOP_CLOUDFLARE_TUNNEL_CLI_INFO,
     // --- USB ---
@@ -604,6 +605,7 @@ const DISPATCHED_COMMAND_NAMES: &[&str] = &[
     "start_local_proxy",
     "create_mock_rule_from_log",
     "get_tailscale_ip",
+    "get_remote_access_hosts",
     "start_cloudflare_tunnel",
     "stop_cloudflare_tunnel",
     "check_adb_status",
@@ -739,6 +741,7 @@ mod parity_tests {
         "get_mocking_status",
         "set_scenario_enabled",
         "get_tailscale_ip",
+        "get_remote_access_hosts",
         "start_cloudflare_tunnel",
         "stop_cloudflare_tunnel",
         "check_adb_status",
@@ -837,5 +840,11 @@ mod parity_tests {
                 );
             }
         }
+        let save_root_ca = CLI_COMMANDS
+            .iter()
+            .find(|info| info.name == "save_root_ca")
+            .expect("save_root_ca");
+        assert!(!save_root_ca.gui_only);
+        assert!(!save_root_ca.description.contains("[GUI]"));
     }
 }

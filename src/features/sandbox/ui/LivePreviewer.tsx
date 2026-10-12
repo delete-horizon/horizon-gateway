@@ -2,7 +2,7 @@ import * as Babel from "@babel/standalone";
 import { useAtom, useAtomValue } from "jotai";
 import { AlertCircle, Check, Copy, Play, Plus, Save, Search, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { themeAtom } from "@/entities/app";
+import { languageAtom, themeAtom } from "@/entities/app";
 import {
   type SavedComponent,
   savedComponentsAtom,
@@ -12,6 +12,8 @@ import {
 } from "@/entities/sandbox";
 import { toastInfo } from "@/shared/ui/toast";
 import { TsCodeEditor } from "@/shared/ui/ts-code-editor/TsCodeEditor";
+import { en as previewEn } from "../i18n/preview-en";
+import { ko as previewKo } from "../i18n/preview-ko";
 import { SchemaEditorModal } from "./SchemaEditorModal";
 
 export interface LivePreviewerProps {
@@ -22,6 +24,8 @@ export interface LivePreviewerProps {
 
 export function LivePreviewer({ initialData, code: propCode, schemaText }: LivePreviewerProps) {
   const theme = useAtomValue(themeAtom);
+  const lang = useAtomValue(languageAtom);
+  const t = lang === "ko" ? previewKo : previewEn;
   // Standalone CRUD atoms
   const [savedComponents, setSavedComponents] = useAtom(savedComponentsAtom);
   const [selectedId, setSelectedId] = useAtom(selectedComponentIdAtom);
@@ -214,13 +218,13 @@ export function LivePreviewer({ initialData, code: propCode, schemaText }: LiveP
           parsedData = JSON.parse(editedMockData || "{}");
         } catch (e: unknown) {
           const message = e instanceof Error ? e.message : String(e);
-          throw new Error(`JSON Mock Data 파싱 에러: ${message}`);
+          throw new Error(t.jsonParseError(message));
         }
       }
 
       // 2. Compile JSX/TSX code using Babel
       if (!codeToCompile.includes("export default")) {
-        throw new Error("컴포넌트에 'export default' 선언이 보이지 않습니다. Default export 컴포넌트가 필요합니다.");
+        throw new Error(t.missingDefaultExport);
       }
 
       // Replace export default with window.GeneratedComponent assignment
@@ -242,9 +246,7 @@ export function LivePreviewer({ initialData, code: propCode, schemaText }: LiveP
           if (varMatch?.[1]) {
             cleanCode += `\nwindow.GeneratedComponent = ${varMatch[1]};`;
           } else {
-            throw new Error(
-              "Default export 구문 파싱 실패. 'export default function MyComponent' 형태로 정의해주세요.",
-            );
+            throw new Error(t.defaultExportParseFailed);
           }
         }
       }
@@ -257,7 +259,7 @@ export function LivePreviewer({ initialData, code: propCode, schemaText }: LiveP
       }).code;
 
       if (!compiled) {
-        throw new Error("컴파일 결과가 비어있습니다.");
+        throw new Error(t.emptyCompile);
       }
 
       // 3. Construct srcDoc with react, react-dom and tailwind injection
@@ -331,7 +333,7 @@ export function LivePreviewer({ initialData, code: propCode, schemaText }: LiveP
               window.require = function(moduleName) {
                 if (moduleName === 'react') return window.React;
                 if (moduleName === 'react-dom') return window.ReactDOM;
-                throw new Error('Module not found in sandbox: ' + moduleName);
+                throw new Error(${JSON.stringify(t.moduleNotFound)} + moduleName);
               };
 
               const React = window.React;
@@ -349,7 +351,7 @@ export function LivePreviewer({ initialData, code: propCode, schemaText }: LiveP
                 const Component = window.GeneratedComponent || (window.exports && window.exports.default) || (window.module && window.module.exports);
                 
                 if (!Component) {
-                  throw new Error("컴포넌트를 찾을 수 없습니다. 'export default function Preview' 형태의 선언이 존재하는지 확인해 주세요.");
+                  throw new Error(${JSON.stringify(t.componentNotFound)});
                 }
                 
                 // Pass json fields directly as root props
@@ -361,7 +363,7 @@ export function LivePreviewer({ initialData, code: propCode, schemaText }: LiveP
               } catch (err) {
                 document.getElementById('root').innerHTML = \`
                   <div style="color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05); padding: 16px; border-radius: 8px; font-family: monospace; font-size: 13px;">
-                    <h4 style="margin: 0 0 8px 0; font-weight: bold;">렌더링 에러:</h4>
+                    <h4 style="margin: 0 0 8px 0; font-weight: bold;">${t.renderErrorTitle}</h4>
                     \${err.message}
                   </div>
                 \`;
@@ -377,7 +379,7 @@ export function LivePreviewer({ initialData, code: propCode, schemaText }: LiveP
       setCompileError(message || "Compilation failed");
       setIframeSrcDoc("");
     }
-  }, [codeToCompile, propCode, editedMockData, initialData, theme]);
+  }, [codeToCompile, propCode, editedMockData, initialData, theme, t]);
 
   // Trigger render on source code or data change
   useEffect(() => {
@@ -390,21 +392,19 @@ export function LivePreviewer({ initialData, code: propCode, schemaText }: LiveP
     const newComponent: SavedComponent = {
       id: newId,
       name: `CustomComponent_${savedComponents.length + 1}`,
-      description: "새로운 커스텀 React 컴포넌트",
+      description: t.newComponentDescription,
       code: `import React from 'react';
 
 export default function Preview({ message }: Props) {
-  const display = message || "안녕하세요! 새 컴포넌트입니다.";
+  const display = message || ${JSON.stringify(t.sampleGreeting)};
   return (
     <div className="p-6 bg-base-100 border border-base-300 rounded-xl shadow-md text-center max-w-sm mx-auto">
-      <h3 className="text-lg font-bold text-primary">커스텀 컴포넌트</h3>
+      <h3 className="text-lg font-bold text-primary">${t.sampleTitle}</h3>
       <p className="text-sm mt-2 text-base-content/70">{display}</p>
     </div>
   );
 }`,
-      mockData: `{
-  "message": "안녕하세요! 새 컴포넌트입니다."
-}`,
+      mockData: JSON.stringify({ message: t.sampleGreeting }, null, 2),
       schemaId: undefined,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -456,10 +456,10 @@ export default function Preview({ message }: Props) {
   const handleDeleteComponent = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (savedComponents.length <= 1) {
-      toastInfo("최소 하나의 컴포넌트는 저장소에 유지되어야 합니다.");
+      toastInfo(t.keepOne);
       return;
     }
-    if (confirm("이 컴포넌트를 스토리지에서 삭제하시겠습니까?")) {
+    if (confirm(t.confirmDelete)) {
       const updated = savedComponents.filter((c) => c.id !== id);
       setSavedComponents(updated);
       if (selectedId === id) {
@@ -476,7 +476,7 @@ export default function Preview({ message }: Props) {
           <div className="bg-error/10 border-b border-error/20 text-error px-3 py-1.5 font-mono text-[9px] shrink-0 flex items-start gap-1">
             <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
             <div className="flex-1 overflow-auto max-h-[60px] whitespace-pre-wrap leading-normal">
-              <strong>Props 스키마 검증 실패:</strong> {validationErrors}
+              <strong>{t.schemaValidationFailed}</strong> {validationErrors}
             </div>
           </div>
         )}
@@ -484,7 +484,7 @@ export default function Preview({ message }: Props) {
           {compileError ? (
             <div className="absolute inset-0 p-4 bg-error/5 text-error font-mono text-xs overflow-auto flex flex-col space-y-2">
               <span className="font-bold flex items-center gap-1">
-                <AlertCircle className="w-4 h-4" /> 컴파일 에러:
+                <AlertCircle className="w-4 h-4" /> {t.compileError}
               </span>
               <pre className="whitespace-pre-wrap">{compileError}</pre>
             </div>
@@ -497,7 +497,7 @@ export default function Preview({ message }: Props) {
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center text-xs text-base-content/40 italic">
-              코드 컴파일을 기다리는 중...
+              {t.waitingCompile}
             </div>
           )}
         </div>
@@ -511,12 +511,12 @@ export default function Preview({ message }: Props) {
         {/* Component List Pane (Left Side - 3 columns) */}
         <div className="lg:col-span-3 card bg-base-100 border border-base-300 p-4 shadow-sm flex flex-col h-full overflow-hidden">
           <div className="flex items-center justify-between mb-3 gap-2 shrink-0">
-            <span className="font-bold text-xs text-base-content/70 flex items-center gap-1">📂 저장된 컴포넌트</span>
+            <span className="font-bold text-xs text-base-content/70 flex items-center gap-1">{t.savedComponents}</span>
             <button
               className="btn btn-xs btn-primary btn-outline flex items-center gap-1"
               onClick={handleCreateComponent}
             >
-              <Plus className="w-3.5 h-3.5" /> 추가
+              <Plus className="w-3.5 h-3.5" /> {t.add}
             </button>
           </div>
 
@@ -526,7 +526,7 @@ export default function Preview({ message }: Props) {
             <input
               type="text"
               className="input input-bordered input-sm w-full pl-8 text-xs focus:outline-none"
-              placeholder="컴포넌트 검색..."
+              placeholder={t.searchPlaceholder}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -549,20 +549,20 @@ export default function Preview({ message }: Props) {
                   <div className="truncate flex-1 min-w-0 mr-2">
                     <div className="font-bold truncate">{c.name}</div>
                     <div className="text-[10px] text-base-content/50 truncate font-normal mt-0.5">
-                      {c.description || "설명 없음"}
+                      {c.description || t.noDescription}
                     </div>
                   </div>
                   <div className="hidden group-hover:flex items-center gap-1 shrink-0">
                     <button
                       className="btn btn-ghost btn-xs p-0 w-6 h-6 hover:bg-base-300 text-base-content/60"
-                      title="복제"
+                      title={t.duplicate}
                       onClick={(e) => handleDuplicateComponent(c, e)}
                     >
                       <Copy className="w-3.5 h-3.5" />
                     </button>
                     <button
                       className="btn btn-ghost btn-xs p-0 w-6 h-6 hover:bg-error/15 text-error/70"
-                      title="삭제"
+                      title={t.delete}
                       onClick={(e) => handleDeleteComponent(c.id, e)}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -572,7 +572,7 @@ export default function Preview({ message }: Props) {
               );
             })}
             {filteredComponents.length === 0 && (
-              <div className="text-center py-8 text-xs text-base-content/40 italic">저장된 컴포넌트가 없습니다.</div>
+              <div className="text-center py-8 text-xs text-base-content/40 italic">{t.emptyList}</div>
             )}
           </div>
         </div>
@@ -583,7 +583,9 @@ export default function Preview({ message }: Props) {
           <div className="bg-base-200/60 p-3 rounded-2xl border border-base-300 mb-3.5 flex flex-col gap-2 shrink-0">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 items-end">
               <div>
-                <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-wider">컴포넌트명</label>
+                <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-wider">
+                  {t.componentName}
+                </label>
                 <input
                   type="text"
                   className="input input-bordered input-xs font-bold w-full mt-0.5 text-xs focus:outline-none"
@@ -594,25 +596,25 @@ export default function Preview({ message }: Props) {
               <div>
                 <div className="flex items-center justify-between">
                   <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-wider">
-                    검증용 스키마
+                    {t.validationSchema}
                   </label>
                   <div className="flex gap-1.5">
                     <button
                       type="button"
                       className="text-[9px] hover:text-primary font-bold text-base-content/40 cursor-pointer"
-                      title="새 스키마 생성"
+                      title={t.createSchema}
                       onClick={() => handleOpenSchemaModal(true)}
                     >
-                      [+ 생성]
+                      {t.createSchemaShort}
                     </button>
                     {editedSchemaId && (
                       <button
                         type="button"
                         className="text-[9px] hover:text-primary font-bold text-base-content/40 cursor-pointer"
-                        title="선택된 스키마 편집"
+                        title={t.editSchema}
                         onClick={() => handleOpenSchemaModal(false)}
                       >
-                        [/ 편집]
+                        {t.editSchemaShort}
                       </button>
                     )}
                   </div>
@@ -622,7 +624,7 @@ export default function Preview({ message }: Props) {
                   value={editedSchemaId || ""}
                   onChange={(e) => setEditedSchemaId(e.target.value)}
                 >
-                  <option value="">-- 스키마 미지정 --</option>
+                  <option value="">{t.noSchema}</option>
                   {savedSchemas.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
@@ -639,18 +641,20 @@ export default function Preview({ message }: Props) {
                   disabled={!activeComponent}
                 >
                   {justSaved ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
-                  {justSaved ? "저장됨" : "저장"}
+                  {justSaved ? t.saved : t.save}
                 </button>
               </div>
             </div>
             <div>
-              <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-wider">설명</label>
+              <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-wider">
+                {t.description}
+              </label>
               <input
                 type="text"
                 className="input input-bordered input-xs w-full mt-0.5 text-xs focus:outline-none"
                 value={editedDesc}
                 onChange={(e) => setEditedDesc(e.target.value)}
-                placeholder="컴포넌트에 대한 설명을 적어주세요..."
+                placeholder={t.descriptionPlaceholder}
               />
             </div>
           </div>
@@ -665,7 +669,7 @@ export default function Preview({ message }: Props) {
                 className="btn btn-xs btn-ghost btn-outline flex items-center gap-1 hover:bg-base-200"
                 onClick={handleRender}
               >
-                <Play className="w-3 h-3 text-primary" /> 실행 (Render)
+                <Play className="w-3 h-3 text-primary" /> {t.render}
               </button>
             </div>
             <div className="flex-1 min-h-[350px]">
@@ -684,18 +688,18 @@ export default function Preview({ message }: Props) {
           {/* Mock JSON Input */}
           <div className="h-[210px] card bg-base-100 border border-base-300 p-4 shadow-sm flex flex-col shrink-0 overflow-hidden">
             <div className="flex items-center justify-between border-b border-base-200 pb-2 mb-2 shrink-0">
-              <span className="font-semibold text-xs text-base-content/70">Props 데이터 (JSON Mock Data)</span>
+              <span className="font-semibold text-xs text-base-content/70">{t.propsData}</span>
               {editedSchemaId &&
                 (validationErrors ? (
                   <span
                     className="badge badge-error badge-xs font-bold text-white px-2 py-1.5 flex items-center gap-1 cursor-help"
                     title={validationErrors}
                   >
-                    ✗ 스키마 불일치
+                    ✗ {t.schemaMismatch}
                   </span>
                 ) : (
                   <span className="badge badge-success badge-xs font-bold text-white px-2 py-1.5 flex items-center gap-1">
-                    ✓ 스키마 일치
+                    ✓ {t.schemaMatch}
                   </span>
                 ))}
             </div>
@@ -720,14 +724,14 @@ export default function Preview({ message }: Props) {
         {/* Live Preview Panel (Right Side - 4 columns) */}
         <div className="lg:col-span-4 card bg-base-100 border border-base-300 p-4 shadow-sm flex flex-col h-full overflow-hidden">
           <h3 className="font-semibold text-xs text-base-content/70 mb-3 border-b border-base-200 pb-2 shrink-0">
-            🖥️ 실시간 결과 (Live Preview)
+            {t.livePreview}
           </h3>
 
           <div className="flex-1 bg-white border border-base-300 rounded-xl overflow-hidden relative">
             {compileError ? (
               <div className="absolute inset-0 p-4 bg-error/5 text-error font-mono text-[11px] overflow-auto flex flex-col space-y-2">
                 <span className="font-bold flex items-center gap-1">
-                  <AlertCircle className="w-4 h-4" /> 컴파일 에러:
+                  <AlertCircle className="w-4 h-4" /> {t.compileError}
                 </span>
                 <pre className="whitespace-pre-wrap leading-relaxed">{compileError}</pre>
               </div>
@@ -740,7 +744,7 @@ export default function Preview({ message }: Props) {
               />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center text-xs text-base-content/40 italic">
-                코드 컴파일을 기다리는 중...
+                {t.waitingCompile}
               </div>
             )}
           </div>

@@ -82,6 +82,15 @@ const en = {
   parseOpenapiFailed: "Failed to parse OpenAPI specification",
   noMatchingDomains: "No domains with schemas linked in project settings.",
   pasteValidOpenapiFirst: "Paste a valid OpenAPI JSON spec first.",
+  importOpenApi: "Import OpenAPI",
+  pasteJson: "Paste JSON",
+  pasteJsonDirect: "Paste JSON",
+  recentApiLogs: "Recent API Logs",
+  propertyNamePlaceholder: "Property name",
+  addSubProperty: "Add sub property",
+  extractFromResponse: "Extract sub properties from API response",
+  deleteProperty: "Delete property (also removes nested items)",
+  refType: "ref",
 };
 
 const ko: typeof en = {
@@ -137,6 +146,15 @@ const ko: typeof en = {
   parseOpenapiFailed: "OpenAPI 스펙 파싱 실패",
   noMatchingDomains: "설정에 스키마가 연결된 도메인이 없습니다.",
   pasteValidOpenapiFirst: "유효한 OpenAPI JSON 스펙을 먼저 붙여넣어 주세요.",
+  importOpenApi: "OpenAPI 가져오기",
+  pasteJson: "JSON 붙여넣기",
+  pasteJsonDirect: "JSON 직접 붙여넣기",
+  recentApiLogs: "최근 API 로그",
+  propertyNamePlaceholder: "속성명 (예: user)",
+  addSubProperty: "하위 속성 추가",
+  extractFromResponse: "API 응답에서 하위 속성 추출",
+  deleteProperty: "속성 삭제 (하위 속성도 함께 삭제됩니다)",
+  refType: "ref (참조)",
 };
 
 export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertiesEditorProps) {
@@ -678,7 +696,7 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
             }`}
             onClick={() => setActiveImportTab(activeImportTab === "openapi" ? null : "openapi")}
           >
-            <FileCode className="w-3 h-3" /> {lang === "ko" ? "OpenAPI 가져오기" : "Import OpenAPI"}
+            <FileCode className="w-3 h-3" /> {t.importOpenApi}
           </button>
           <button
             type="button"
@@ -687,7 +705,7 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
             }`}
             onClick={() => setActiveImportTab(activeImportTab === "json" ? null : "json")}
           >
-            <Copy className="w-3 h-3" /> {lang === "ko" ? "JSON 붙여넣기" : "Paste JSON"}
+            <Copy className="w-3 h-3" /> {t.pasteJson}
           </button>
           <button
             type="button"
@@ -696,10 +714,10 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
             }`}
             onClick={() => setActiveImportTab(activeImportTab === "logs" ? null : "logs")}
           >
-            <Globe className="w-3 h-3" /> {lang === "ko" ? "최근 API 로그" : "Recent API Logs"}
+            <Globe className="w-3 h-3" /> {t.recentApiLogs}
           </button>
           <button className="btn btn-xs btn-primary flex items-center gap-1" onClick={addProperty}>
-            <Plus className="w-3.5 h-3.5" /> {lang === "ko" ? "속성 추가" : "Add Property"}
+            <Plus className="w-3.5 h-3.5" /> {t.addProperty}
           </button>
         </div>
       </div>
@@ -712,19 +730,19 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
               {activeImportTab === "openapi" && (
                 <>
                   <FileCode className="w-3.5 h-3.5 text-primary" />
-                  {lang === "ko" ? "OpenAPI 가져오기" : "Import OpenAPI"}
+                  {t.importOpenApi}
                 </>
               )}
               {activeImportTab === "json" && (
                 <>
                   <Copy className="w-3.5 h-3.5 text-primary" />
-                  {lang === "ko" ? "JSON 직접 붙여넣기" : "Paste JSON"}
+                  {t.pasteJsonDirect}
                 </>
               )}
               {activeImportTab === "logs" && (
                 <>
                   <Globe className="w-3.5 h-3.5 text-primary" />
-                  {lang === "ko" ? "최근 API 로그" : "Recent API Logs"}
+                  {t.recentApiLogs}
                 </>
               )}
             </span>
@@ -1060,11 +1078,11 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
               )}
 
               {/* Name (4.5 cols) */}
-              <div className="col-span-4.5 flex items-center gap-1">
+              <div className="col-span-4 flex items-center gap-1 min-w-0">
                 <input
                   type="text"
                   className="input input-bordered input-xs w-full text-xs focus:outline-none font-mono font-semibold"
-                  placeholder={lang === "ko" ? "속성명 (e.g. user)" : "Property name"}
+                  placeholder={t.propertyNamePlaceholder}
                   value={prop.name}
                   onChange={(e) => updateProperty(prop.id, "name", e.target.value)}
                 />
@@ -1083,7 +1101,7 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
                   <option value="boolean">boolean</option>
                   <option value="object">object</option>
                   <option value="array">array</option>
-                  <option value="ref">ref (참조)</option>
+                  <option value="ref">{t.refType}</option>
                 </select>
 
                 {isObjectOrArray && (
@@ -1092,7 +1110,7 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
                       type="button"
                       onClick={() => addSubProperty(prop.id)}
                       className="btn btn-primary btn-xs btn-square text-white"
-                      title={lang === "ko" ? "하위 속성 추가" : "Add sub property"}
+                      title={t.addSubProperty}
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </button>
@@ -1101,11 +1119,7 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
                       className="btn btn-outline btn-xs btn-square hover:bg-base-200"
                       disabled={!apiClientLastResponse}
                       onClick={() => apiClientLastResponse && importFromJson(apiClientLastResponse, prop.id)}
-                      title={
-                        lang === "ko"
-                          ? "API 응답에서 하위 속성 추출하여 추가"
-                          : "Extract sub properties from API response"
-                      }
+                      title={t.extractFromResponse}
                     >
                       <Globe className="w-3.5 h-3.5" />
                     </button>
@@ -1114,7 +1128,7 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
               </div>
 
               {/* Required (1.5 cols) */}
-              <div className="col-span-1.5 flex items-center justify-center">
+              <div className="col-span-2 flex items-center justify-center">
                 <label className="label cursor-pointer flex items-center gap-1.5 p-0">
                   <input
                     type="checkbox"
@@ -1142,11 +1156,7 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
                 <button
                   onClick={() => removeProperty(prop.id)}
                   className="btn btn-ghost btn-xs text-error/70 hover:bg-error/15 p-0 w-6 h-6 rounded-circle"
-                  title={
-                    lang === "ko"
-                      ? "속성 삭제 (하위 속성도 포함하여 함께 삭제됩니다)"
-                      : "Delete property (also removes nested items)"
-                  }
+                  title={t.deleteProperty}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>

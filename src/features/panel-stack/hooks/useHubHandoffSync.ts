@@ -1,6 +1,6 @@
-import { listen } from "@tauri-apps/api/event";
 import { useSetAtom } from "jotai";
 import { useEffect } from "react";
+import { listen } from "@/shared/lib/tauri/client";
 import { getHubWindowOrigin, HUB_HANDOFF, type HubHandoffEventPayload } from "@/shared/lib/tauri/hubEvents";
 import type { HandoffTarget } from "../lib/hubHandoff";
 import { hubHandoffAtom, hubHandoffConsumedIdAtom, hubHandoffRemoteTargetAtom } from "../store";
