@@ -28,26 +28,35 @@ Personal and commercial use. Your AI agent can drive it with `hgc`.
 
 ---
 
-## Why Horizon Gateway?
+## What it does
 
-Modern frontend and backend engineering requires running multiple disconnected utilities simultaneously:
-- Charles or Proxyman for HTTPS packet inspection
-- Mockoon or Postman for API mocking
-- Ngrok or Cloudflare Tunnels for mobile and remote debugging
-- Browser developer tools and documentation sheets for UI/UX guidelines and domain health tracking
+Horizon Gateway is a desktop app for local HTTPS inspection, API mocks, and domain checks.
 
-Horizon Gateway consolidates your local development network and debugging toolchain into a single, native desktop application.
+- HTTPS proxy built with Hyper and Tokio. It serves a PAC file, and a TLS bypass list can skip decryption for hosts you choose.
+- Map one hostname, such as `api.example.dev`, to a local target such as `localhost:3000`. Matching is the exact hostname. This does not edit the hosts file.
+- Mock rules set a status code, response headers, and a body.
+- OpenAPI: download a spec for a domain and browse or try its endpoints.
+- Domain monitor: HTTP status and latency for registered domains. Domains can be grouped.
+- UI/UX Guides (Tools → UI/UX Guides): edit guides, import and export JSON, and write a PDF report.
+- `hgc` talks to the same proxy, mock, and domain data from a terminal.
 
-- **Native Performance**: Built with Rust and Tauri 2, delivering a lightweight ~22MB Windows installer footprint and negligible memory usage compared to Electron-based alternatives.
-- **AI Agent-Ready**: Includes a dedicated console CLI (`hgc`) designed for direct integration with AI coding assistants like Cursor, Gemini CLI, Claude Code, and Windsurf.
-- **Zero-Friction Configuration**: Switch proxy routes, mock endpoints, and check domain health from one desktop app.
+## Experimental
+
+These are in the app, and they are not finished:
+
+- **Transparent proxy** (Windows only): Settings calls this experimental. It uses WinDivert, needs an elevated backend, and needs the local proxy running.
+- **Mock scenarios**: rules are stored on a scenario, but the proxy applies enabled rules and does not check which scenario is active.
+
+## Other devices
+
+**Allow other devices** (Settings → Proxy) is off by default. While it is off, the proxy listens on `127.0.0.1`. Turn it on to let other devices on the local network use the proxy and the setup page. Restart the app after you change it.
 
 ---
 
 ## Screenshots
 
 <div align="center">
-  <p><strong>API Mocking — Edit Rule</strong></p>
+  <p><strong>API Mocking: Edit Rule</strong></p>
   <img src="./docs/images/gateway-mock-editor.png" alt="API Mocking Edit Rule dialog" width="85%" />
   <br/><br/>
   <p><strong>hgc CLI</strong></p>
@@ -56,45 +65,27 @@ Horizon Gateway consolidates your local development network and debugging toolch
 
 ---
 
-## Core Features
+## Devices
 
-### 1. High-Performance Local MITM Proxy & Dynamic Routing
-- Built-in HTTPS decryption proxy powered by Hyper and Tokio.
-- **Dynamic Local Routing**: Redirect live domain traffic (`*.example.com`) directly to local development ports (`localhost:3000`) or static build directories without modifying `/etc/hosts` or DNS settings.
-- Automatic PAC script generation with customizable TLS bypass lists for enterprise communication tools (Teams, Slack, Zoom, SSO).
-
-### 2. OpenAPI Explorer & Scenario-Based Mocking
-- Visual OpenAPI schema inspection and parameter tree exploration.
-- Define flexible mock rules (status codes, synthetic latency, custom JSON payloads, and dynamic response headers) to build frontends before backend implementation is complete.
-
-### 3. Domain Health & Live Observability
-- Real-time latency tracking, HTTP status monitoring, and SSL certificate validation across development, staging, and production environments.
-- Logical domain grouping with instant health status indicators.
-
-### 4. AI Agent Integration (`hgc` CLI)
-- Manage proxy routes, mock rules, and domain records directly from the terminal.
-- Install native agent skills via `hgc init --project` to grant AI coding assistants (Cursor, Claude, Gemini, Windsurf, Copilot) automated environment awareness.
-
-### 5. Mobile Debugging & Secure Tunneling
-- **ADB Port Forwarding**: Automatically route connected Android device traffic through the local proxy.
-- **Secure Tunneling**: Expose local proxy environments over Tailscale or Cloudflare tunnels for remote QA and cross-device validation. *(Note: iOS USB debugging is unsupported; use Android ADB or network tunnels)*.
-
-### 6. UI/UX Guides
-- **Guide Management** (Tools → UI/UX Guides) stores and edits UI/UX guides for your hosts.
-- Import and export the guide set as JSON.
-- Generate a PDF report from the saved guides.
+- **Android (ADB)**: with the proxy running and a device in USB debugging, the app can forward the proxy port over USB.
+- **iOS USB**: not supported.
+- **Wireless**: if Tailscale is running, the app can show its address. If `cloudflared` is installed, the app can start a temporary Cloudflare tunnel for the first mobile connection.
 
 ---
 
 ## Installation
 
-Download the prebuilt binaries from the [GitHub Releases](https://github.com/delete-horizon/horizon-gateway/releases) page:
+Download installers from [GitHub Releases](https://github.com/delete-horizon/horizon-gateway/releases). The [v2.8.15](https://github.com/delete-horizon/horizon-gateway/releases/tag/v2.8.15) assets are:
 
-| Operating System | Package | Architecture |
-|---|---|---|
-| Windows | NSIS `.exe` | x64 (~22MB) |
-| macOS | `.dmg` | Apple Silicon and Intel, separate installers |
-| Linux | `.AppImage` / `.deb` / `.rpm` | x64 |
+| Operating System | Package | Architecture | Size |
+|---|---|---|---|
+| Windows | NSIS `.exe` (`horizon-gateway_2.8.15_x64-setup.exe`). There is no `.msi`. | x64 | 22.9 MB |
+| macOS | `.dmg`, one file for Apple Silicon and one for Intel | aarch64, x64 | 30.5 MB, 31.7 MB |
+| Linux | `.deb` | x64 (amd64) | 33.7 MB |
+| Linux | `.rpm` | x64 | 33.7 MB |
+| Linux | `.AppImage` | x64 (amd64) | 110.8 MB |
+
+Sizes are decimal megabytes of those release files. The same release also has updater files (`.sig`, `latest.json`, `.app.tar.gz`). Later releases can differ in size.
 
 ---
 
@@ -109,7 +100,7 @@ Download the prebuilt binaries from the [GitHub Releases](https://github.com/del
 
 ## AI Agent Integration
 
-Horizon Gateway includes `hgc`, a fast console CLI that operates without administrative privilege requirements.
+`hgc` is a separate console program. It does not request administrator rights. `hgc init --project` writes a skill to `.agents/skills/horizon-gateway` in the current directory. Agent targets are cursor, claude, codex, gemini, copilot, and windsurf.
 
 ```bash
 # Initialize AI agent skills in the current project

@@ -33,6 +33,16 @@
   },
   "bundle": {
     "active": true,
+    "publisher": "kyuyeon <hello@delete-horizon.com>",
+    "homepage": "https://gateway.delete-horizon.com",
+    "shortDescription": "Local MITM proxy, API mock, and domain inspector",
+    "longDescription": "Inspect HTTPS on this computer, mock API responses, and check domain HTTP status.",
+    "category": "DeveloperTool",
+    "linux": {
+      "deb": {
+        "depends": ["libssl3", "libxdo3"]
+      }
+    },
     "targets": [
       "nsis",
       "app",
