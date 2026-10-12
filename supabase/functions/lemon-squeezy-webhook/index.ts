@@ -4,7 +4,9 @@
 // `webhook_events` (sha256 hex id) so a replay returns 200 without reprocessing,
 // then updates `workspaces.status` / `workspaces.seat_limit` from `subscription_*`
 // events, matched via the `checkout[custom][workspace_id]` value echoed back as
-// `meta.custom_data.workspace_id`.
+// `meta.custom_data.workspace_id`. If processing after the insert fails, the event
+// row is deleted so Lemon Squeezy's retry is processed again instead of treated
+// as a duplicate.
 //
 // Required secrets (set via `supabase secrets set`):
 //   - LEMON_SQUEEZY_WEBHOOK_SECRET — the signing secret configured on the LS webhook
@@ -84,6 +86,18 @@ async function sha256Hex(value: string): Promise<string> {
   return toHex(digest);
 }
 
+async function releaseWebhookEvent(eventId: string): Promise<void> {
+  try {
+    const { error } = await supabase.from("webhook_events").delete().eq("id", eventId);
+    if (error) {
+      console.error("webhook_events delete failed:", error.message);
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("webhook_events delete failed:", message);
+  }
+}
+
 interface LemonSqueezyPayload {
   meta?: {
     event_name?: string;
@@ -130,42 +144,50 @@ Deno.serve(async (req) => {
     return new Response("insert failed", { status: 500 });
   }
 
-  if (!eventName.startsWith("subscription_")) {
-    return new Response(`ignored event: ${eventName}`, { status: 200 });
-  }
+  try {
+    if (!eventName.startsWith("subscription_")) {
+      return new Response(`ignored event: ${eventName}`, { status: 200 });
+    }
 
-  const workspaceId = payload.meta?.custom_data?.workspace_id;
-  if (!workspaceId) {
-    console.warn("lemon-squeezy webhook missing meta.custom_data.workspace_id", eventName);
-    return new Response("missing workspace_id in custom_data", { status: 200 });
-  }
+    const workspaceId = payload.meta?.custom_data?.workspace_id;
+    if (!workspaceId) {
+      console.warn("lemon-squeezy webhook missing meta.custom_data.workspace_id", eventName);
+      return new Response("missing workspace_id in custom_data", { status: 200 });
+    }
 
-  const attributes = payload.data?.attributes ?? {};
-  const status = STATUS_MAP[attributes.status ?? ""] ?? "active";
-  const variantId = attributes.variant_id != null ? String(attributes.variant_id) : null;
-  const seatLimit = variantId ? SEAT_LIMIT_BY_VARIANT[variantId] : undefined;
-  const subscriptionId = payload.data?.id != null ? String(payload.data.id) : null;
+    const attributes = payload.data?.attributes ?? {};
+    const status = STATUS_MAP[attributes.status ?? ""] ?? "active";
+    const variantId = attributes.variant_id != null ? String(attributes.variant_id) : null;
+    const seatLimit = variantId ? SEAT_LIMIT_BY_VARIANT[variantId] : undefined;
+    const subscriptionId = payload.data?.id != null ? String(payload.data.id) : null;
 
-  const isCanceled = status === "canceled";
-  const updates: Record<string, unknown> = {
-    status,
-    plan: isCanceled ? "free" : "pro",
-  };
-  if (seatLimit != null && !isCanceled) {
-    updates.seat_limit = seatLimit;
-  }
-  if (isCanceled) {
-    updates.seat_limit = 3;
-  }
-  if (subscriptionId) {
-    updates.ls_subscription_id = isCanceled ? null : subscriptionId;
-  }
+    const isCanceled = status === "canceled";
+    const updates: Record<string, unknown> = {
+      status,
+      plan: isCanceled ? "free" : "pro",
+    };
+    if (seatLimit != null && !isCanceled) {
+      updates.seat_limit = seatLimit;
+    }
+    if (isCanceled) {
+      updates.seat_limit = 3;
+    }
+    if (subscriptionId) {
+      updates.ls_subscription_id = isCanceled ? null : subscriptionId;
+    }
 
-  const { error } = await supabase.from("workspaces").update(updates).eq("id", workspaceId);
-  if (error) {
-    console.error("workspaces update failed:", error.message);
-    return new Response("update failed", { status: 500 });
-  }
+    const { error } = await supabase.from("workspaces").update(updates).eq("id", workspaceId);
+    if (error) {
+      console.error("workspaces update failed:", error.message);
+      await releaseWebhookEvent(eventId);
+      return new Response("update failed", { status: 500 });
+    }
 
-  return new Response("ok", { status: 200 });
+    return new Response("ok", { status: 200 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("webhook processing failed:", message);
+    await releaseWebhookEvent(eventId);
+    return new Response("processing failed", { status: 500 });
+  }
 });
