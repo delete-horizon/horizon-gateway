@@ -1,5 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import { useAtomValue } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { supabaseProfileAtom, supabaseSessionAtom } from "@/entities/app";
@@ -26,6 +24,7 @@ import {
 } from "@/entities/chat";
 import { activeWorkspaceIdAtom, listMembers } from "@/entities/team";
 import { commands, unwrap } from "@/shared/api";
+import { invoke, listen } from "@/shared/lib/tauri/client";
 
 function peerOnline(peers: ChatPeerEndpoint[], profileId: string): boolean {
   const peer = peers.find((item) => item.profileId === profileId);

@@ -1,9 +1,9 @@
-import { listen } from "@tauri-apps/api/event";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { languageAtom, proxyRunningAtom } from "@/entities/app";
 import type { Annotation, CapturedElement } from "@/entities/inspector";
 import { commands, unwrap } from "@/shared/api";
+import { listen } from "@/shared/lib/tauri/client";
 
 const INSPECTOR_COPY = {
   ko: {

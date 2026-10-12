@@ -1,5 +1,4 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { listen } from "@tauri-apps/api/event";
 import clsx from "clsx";
 import { useAtom, useAtomValue } from "jotai";
 import { Clock, Loader2, RefreshCw, Search } from "lucide-react";
@@ -14,6 +13,7 @@ import {
 } from "@/entities/sandbox";
 import type { ApiLogEntry, Domain } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
+import { listen } from "@/shared/lib/tauri/client";
 import { offerRevealSavedDownload } from "@/shared/lib/tauri/offerRevealSavedDownload";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";

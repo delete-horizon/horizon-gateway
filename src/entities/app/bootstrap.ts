@@ -1,4 +1,3 @@
-import { listen } from "@tauri-apps/api/event";
 import { useSetAtom } from "jotai";
 import { useCallback, useEffect } from "react";
 import { domainsAtom, fetchDomains } from "@/entities/domain";
@@ -19,6 +18,7 @@ import {
 } from "@/shared/api/devMockAuth";
 import { isDevLocalPasswordAuthEnabled, signInDevLocalUser } from "@/shared/api/localAuth";
 import { supabase } from "@/shared/api/supabase";
+import { listen } from "@/shared/lib/tauri/client";
 import { HUB_DATA_CHANGED } from "@/shared/lib/tauri/hubEvents";
 import { toastError, toastSuccess } from "@/shared/ui/toast";
 import { shouldConsumeSessionHandoff, takeSessionHandoff } from "./sessionHandoff";

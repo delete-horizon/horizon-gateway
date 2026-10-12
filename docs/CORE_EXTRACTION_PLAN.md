@@ -261,6 +261,7 @@ roadmap 문구와 코드를 대조하면 오늘 위치가 다르다. 목표 위�
 - `src/bindings.ts`의 `invoke`를 “Tauri면 기존 IPC forward, 나중엔 직접 client”인 한 모듈 뒤로 옮긴다. 이벤트 `listen`도 같다.
 - specta로 `bindings.ts`를 다시 생성하지 않는다. 생성 경로가 현재 GUI command만 안다.
 - 동작 변화 없이 데스크톱만 검증한다. web 번들은 만들지 않는다.
+- 진행 (2026-10-12): `src/shared/lib/tauri/client.ts`가 데스크톱에서 Tauri `invoke`와 `listen`을 그대로 전달한다. `bindings.ts`와 화면의 `listen`은 이 모듈만 쓴다. 직접 serve client로 바꾸는 자리는 `setCoreClient`이며, 그 구현은 넣지 않았다. `bindings.ts`는 specta로 다시 생성하지 않았다.
 
 ### PR 7 — 원격 attach (opt-in)
 
