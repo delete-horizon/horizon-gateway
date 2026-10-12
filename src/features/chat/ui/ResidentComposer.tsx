@@ -1,9 +1,9 @@
-import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAtomValue } from "jotai";
 import { useEffect, useState } from "react";
 import { languageAtom, supabaseSessionAtom } from "@/entities/app";
 import { activeWorkspaceIdAtom } from "@/entities/team";
+import { listen } from "@/shared/lib/tauri/client";
 import { TeamRecipientComposer } from "./TeamRecipientComposer";
 
 export const RESIDENT_COMPOSER_EVENT = "resident-composer-target";

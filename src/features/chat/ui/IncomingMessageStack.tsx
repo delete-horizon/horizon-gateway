@@ -1,5 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -18,6 +16,7 @@ import {
   sendAction,
 } from "@/entities/chat";
 import { activeWorkspaceIdAtom } from "@/entities/team";
+import { invoke, listen } from "@/shared/lib/tauri/client";
 import { openChatRoomWindow } from "@/shared/lib/tauri/openChatWindow";
 
 const MAX_CARDS = 4;

@@ -1,4 +1,3 @@
-import { listen } from "@tauri-apps/api/event";
 import clsx from "clsx";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
@@ -38,6 +37,7 @@ import type {
   TransparentProxyStatus,
 } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
+import { listen } from "@/shared/lib/tauri/client";
 import { notifyHubDataChanged } from "@/shared/lib/tauri/hubEvents";
 import { useIsSecondaryWindow } from "@/shared/lib/tauri/useEmbedMode";
 import { Button } from "@/shared/ui/button/Button";

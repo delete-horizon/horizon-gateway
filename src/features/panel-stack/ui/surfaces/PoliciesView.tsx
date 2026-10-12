@@ -1,4 +1,3 @@
-import { listen } from "@tauri-apps/api/event";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { readTextFile, writeFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { openPath, openUrl } from "@tauri-apps/plugin-opener";
@@ -41,6 +40,7 @@ import {
   resolveGuideHostFilterSeed,
 } from "@/shared/lib/guideMatch";
 import { MarkdownRenderer } from "@/shared/lib/MarkdownRenderer";
+import { listen } from "@/shared/lib/tauri/client";
 import { useIsDetachedWindow } from "@/shared/lib/tauri/useEmbedMode";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";

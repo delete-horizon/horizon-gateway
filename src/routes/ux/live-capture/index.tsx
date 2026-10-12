@@ -1,5 +1,4 @@
 import { createFileRoute, useSearch } from "@tanstack/react-router";
-import { listen } from "@tauri-apps/api/event";
 import clsx from "clsx";
 import { useAtom, useAtomValue } from "jotai";
 import {
@@ -25,6 +24,7 @@ import type { ApiLogEntry, MockRule } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { annotationMatchesPage } from "@/shared/lib/guideMatch";
 import { useIsHubSurfaceEmbed } from "@/shared/lib/hub/HubSurfaceEmbedContext";
+import { listen } from "@/shared/lib/tauri/client";
 import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
 import { createMockModalAtom } from "@/shared/store/modals";
 import { Button } from "@/shared/ui/button/Button";

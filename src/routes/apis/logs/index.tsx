@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { listen } from "@tauri-apps/api/event";
 import clsx from "clsx";
 import { AnimatePresence } from "framer-motion";
 import { useAtom, useAtomValue } from "jotai";
@@ -34,6 +33,7 @@ import {
 import { hubApiLogsHostSeedAtom } from "@/features/panel-stack";
 import type { ApiLogEntry } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
+import { listen } from "@/shared/lib/tauri/client";
 import { offerRevealSavedDownload } from "@/shared/lib/tauri/offerRevealSavedDownload";
 import { createMockModalAtom } from "@/shared/store/modals";
 import { Badge } from "@/shared/ui/badge/badge";

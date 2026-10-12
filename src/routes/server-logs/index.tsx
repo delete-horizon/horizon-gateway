@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { listen } from "@tauri-apps/api/event";
 import clsx from "clsx";
 import { atom, useAtom, useAtomValue } from "jotai";
 import { Copy, Pause, Play, SearchIcon, Trash2 } from "lucide-react";
@@ -8,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { proxyRunningAtom } from "@/entities/app";
 import { ProxyServerWarning } from "@/entities/proxy";
 import { atomWithWindowStorage } from "@/shared/lib/jotai/window-storage";
+import { listen } from "@/shared/lib/tauri/client";
 import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
 import { Modal } from "@/shared/ui/modal/Modal";
 
