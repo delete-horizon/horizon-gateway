@@ -1,0 +1,7 @@
+# Official WinDivert redistributable (dll/lib/sys). Cargo reads this when the
+# working directory is src-tauri, which is where the headless smoke builds
+# horizon-gateway-serve. hg-gui/.cargo/config.toml overrides it for builds
+# started inside hg-gui. Do not enable the windivert `static` feature; the
+# vendored static objects conflict with the MSVC CRT.
+[env]
+WINDIVERT_PATH = { value = "hg-serve/resources/windivert", relative = true }
