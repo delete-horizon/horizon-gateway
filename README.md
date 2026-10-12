@@ -92,17 +92,27 @@ Sizes are decimal megabytes of those release files. The same release also has up
 
 ## Verifying downloads
 
-`SHA256SUMS` on the release lists SHA-256 hashes for the installer and updater binaries (`.exe`, `.dmg`, `.deb`, `.rpm`, `.AppImage`, `.app.tar.gz`). The `.sig` files are minisign signatures for the in-app updater, and `latest.json` is the updater manifest. Those two are left out of `SHA256SUMS`. Each line is `<hash>  <filename>` (two spaces), sorted by filename.
+`SHA256SUMS` is attached starting with the first release after [v2.8.15](https://github.com/delete-horizon/horizon-gateway/releases/tag/v2.8.15). v2.8.15 and earlier releases do not include it.
+
+`SHA256SUMS` lists SHA-256 hashes for the installer and updater binaries (`.exe`, `.dmg`, `.deb`, `.rpm`, `.AppImage`, `.app.tar.gz`). The `.sig` files are minisign signatures for the in-app updater, and `latest.json` is the updater manifest. Those two are left out of `SHA256SUMS`. Each line is `<hash>  <filename>` (two spaces), sorted by filename.
 
 Download `SHA256SUMS` into the same folder as the package you want to check.
 
-Linux and macOS, with GNU `sha256sum` (on macOS, `brew install coreutils`):
+Linux:
 
 ```bash
 sha256sum -c SHA256SUMS --ignore-missing
 ```
 
 `--ignore-missing` checks the files in that folder and skips names you did not download.
+
+macOS uses the built-in `shasum` and checks only the file you downloaded. Replace `<version>` with the release version, without a leading `v`. The space before the filename matches the two-space line. Apple Silicon:
+
+```bash
+grep ' horizon-gateway_<version>_aarch64.dmg$' SHA256SUMS | shasum -a 256 -c -
+```
+
+For Intel, use `horizon-gateway_<version>_x64.dmg` in the same command.
 
 Windows PowerShell:
 
