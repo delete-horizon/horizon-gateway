@@ -131,7 +131,7 @@ API를 직접 부르거나, 데이터 가공과 화면 확인에 쓰는 도구�
 
 [GitHub Releases](https://github.com/delete-horizon/horizon-gateway/releases)에서 받습니다. Windows x64, macOS Apple Silicon, macOS Intel, Linux x64용을 제공합니다. Windows ARM과 Linux ARM용은 없습니다. Linux 패키지는 Ubuntu 22.04에서 빌드합니다.
 
-크기는 v2.8.15 기준입니다.
+v2.8.15 설치 파일 크기입니다.
 
 | 운영체제 | 받는 파일 | 아키텍처 | 크기 |
 |---|---|---|---|
