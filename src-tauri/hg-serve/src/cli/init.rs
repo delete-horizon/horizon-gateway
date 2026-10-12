@@ -309,7 +309,7 @@ fn write_skill_bundle(dest: &Path, force: bool, check: bool) -> Result<String, S
     })
 }
 
-pub(crate) fn install_project_at(
+fn install_project_at(
     root: &Path,
     force: bool,
     check: bool,
@@ -395,12 +395,8 @@ fn link_project_skill(dest: &Path, rel: &str, force: bool, check: bool) -> Resul
 fn relative_skill_link(rel: &str) -> String {
     let depth = Path::new(rel)
         .parent()
-        .map(|parent| parent.components().count())
-        .unwrap_or(0);
-    let mut parts = Vec::with_capacity(depth + 3);
-    for _ in 0..depth {
-        parts.push("..");
-    }
+        .map_or(0, |parent| parent.components().count());
+    let mut parts = vec![".."; depth];
     parts.extend([".agents", "skills", "horizon-gateway"]);
     parts.join("/")
 }

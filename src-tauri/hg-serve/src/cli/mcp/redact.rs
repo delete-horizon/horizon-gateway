@@ -14,6 +14,7 @@ pub const UNTRUSTED_NOTICE: &str =
 
 const REDACTED: &str = "REDACTED";
 
+#[cfg(test)]
 const SENSITIVE_HEADERS: &[&str] = &[
     "authorization",
     "proxy-authorization",
@@ -128,6 +129,7 @@ fn content_length(headers: Option<&Value>) -> Option<u64> {
 }
 
 /// True when a header name must never be copied into an MCP result.
+#[cfg(test)]
 pub fn is_sensitive_header(name: &str) -> bool {
     SENSITIVE_HEADERS
         .iter()
@@ -210,10 +212,16 @@ mod tests {
         assert_eq!(summary["status"], 201);
         assert_eq!(summary["size"], 99);
         assert_eq!(summary["timing"], "2026-10-12T00:00:00Z");
-        let keys: Vec<&String> = summary.as_object().unwrap().keys().collect();
+        let mut keys: Vec<&str> = summary
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        keys.sort_unstable();
         assert_eq!(
             keys,
-            ["id", "method", "host", "path", "status", "size", "timing"]
+            ["host", "id", "method", "path", "size", "status", "timing"]
         );
     }
 

@@ -215,6 +215,7 @@ pub fn visible_tools(access: McpAccess) -> Vec<Tool> {
         .collect()
 }
 
+#[cfg(test)]
 fn core_commands(access: McpAccess) -> Vec<&'static str> {
     visible_specs(access)
         .into_iter()
@@ -270,7 +271,7 @@ fn assert_not_forbidden(command: &str) -> Result<(), String> {
 
 pub fn command_is_forbidden(command: &str) -> bool {
     let lower = command.to_ascii_lowercase();
-    NEVER_EXPOSED.iter().any(|name| *name == command)
+    NEVER_EXPOSED.contains(&command)
         || lower.contains("pac")
         || lower.contains("token")
         || lower.contains("certificate")

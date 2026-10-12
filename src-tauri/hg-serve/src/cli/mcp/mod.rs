@@ -95,10 +95,7 @@ impl ServerHandler for HgcMcp {
         request: CallToolRequestParams,
         _context: RequestContext<RoleServer>,
     ) -> Result<rmcp::model::CallToolResponse, ErrorData> {
-        let arguments = request
-            .arguments
-            .map(Value::Object)
-            .unwrap_or_else(|| json!({}));
+        let arguments = request.arguments.map_or_else(|| json!({}), Value::Object);
         let call = Arc::clone(&self.call);
         let name = request.name.to_string();
         let access = self.access;
@@ -144,10 +141,7 @@ pub fn execute_mcp(args: &[String]) -> i32 {
             return 1;
         }
     };
-    let service = HgcMcp::new(
-        permissions,
-        Arc::new(|command, payload| LiveCore::call(command, payload)),
-    );
+    let service = HgcMcp::new(permissions, Arc::new(LiveCore::call));
     let result = runtime.block_on(async move {
         let running = service
             .serve((tokio::io::stdin(), tokio::io::stdout()))
