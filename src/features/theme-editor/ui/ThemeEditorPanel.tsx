@@ -16,6 +16,8 @@ import {
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { toastError, toastInfo, toastSuccess } from "@/shared/ui/toast";
+import { en } from "../i18n/en";
+import { ko } from "../i18n/ko";
 
 const BUNDLED_FONTS: Array<{ id: BundledFontId; name: string; sample: string }> = [
   { id: "system", name: "System Default (OS)", sample: "Aa 가나다 123" },
@@ -58,6 +60,7 @@ function ColorPickerBox({ label, value, onChange }: { label: string; value: stri
 }
 
 export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
+  const t = lang === "ko" ? ko : en;
   const [, setActiveThemeId] = useAtom(themeAtom);
   const [customThemes, setCustomThemes] = useAtom(customThemesAtom);
   const activeTheme = useAtomValue(activeCustomThemeAtom);
@@ -125,15 +128,15 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
     }
 
     setCustomThemes((prev) => {
-      const exists = prev.some((t) => t.id === themeToSave.id);
+      const exists = prev.some((item) => item.id === themeToSave.id);
       if (exists) {
-        return prev.map((t) => (t.id === themeToSave.id ? themeToSave : t));
+        return prev.map((item) => (item.id === themeToSave.id ? themeToSave : item));
       }
       return [...prev, themeToSave];
     });
 
     setActiveThemeId(themeToSave.id);
-    toastSuccess(lang === "ko" ? "테마가 저장되었습니다." : "Theme saved successfully.");
+    toastSuccess(t.saved);
   };
 
   const handleExportTheme = () => {
@@ -145,7 +148,7 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
     a.download = `${draft.name.toLowerCase().replace(/\s+/g, "-")}.hgtheme.json`;
     a.click();
     URL.revokeObjectURL(url);
-    toastSuccess(lang === "ko" ? "테마 파일이 내보내졌습니다." : "Theme exported.");
+    toastSuccess(t.exported);
   };
 
   const handleImportTheme = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -163,12 +166,12 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
         return;
       }
       if (theme) {
-        setCustomThemes((prev) => [...prev.filter((t) => t.id !== theme.id), theme]);
+        setCustomThemes((prev) => [...prev.filter((item) => item.id !== theme.id), theme]);
         setActiveThemeId(theme.id);
         if (warning) {
           toastInfo(warning);
         } else {
-          toastSuccess(lang === "ko" ? "테마를 성공적으로 불러왔습니다!" : "Theme imported successfully!");
+          toastSuccess(t.imported);
         }
       }
     };
@@ -179,7 +182,7 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
   const handleResetToDefault = () => {
     setDraft(DEFAULT_DARK_THEME);
     setActiveThemeId(DEFAULT_DARK_THEME.id);
-    toastInfo(lang === "ko" ? "기본 테마로 복원되었습니다." : "Reset to default theme.");
+    toastInfo(t.resetDone);
   };
 
   return (
@@ -188,40 +191,37 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
       <div className="flex items-center justify-between border-b border-base-300 pb-4">
         <div className="flex items-center gap-2.5">
           <Palette className="w-5 h-5 text-primary" />
-          <h2 className="text-base font-bold text-base-content">
-            {lang === "ko" ? "커스텀 테마 & 폰트 에디터" : "Custom Theme & Typography Editor"}
-          </h2>
+          <h2 className="text-base font-bold text-base-content">{t.title}</h2>
         </div>
         <div className="flex items-center gap-2">
           <label className="btn btn-xs btn-ghost gap-1 cursor-pointer">
             <Upload className="w-3.5 h-3.5 text-info" />
-            <span>{lang === "ko" ? "가져오기" : "Import"}</span>
+            <span>{t.import}</span>
             <input type="file" accept=".json,.hgtheme.json" className="hidden" onChange={handleImportTheme} />
           </label>
           <Button variant="ghost" size="sm" className="gap-1 h-7 text-xs" onClick={handleExportTheme}>
             <Download className="w-3.5 h-3.5 text-accent" />
-            {lang === "ko" ? "내보내기" : "Export"}
+            {t.export}
           </Button>
           <Button variant="ghost" size="sm" className="gap-1 h-7 text-xs" onClick={handleResetToDefault}>
             <RefreshCw className="w-3.5 h-3.5" />
-            {lang === "ko" ? "초기화" : "Reset"}
+            {t.reset}
           </Button>
           <Button variant="primary" size="sm" className="h-7 text-xs" onClick={handleSaveTheme}>
-            {lang === "ko" ? "테마 저장" : "Save Theme"}
+            {t.save}
           </Button>
         </div>
       </div>
 
       {/* Preset / Custom Selector */}
       <div className="flex items-center gap-3">
-        <span className="text-xs font-semibold text-base-content/70">
-          {lang === "ko" ? "테마 선택:" : "Select Theme:"}
-        </span>
+        <span className="text-xs font-semibold text-base-content/70">{t.selectTheme}</span>
         <select
           value={draft.id}
           onChange={(e) => {
             const targetId = e.target.value;
-            const found = customThemes.find((t) => t.id === targetId) || BUILTIN_PRESETS.find((t) => t.id === targetId);
+            const found =
+              customThemes.find((item) => item.id === targetId) || BUILTIN_PRESETS.find((item) => item.id === targetId);
             if (found) {
               setDraft(found);
               setActiveThemeId(found.id);
@@ -229,7 +229,7 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
           }}
           className="select select-sm select-bordered bg-base-200 text-xs font-medium"
         >
-          <optgroup label={lang === "ko" ? "기본 테마" : "Built-in Themes"}>
+          <optgroup label={t.builtin}>
             {BUILTIN_PRESETS.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -237,7 +237,7 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
             ))}
           </optgroup>
           {customThemes.length > 0 && (
-            <optgroup label={lang === "ko" ? "사용자 정의 테마" : "Custom Themes"}>
+            <optgroup label={t.custom}>
               {customThemes.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -250,7 +250,7 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
           type="text"
           value={draft.name}
           onChange={(e) => setDraft((prev) => ({ ...prev, name: e.target.value }))}
-          placeholder={lang === "ko" ? "테마 이름..." : "Theme Name..."}
+          placeholder={t.themeNamePlaceholder}
           className="input input-sm input-bordered bg-base-200 text-xs flex-1"
         />
       </div>
@@ -259,7 +259,7 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
       <section className="space-y-2 min-w-0">
         <h2 className="text-sm font-semibold text-base-content flex items-center gap-1.5">
           <Palette className="w-3.5 h-3.5 text-primary" />
-          {lang === "ko" ? "컬러 팔레트 그룹" : "Color Palette Groups"}
+          {t.colorGroups}
         </h2>
 
         <Card className="p-3 @min-[32rem]:p-4 min-w-0">
@@ -272,12 +272,12 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <ColorPickerBox
-                  label={lang === "ko" ? "배경 (Bg)" : "Background"}
+                  label={t.background}
                   value={draft.colors.primary}
                   onChange={(v) => handleColorChange("primary", v)}
                 />
                 <ColorPickerBox
-                  label={lang === "ko" ? "폰트 (Text)" : "Text Color"}
+                  label={t.textColor}
                   value={draft.colors.primaryContent || "#ffffff"}
                   onChange={(v) => handleColorChange("primaryContent", v)}
                 />
@@ -292,12 +292,12 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <ColorPickerBox
-                  label={lang === "ko" ? "배경 (Bg)" : "Background"}
+                  label={t.background}
                   value={draft.colors.secondary}
                   onChange={(v) => handleColorChange("secondary", v)}
                 />
                 <ColorPickerBox
-                  label={lang === "ko" ? "폰트 (Text)" : "Text Color"}
+                  label={t.textColor}
                   value={draft.colors.secondaryContent || "#ffffff"}
                   onChange={(v) => handleColorChange("secondaryContent", v)}
                 />
@@ -312,12 +312,12 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <ColorPickerBox
-                  label={lang === "ko" ? "배경 (Bg)" : "Background"}
+                  label={t.background}
                   value={draft.colors.accent}
                   onChange={(v) => handleColorChange("accent", v)}
                 />
                 <ColorPickerBox
-                  label={lang === "ko" ? "폰트 (Text)" : "Text Color"}
+                  label={t.textColor}
                   value={draft.colors.accentContent || "#ffffff"}
                   onChange={(v) => handleColorChange("accentContent", v)}
                 />
@@ -331,26 +331,26 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
                   className="w-3 h-3 rounded-full border border-base-content/40 shrink-0"
                   style={{ backgroundColor: draft.colors.base100 }}
                 />
-                {lang === "ko" ? "배경 및 텍스트" : "Base & Content"}
+                {t.baseAndContent}
               </h3>
               <div className="grid grid-cols-2 gap-2">
                 <ColorPickerBox
-                  label={lang === "ko" ? "기본 텍스트" : "Content Text"}
+                  label={t.contentText}
                   value={draft.colors.content}
                   onChange={(v) => handleColorChange("content", v)}
                 />
                 <ColorPickerBox
-                  label={lang === "ko" ? "패널 (100)" : "Panel (100)"}
+                  label={t.panel100}
                   value={draft.colors.base100}
                   onChange={(v) => handleColorChange("base100", v)}
                 />
                 <ColorPickerBox
-                  label={lang === "ko" ? "앱 (200)" : "App (200)"}
+                  label={t.app200}
                   value={draft.colors.base200}
                   onChange={(v) => handleColorChange("base200", v)}
                 />
                 <ColorPickerBox
-                  label={lang === "ko" ? "구분선 (300)" : "Border (300)"}
+                  label={t.border300}
                   value={draft.colors.base300}
                   onChange={(v) => handleColorChange("base300", v)}
                 />
@@ -364,16 +364,14 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
       <section className="space-y-2 min-w-0">
         <h2 className="text-sm font-semibold text-base-content flex items-center gap-1.5">
           <Type className="w-3.5 h-3.5 text-accent" />
-          {lang === "ko" ? "타이포그래피 & 폰트" : "Typography & Fonts"}
+          {t.typography}
         </h2>
 
         <Card className="p-3 @min-[32rem]:p-4 space-y-4 min-w-0">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Bundled Fonts */}
             <div className="flex flex-col gap-2 min-w-0">
-              <h3 className="text-xs font-semibold text-base-content">
-                {lang === "ko" ? "앱 번들 폰트" : "Bundled App Fonts"}
-              </h3>
+              <h3 className="text-xs font-semibold text-base-content">{t.bundledFonts}</h3>
               <div className="flex flex-col gap-1">
                 {BUNDLED_FONTS.map((font) => {
                   const isSelected =
@@ -407,14 +405,12 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
 
             {/* OS System Fonts */}
             <div className="flex flex-col gap-2 min-w-0">
-              <h3 className="text-xs font-semibold text-base-content">
-                {lang === "ko" ? "내 컴퓨터 설치 폰트" : "Installed System Fonts"}
-              </h3>
+              <h3 className="text-xs font-semibold text-base-content">{t.systemFonts}</h3>
               <input
                 type="text"
                 value={fontQuery}
                 onChange={(e) => setFontQuery(e.target.value)}
-                placeholder={lang === "ko" ? "폰트 이름 검색 (예: Pretendard)..." : "Search font family name..."}
+                placeholder={t.fontSearch}
                 className="input input-xs input-bordered bg-base-100 text-xs mb-1"
               />
               <div className="max-h-40 overflow-y-auto flex flex-col gap-1 pr-1">
@@ -458,7 +454,7 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-base-200">
             <div className="flex flex-col gap-1">
               <div className="flex justify-between text-xs font-medium text-base-content/80">
-                <span>{lang === "ko" ? "기본 폰트 크기" : "Base Font Size"}</span>
+                <span>{t.baseFontSize}</span>
                 <span className="font-mono">{draft.typography.baseFontSize}px</span>
               </div>
               <input
@@ -479,7 +475,7 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
 
             <div className="flex flex-col gap-1">
               <div className="flex justify-between text-xs font-medium text-base-content/80">
-                <span>{lang === "ko" ? "줄 간격 (Line Height)" : "Line Height"}</span>
+                <span>{t.lineHeight}</span>
                 <span className="font-mono">{draft.typography.lineHeight}</span>
               </div>
               <input
@@ -503,9 +499,7 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
 
       {/* Live Preview Card */}
       <section className="space-y-2 min-w-0">
-        <h2 className="text-sm font-semibold text-base-content">
-          {lang === "ko" ? "실시간 미리보기" : "Live Preview"}
-        </h2>
+        <h2 className="text-sm font-semibold text-base-content">{t.livePreview}</h2>
         <Card className="p-4 space-y-3 min-w-0">
           <div className="flex items-center flex-wrap gap-2">
             <button
@@ -543,11 +537,8 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
           </div>
 
           <div className="text-xs leading-relaxed space-y-1">
-            <p className="font-semibold">{lang === "ko" ? "실시간 테마 적용 안내" : "Live Theme Preview"}</p>
-            <p className="text-base-content/55">
-              Horizon Gateway를 사용하면 API 프록시, 도메인 헬스체크, 네트워크 트래픽 캡처 및 테마 커스터마이징을 한
-              곳에서 손쉽게 제어할 수 있습니다.
-            </p>
+            <p className="font-semibold">{t.livePreviewTitle}</p>
+            <p className="text-base-content/55">{t.livePreviewBody}</p>
           </div>
         </Card>
       </section>

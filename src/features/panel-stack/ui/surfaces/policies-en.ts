@@ -37,6 +37,7 @@ export const policiesEn = {
   cancel: "Cancel",
   roleLabel: "Element Title",
   descLabel: "Guide Details",
+  descPlaceholder: "Description (Markdown supported)...",
   displayOptions: "Report Fields",
   showSelector: "Selector",
   showTag: "Tag",

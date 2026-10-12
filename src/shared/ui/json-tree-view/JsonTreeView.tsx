@@ -1,8 +1,43 @@
 import clsx from "clsx";
 import { Check, ChevronDown, ChevronRight, Copy, Info } from "lucide-react";
 import type React from "react";
-import { memo, useMemo, useState } from "react";
+import { createContext, memo, useContext, useMemo, useState } from "react";
+import { useAppLang } from "@/shared/lib/i18n/app-lang";
 import { Button } from "../button/Button";
+
+const en = {
+  hint: "Click to collapse or expand. Drag to copy part of the text.",
+  copyAll: "Copy all",
+  copiedAll: "Copied!",
+  expand: "Expand",
+  collapse: "Collapse",
+  showLess: "Show less",
+  showAllChars: (count: number) => `Show all +${count.toLocaleString()} characters`,
+  copyNode: "Copy this node",
+  showMore: (count: number, remaining: number) => `Show ${count} more ( ${remaining} left )`,
+  showAllItems: (count: number) => `Show all (${count})`,
+  empty: "(Empty)",
+};
+
+const ko: typeof en = {
+  hint: "클릭하여 접기/펼치기 · 드래그하여 부분 복사 가능",
+  copyAll: "전체 복사",
+  copiedAll: "복사됨!",
+  expand: "펼치기",
+  collapse: "접기",
+  showLess: "간략히",
+  showAllChars: (count: number) => `+${count.toLocaleString()}자 전체보기`,
+  copyNode: "이 노드 데이터 복사",
+  showMore: (count: number, remaining: number) => `+ ${count}개 항목 더보기 (남은 ${remaining}개)`,
+  showAllItems: (count: number) => `전체 표시 (${count}개)`,
+  empty: "(비어 있음)",
+};
+
+const TreeCopyContext = createContext(en);
+
+function useTreeCopy() {
+  return useContext(TreeCopyContext);
+}
 
 const CHUNK_SIZE = 100;
 const STRING_PREVIEW_LIMIT = 2000;
@@ -24,12 +59,17 @@ export function JsonTreeView({
   rawString,
   initialFoldDepth = 2,
   showToolbar = true,
-  emptyLabel = "(Empty)",
+  emptyLabel,
   className,
-  hintText = "클릭하여 접기/펼치기 · 드래그하여 부분 복사 가능",
-  copyAllLabel = "전체 복사",
-  copiedAllLabel = "복사됨!",
+  hintText,
+  copyAllLabel,
+  copiedAllLabel,
 }: JsonTreeViewProps) {
+  const copy = useAppLang() === "ko" ? ko : en;
+  const resolvedEmpty = emptyLabel ?? copy.empty;
+  const resolvedHint = hintText ?? copy.hint;
+  const resolvedCopyAll = copyAllLabel ?? copy.copyAll;
+  const resolvedCopiedAll = copiedAllLabel ?? copy.copiedAll;
   const [copiedAll, setCopiedAll] = useState(false);
 
   const { parsedData, isError, formattedString } = useMemo(() => {
@@ -95,7 +135,7 @@ export function JsonTreeView({
   };
 
   if (!formattedString && parsedData === null) {
-    return <p className="text-base-content/40 italic m-0 text-xs">{emptyLabel}</p>;
+    return <p className="text-base-content/40 italic m-0 text-xs">{resolvedEmpty}</p>;
   }
 
   if (isError || parsedData === null) {
@@ -107,30 +147,32 @@ export function JsonTreeView({
   }
 
   return (
-    <div className={clsx("flex flex-col gap-2 min-h-0 flex-1", className)}>
-      {showToolbar && (
-        <div className="flex items-center justify-between gap-2 shrink-0 select-none px-1">
-          <span className="text-[10px] text-base-content/50 font-medium flex items-center gap-1.5">
-            <Info className="w-3 h-3 shrink-0 text-base-content/40" />
-            {hintText}
-          </span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="xs"
-            onClick={() => void handleCopyAll()}
-            className="h-6 px-2 gap-1 text-[10px] font-semibold text-base-content/70 hover:text-base-content"
-          >
-            {copiedAll ? <Check className="w-3 h-3 text-success shrink-0" /> : <Copy className="w-3 h-3 shrink-0" />}
-            {copiedAll ? copiedAllLabel : copyAllLabel}
-          </Button>
-        </div>
-      )}
+    <TreeCopyContext.Provider value={copy}>
+      <div className={clsx("flex flex-col gap-2 min-h-0 flex-1", className)}>
+        {showToolbar && (
+          <div className="flex items-center justify-between gap-2 shrink-0 select-none px-1">
+            <span className="text-[10px] text-base-content/50 font-medium flex items-center gap-1.5">
+              <Info className="w-3 h-3 shrink-0 text-base-content/40" />
+              {resolvedHint}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              onClick={() => void handleCopyAll()}
+              className="h-6 px-2 gap-1 text-[10px] font-semibold text-base-content/70 hover:text-base-content"
+            >
+              {copiedAll ? <Check className="w-3 h-3 text-success shrink-0" /> : <Copy className="w-3 h-3 shrink-0" />}
+              {copiedAll ? resolvedCopiedAll : resolvedCopyAll}
+            </Button>
+          </div>
+        )}
 
-      <div className="font-mono text-xs leading-relaxed select-text min-w-0">
-        <MemoTreeNode value={parsedData} isLast={true} depth={0} initialFoldDepth={initialFoldDepth} />
+        <div className="font-mono text-xs leading-relaxed select-text min-w-0">
+          <MemoTreeNode value={parsedData} isLast={true} depth={0} initialFoldDepth={initialFoldDepth} />
+        </div>
       </div>
-    </div>
+    </TreeCopyContext.Provider>
   );
 }
 
@@ -155,6 +197,7 @@ function StringValueNode({
   value: string;
   comma: string;
 }) {
+  const copy = useTreeCopy();
   const [expanded, setExpanded] = useState(false);
   const isLong = value.length > STRING_PREVIEW_LIMIT;
 
@@ -172,7 +215,7 @@ function StringValueNode({
           onClick={() => setExpanded(!expanded)}
           className="text-[9px] font-sans px-1.5 py-0.5 ml-1.5 rounded bg-base-200 text-primary hover:underline cursor-pointer"
         >
-          {expanded ? "간략히" : `+${(value.length - STRING_PREVIEW_LIMIT).toLocaleString()}자 전체보기`}
+          {expanded ? copy.showLess : copy.showAllChars(value.length - STRING_PREVIEW_LIMIT)}
         </button>
       )}
       <span className="text-base-content/40">{comma}</span>
@@ -181,6 +224,7 @@ function StringValueNode({
 }
 
 function TreeNode({ keyName, value, isLast = true, depth, initialFoldDepth }: TreeNodeProps) {
+  const copy = useTreeCopy();
   const [folded, setFolded] = useState(depth >= initialFoldDepth);
   const [copiedNode, setCopiedNode] = useState(false);
   const [visibleCount, setVisibleCount] = useState(CHUNK_SIZE);
@@ -207,7 +251,7 @@ function TreeNode({ keyName, value, isLast = true, depth, initialFoldDepth }: Tr
           type="button"
           onClick={() => setFolded(!folded)}
           className="inline-flex items-center justify-center w-3.5 h-3.5 mr-1 rounded text-base-content/40 hover:text-base-content hover:bg-base-200 transition-colors cursor-pointer select-none shrink-0"
-          title={folded ? "펼치기" : "접기"}
+          title={folded ? copy.expand : copy.collapse}
         >
           {folded ? <ChevronRight className="w-3 h-3 shrink-0" /> : <ChevronDown className="w-3 h-3 shrink-0" />}
         </button>
@@ -306,7 +350,7 @@ function TreeNode({ keyName, value, isLast = true, depth, initialFoldDepth }: Tr
           type="button"
           onClick={handleCopyNode}
           className="inline-flex items-center justify-center p-0.5 ml-1 rounded text-base-content/30 hover:text-primary hover:bg-base-200 transition-all cursor-pointer opacity-0 group-hover/parent:opacity-100"
-          title="이 노드 데이터 복사"
+          title={copy.copyNode}
         >
           {copiedNode ? <Check className="w-3 h-3 text-success shrink-0" /> : <Copy className="w-3 h-3 shrink-0" />}
         </button>
@@ -350,15 +394,14 @@ function TreeNode({ keyName, value, isLast = true, depth, initialFoldDepth }: Tr
                 onClick={() => setVisibleCount((prev) => prev + CHUNK_SIZE)}
                 className="text-[10px] text-primary hover:underline font-sans px-2 py-0.5 rounded bg-base-200/80 cursor-pointer border border-base-300/50"
               >
-                + {Math.min(CHUNK_SIZE, entries.length - visibleCount)}개 항목 더보기 (남은{" "}
-                {entries.length - visibleCount}개)
+                {copy.showMore(Math.min(CHUNK_SIZE, entries.length - visibleCount), entries.length - visibleCount)}
               </button>
               <button
                 type="button"
                 onClick={() => setVisibleCount(entries.length)}
                 className="text-[10px] text-base-content/60 hover:text-base-content font-sans px-2 py-0.5 rounded bg-base-200/40 cursor-pointer"
               >
-                전체 표시 ({entries.length}개)
+                {copy.showAllItems(entries.length)}
               </button>
             </div>
           )}

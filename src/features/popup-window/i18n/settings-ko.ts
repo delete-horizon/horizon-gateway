@@ -63,7 +63,9 @@ export const settingsKo = {
   corsOff: "꺼짐",
   remoteAccessTitle: "다른 기기 접속 허용",
   remoteAccessDesc:
-    "LAN·Tailscale 기기(모바일, 팀)가 프록시와 설정 페이지를 쓸 수 있게 합니다. 끄면 이 컴퓨터에서만 접속됩니다. 앱을 다시 시작하면 적용됩니다.",
+    "LAN 기기와, 사용할 경우 Tailscale 기기가 프록시와 설정 페이지를 쓸 수 있게 합니다. 끄면 이 컴퓨터에서만 접속됩니다. 앱을 다시 시작하면 적용됩니다.",
+  remoteAccessOn: "켜짐",
+  remoteAccessOff: "꺼짐",
   tlsBypassTitle: "TLS 우회 시드",
   tlsBypassDesc: "이 호스트는 항상 터널입니다(복호화 없음). 한 줄에 하나.",
   tlsBypassPlaceholder: "okta.com\nlogin.microsoftonline.com",

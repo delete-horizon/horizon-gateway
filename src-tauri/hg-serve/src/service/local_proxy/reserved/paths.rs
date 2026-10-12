@@ -98,20 +98,12 @@ pub(crate) async fn serve_horizon_gateway_reserved_path(
         };
 
         let parsed_host = host_h.split(':').next().unwrap_or("");
-        let is_loopback =
-            parsed_host == "localhost" || parsed_host == "127.0.0.1" || parsed_host == "[::1]";
-
-        let proxy_host = if is_loopback {
-            "127.0.0.1".to_string()
-        } else if parsed_host.ends_with(".trycloudflare.com")
-            || parsed_host == "0.0.0.0"
-            || parsed_host.is_empty()
-        {
-            crate::service::tunnel_service::get_tailscale_ip()
-                .unwrap_or_else(|| "127.0.0.1".to_string())
-        } else {
-            parsed_host.to_string()
-        };
+        let hosts = crate::service::tunnel_service::collect_remote_hosts();
+        let proxy_host = crate::service::tunnel_service::proxy_advertise_host(
+            parsed_host,
+            state.proxy_settings.get().allow_remote_access,
+            &hosts,
+        );
 
         let settings = state.proxy_settings.get();
         let pac = build_pac_js(&proxy_host, port, &settings.tls_bypass_hosts);

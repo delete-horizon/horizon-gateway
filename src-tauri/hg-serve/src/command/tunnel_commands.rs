@@ -21,6 +21,40 @@ pub fn get_tailscale_ip_svc(
     })
 }
 
+#[derive(serde::Serialize, Clone, Debug)]
+pub struct RemoteAccessHosts {
+    pub tailscale_ip: Option<String>,
+    pub lan_ips: Vec<String>,
+    pub allow_remote_access: bool,
+    pub setup_port: u16,
+}
+
+pub const GET_REMOTE_ACCESS_HOSTS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_remote_access_hosts",
+    description: "LAN 주소와 선택적 Tailscale 주소를 조회합니다. 다른 기기 접속은 기본으로 꺼져 있습니다.",
+    payload_example: "{}",
+    category: "mobile",
+    gui_only: false,
+};
+
+pub fn get_remote_access_hosts_svc(
+    tunnel_service: &Arc<TunnelService>,
+    proxy_settings: &Arc<crate::service::proxy_settings_service::ProxySettingsService>,
+) -> Result<ApiResponse<RemoteAccessHosts>, String> {
+    let hosts = tunnel_service.remote_hosts();
+    let settings = proxy_settings.get();
+    Ok(ApiResponse {
+        message: "OK".to_string(),
+        success: true,
+        data: RemoteAccessHosts {
+            tailscale_ip: hosts.tailscale_ip,
+            lan_ips: hosts.lan_ips,
+            allow_remote_access: settings.allow_remote_access,
+            setup_port: crate::service::tunnel_service::SETUP_SERVER_PORT,
+        },
+    })
+}
+
 pub const START_CLOUDFLARE_TUNNEL_CLI_INFO: crate::cli::CliCommandInfo =
     crate::cli::CliCommandInfo {
         name: "start_cloudflare_tunnel",

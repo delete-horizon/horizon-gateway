@@ -853,7 +853,7 @@ export function SettingsContent() {
                   <input
                     type="checkbox"
                     role="switch"
-                    aria-label={proxySettings?.allow_remote_access ? t.corsOn : t.corsOff}
+                    aria-label={proxySettings?.allow_remote_access ? t.remoteAccessOn : t.remoteAccessOff}
                     className="toggle toggle-warning toggle-sm shrink-0"
                     checked={proxySettings?.allow_remote_access === true}
                     disabled={engineSaving}

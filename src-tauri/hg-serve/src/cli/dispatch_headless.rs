@@ -747,6 +747,13 @@ pub fn dispatch_headless(
             let result = command::tunnel_commands::get_tailscale_ip_svc(&ctx.tunnel_service)?;
             Ok(serde_json::to_value(result).unwrap())
         }
+        "get_remote_access_hosts" => {
+            let result = command::tunnel_commands::get_remote_access_hosts_svc(
+                &ctx.tunnel_service,
+                &ctx.proxy_settings_service,
+            )?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
         "start_cloudflare_tunnel" => {
             let result = runtime.block_on(
                 command::tunnel_commands::start_cloudflare_tunnel_svc(&ctx.tunnel_service),

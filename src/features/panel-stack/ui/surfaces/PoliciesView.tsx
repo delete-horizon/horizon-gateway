@@ -1287,7 +1287,7 @@ export function PoliciesView() {
                 editorRef={descEditorRef}
                 value={editForm.description}
                 onChange={(description) => setEditField("description", description)}
-                placeholder="Description (Markdown format supported)..."
+                placeholder={t.descPlaceholder}
                 t={t}
                 lang={lang}
               />

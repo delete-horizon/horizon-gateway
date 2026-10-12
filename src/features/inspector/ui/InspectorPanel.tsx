@@ -118,10 +118,7 @@ export function InspectorPanel({
             </div>
             <div className="flex flex-col gap-1.5">
               <h3 className="font-bold text-xl text-error">{t.statusInactive}</h3>
-              <P className="text-sm text-error/70 leading-relaxed">
-                현재 워치타워 프록시가 비활성화되어 있어 브라우저에서 요소를 선택하거나 캡처할 수 없습니다. 설정
-                페이지에서 프록시를 시작해 주세요.
-              </P>
+              <P className="text-sm text-error/70 leading-relaxed">{t.proxyInactiveDetail}</P>
             </div>
           </div>
         </Card>
