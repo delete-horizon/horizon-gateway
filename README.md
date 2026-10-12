@@ -86,7 +86,34 @@ Download installers from [GitHub Releases](https://github.com/delete-horizon/hor
 | Linux | `.rpm` | x64 | 33.7 MB |
 | Linux | `.AppImage` | x64 (amd64) | 110.8 MB |
 
-Sizes are decimal megabytes of those release files. The same release also has updater files (`.sig`, `latest.json`, `.app.tar.gz`). Later releases can differ in size.
+Sizes are decimal megabytes of those release files. The same release also has updater files (`.sig`, `latest.json`, `.app.tar.gz`) and `SHA256SUMS` for the installers and updater binaries. Later releases can differ in size. See [Verifying downloads](#verifying-downloads).
+
+---
+
+## Verifying downloads
+
+`SHA256SUMS` on the release lists SHA-256 hashes for the installer and updater binaries (`.exe`, `.dmg`, `.deb`, `.rpm`, `.AppImage`, `.app.tar.gz`). The `.sig` files are minisign signatures for the in-app updater, and `latest.json` is the updater manifest. Those two are left out of `SHA256SUMS`. Each line is `<hash>  <filename>` (two spaces), sorted by filename.
+
+Download `SHA256SUMS` into the same folder as the package you want to check.
+
+Linux and macOS, with GNU `sha256sum` (on macOS, `brew install coreutils`):
+
+```bash
+sha256sum -c SHA256SUMS --ignore-missing
+```
+
+`--ignore-missing` checks the files in that folder and skips names you did not download.
+
+Windows PowerShell:
+
+```powershell
+Get-Content SHA256SUMS | ForEach-Object {
+  $expected, $name = $_ -split '\s+', 2
+  if (-not (Test-Path -LiteralPath $name)) { return }
+  $actual = (Get-FileHash -LiteralPath $name -Algorithm SHA256).Hash.ToLower()
+  if ($actual -eq $expected.ToLower()) { "OK: $name" } else { throw "SHA256 mismatch: $name" }
+}
+```
 
 ---
 

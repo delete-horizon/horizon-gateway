@@ -142,9 +142,36 @@ v2.8.15 설치 파일 크기입니다. 숫자는 십진 MB입니다.
 | macOS | `horizon-gateway_*_aarch64.dmg`, `horizon-gateway_*_x64.dmg` | Apple Silicon, Intel 각각 | 30.5MB, 31.7MB |
 | Linux | `.AppImage`, `.deb`, `.rpm` | x64 (`amd64` / `x86_64`) | AppImage 110.8MB, deb·rpm 33.7MB |
 
-Windows 설치는 머신 단위라 설치할 때 권한 상승이 있습니다. `*.app.tar.gz`, `*.sig`, `latest.json`은 업데이트용입니다.
+Windows 설치는 머신 단위라 설치할 때 권한 상승이 있습니다. `*.app.tar.gz`, `*.sig`, `latest.json`은 업데이트용입니다. `SHA256SUMS`는 설치 파일과 업데이터 바이너리의 SHA-256 목록입니다. [다운로드 검증](#다운로드-검증)을 보세요.
 
 절차는 [시작 가이드](./docs/ko/getting-started.md)에 있습니다.
+
+---
+
+## 다운로드 검증
+
+릴리스의 `SHA256SUMS`는 설치 파일과 업데이터 바이너리(`.exe`, `.dmg`, `.deb`, `.rpm`, `.AppImage`, `.app.tar.gz`)의 SHA-256입니다. `.sig`는 앱 업데이트용 minisign 서명이며, `latest.json`은 업데이트 목록입니다. 이 둘은 `SHA256SUMS`에 없습니다. 각 줄은 `<해시>  <파일 이름>`(공백 두 칸)이고, 파일 이름 순으로 정렬되어 있습니다.
+
+`SHA256SUMS`와 확인하려는 파일을 같은 폴더에 받습니다.
+
+Linux와 macOS에서는 GNU `sha256sum`을 씁니다. macOS에는 `brew install coreutils`로 설치합니다.
+
+```bash
+sha256sum -c SHA256SUMS --ignore-missing
+```
+
+`--ignore-missing`은 폴더에 있는 파일만 검사하고, 받지 않은 이름은 건너뜁니다.
+
+Windows PowerShell:
+
+```powershell
+Get-Content SHA256SUMS | ForEach-Object {
+  $expected, $name = $_ -split '\s+', 2
+  if (-not (Test-Path -LiteralPath $name)) { return }
+  $actual = (Get-FileHash -LiteralPath $name -Algorithm SHA256).Hash.ToLower()
+  if ($actual -eq $expected.ToLower()) { "OK: $name" } else { throw "SHA256 mismatch: $name" }
+}
+```
 
 ---
 
