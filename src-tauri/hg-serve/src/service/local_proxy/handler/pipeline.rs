@@ -14,7 +14,7 @@ use super::super::state::ProxyState;
 use super::api::try_handle_api;
 use super::capture::handle_with_logging;
 use super::forward::handle_pass_through;
-use super::mocking::try_mock_response;
+use super::mocking::{logged_request_headers, try_mock_response};
 use super::websocket::{handle_websocket_upgrade, is_websocket_upgrade};
 
 /// Literal check on the requested authority (absolute-form URI, else Host header).
@@ -86,7 +86,10 @@ pub(crate) async fn proxy_handler_inner(
         return forbidden();
     }
 
-    if let Some(response) = try_mock_response(&state, &req, &method, &uri, path, &host_h) {
+    let request_headers = logged_request_headers(&req);
+    if let Some(response) =
+        try_mock_response(&state, request_headers, &method, &uri, path, &host_h).await
+    {
         return response;
     }
 

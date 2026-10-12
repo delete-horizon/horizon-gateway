@@ -4,12 +4,17 @@ use axum::{
     http::{header, HeaderValue, StatusCode, Uri},
     response::{IntoResponse, Response},
 };
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::time::Duration;
 use time::OffsetDateTime;
 
 use super::super::routing::host_key_for_logging_map;
 use super::super::state::ProxyState;
 use crate::model::api_log::ApiLogEntry;
+use crate::model::mock_rule::{clamp_mock_delay_ms, MockRule};
+use crate::model::scenario::Scenario;
+use crate::service::mocking_service::MockingService;
 
 fn matches_wildcard(pattern: &str, text: &str) -> bool {
     let pattern = pattern.trim();
@@ -72,23 +77,91 @@ fn matches_host(rule_host: Option<&str>, target_host: &str) -> bool {
         || norm_target_host.ends_with(&format!(".{norm_rule_host}"))
 }
 
-pub(crate) fn try_mock_response(
+fn rule_matches_request(rule: &MockRule, method: &str, uri: &Uri, path: &str, host: &str) -> bool {
+    rule.enabled
+        && rule.method.eq_ignore_ascii_case(method)
+        && matches_host(rule.host.as_deref(), host)
+        && matches_url_pattern(&rule.url_pattern, path, uri)
+}
+
+/// Choose the mock for this request.
+///
+/// Rules whose `scenario_id` is empty, or whose scenario is the built-in
+/// `Default` scenario, are not tied to a scenario. They stay eligible while
+/// the rule itself is enabled, including when `Default` is disabled.
+/// A rule tied to any other scenario matches only while that scenario is
+/// enabled. If both kinds match, the active-scenario rule wins. Within one
+/// kind, the earliest stored rule wins.
+pub(crate) fn select_mock_rule<'a>(
+    rules: &'a [MockRule],
+    scenarios: &'a [Scenario],
+    method: &str,
+    uri: &Uri,
+    path: &str,
+    host: &str,
+) -> Option<&'a MockRule> {
+    let untied_ids: HashSet<&str> = scenarios
+        .iter()
+        .filter(|scenario| scenario.name == MockingService::DEFAULT_SCENARIO_NAME)
+        .map(|scenario| scenario.id.as_str())
+        .collect();
+    let active_ids: HashSet<&str> = scenarios
+        .iter()
+        .filter(|scenario| {
+            scenario.enabled && scenario.name != MockingService::DEFAULT_SCENARIO_NAME
+        })
+        .map(|scenario| scenario.id.as_str())
+        .collect();
+
+    let mut untied_match = None;
+    let mut active_match = None;
+    for rule in rules {
+        if !rule_matches_request(rule, method, uri, path, host) {
+            continue;
+        }
+        let scenario_id = rule.scenario_id.as_str();
+        if scenario_id.is_empty() || untied_ids.contains(scenario_id) {
+            if untied_match.is_none() {
+                untied_match = Some(rule);
+            }
+            continue;
+        }
+        if active_ids.contains(scenario_id) && active_match.is_none() {
+            active_match = Some(rule);
+        }
+    }
+    active_match.or(untied_match)
+}
+
+/// Wait the configured delay on the async runtime. `0` returns immediately.
+/// Values above [`crate::model::mock_rule::MAX_MOCK_DELAY_MS`] sleep only that long.
+pub(crate) async fn wait_for_mock_delay(delay_ms: u64) {
+    let wait_ms = clamp_mock_delay_ms(delay_ms);
+    if wait_ms == 0 {
+        return;
+    }
+    tokio::time::sleep(Duration::from_millis(wait_ms)).await;
+}
+
+pub(crate) fn logged_request_headers(req: &Request) -> HashMap<String, String> {
+    req.headers()
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
+        .collect()
+}
+
+pub(crate) async fn try_mock_response(
     state: &Arc<ProxyState>,
-    req: &Request,
+    request_headers: HashMap<String, String>,
     method: &str,
     uri: &Uri,
     path: &str,
     host_h: &str,
 ) -> Option<Response> {
-    // Scenario layer is hidden for now: match on global + rule.enabled only.
-    // Scenario.enabled gating can be restored when scenarios return to the UI.
     let rules = state.mocking_service.get_mock_rules();
-    let rule = rules.into_iter().find(|r| {
-        r.enabled
-            && r.method.eq_ignore_ascii_case(method)
-            && matches_host(r.host.as_deref(), host_h)
-            && matches_url_pattern(&r.url_pattern, path, uri)
-    })?;
+    let scenarios = state.mocking_service.get_scenarios();
+    let rule = select_mock_rule(&rules, &scenarios, method, uri, path, host_h)?.clone();
+    wait_for_mock_delay(rule.delay_ms).await;
 
     crate::proxy_log!("-> mocked response for {} {}", method, uri);
     let mut builder = Response::builder().status(rule.response_status);
@@ -188,12 +261,7 @@ pub(crate) fn try_mock_response(
         host: host_h.to_string(),
         path: path.to_string(),
         status_code: Some(rule.response_status),
-        request_headers: Some(
-            req.headers()
-                .iter()
-                .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
-                .collect(),
-        ),
+        request_headers: Some(request_headers),
         request_body: None,
         response_headers: Some(logged_headers),
         response_body: Some(body.clone()),

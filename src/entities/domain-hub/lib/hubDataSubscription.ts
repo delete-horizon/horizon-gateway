@@ -1,5 +1,5 @@
-import { listen } from "@tauri-apps/api/event";
 import { useEffect } from "react";
+import { listen } from "@/shared/lib/tauri/client";
 import { HUB_DATA_CHANGED, type HubDataChangedReason } from "@/shared/lib/tauri/hubEvents";
 
 let subscriberCount = 0;

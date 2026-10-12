@@ -289,14 +289,14 @@
         </svg>
       </div>
 
-      <h1>VPN 연결 성공!</h1>
-      <p class="subtitle">Tailscale 내부망으로 정상 접속하셨습니다. 아래 가이드에 따라 모바일 프록시 설정을 완료하세요.</p>
+      <h1 id="page-title">연결되었습니다</h1>
+      <p class="subtitle" id="page-subtitle">이 PC에 도달했습니다. 아래 가이드로 모바일 프록시를 설정하세요. Tailscale은 선택 사항입니다.</p>
 
       <div class="alert-success">
         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>
-        <div>이 페이지는 Tailscale VPN 내부 경로를 통해 PC에 직접 접속하여 로드되었습니다.</div>
+        <div id="reach-note">이 페이지는 PC의 LAN 또는 Tailscale 주소로 열렸습니다.</div>
       </div>
 
       <h3 class="section-title">모바일 프록시 설정 단계</h3>
@@ -358,14 +358,40 @@
   </div>
 
   <script>
-    const tailscaleIp = "{{TAILSCALE_IP}}";
+    const reachHost = "{{REACH_HOST}}";
     const proxyPort = "{{PROXY_PORT}}";
+    const accessKind = "{{ACCESS_KIND}}";
+    const remoteOn = "{{REMOTE_ON}}" === "1";
+    const lang = (navigator.language || "").toLowerCase().startsWith("ko") ? "ko" : "en";
+    document.documentElement.lang = lang;
+    const copy = {
+      ko: {
+        title: "연결되었습니다",
+        subtitle: "이 PC에 도달했습니다. 아래 가이드로 모바일 프록시를 설정하세요. Tailscale은 선택 사항입니다.",
+        lan: "같은 Wi-Fi(LAN)로 PC에 연결되었습니다.",
+        tailscale: "Tailscale 주소로 PC에 연결되었습니다.",
+        local: "다른 기기 접속이 꺼져 있습니다. 프록시는 이 컴퓨터에서만 열립니다. 앱에서 허용을 켠 뒤 다시 시작하세요.",
+        remote: "PC 주소로 연결되었습니다."
+      },
+      en: {
+        title: "Connected",
+        subtitle: "This phone reached the computer. Finish proxy setup below. Tailscale is optional.",
+        lan: "Connected over the same Wi-Fi (LAN).",
+        tailscale: "Connected over Tailscale.",
+        local: "Other devices are not allowed. The proxy stays on this computer. Turn that on in the app and restart.",
+        remote: "Connected to this computer's address."
+      }
+    };
+    const t = copy[lang];
+    document.getElementById("page-title").textContent = t.title;
+    document.getElementById("page-subtitle").textContent = t.subtitle;
+    document.getElementById("reach-note").textContent = !remoteOn || accessKind === "local" ? t.local : accessKind === "tailscale" ? t.tailscale : accessKind === "lan" ? t.lan : t.remote;
 
-    const baseProxyUrl = `http://${tailscaleIp}:${proxyPort}`;
-    document.getElementById('cert-link').href = `${baseProxyUrl}/.horizon-gateway/root.crt`;
-    document.getElementById('pac-text').textContent = `${baseProxyUrl}/.horizon-gateway/proxy.pac`;
-    document.getElementById('ip-text').textContent = tailscaleIp;
-    document.getElementById('port-text').textContent = proxyPort;
+    const baseProxyUrl = "http://" + reachHost + ":" + proxyPort;
+    document.getElementById("cert-link").href = baseProxyUrl + "/.horizon-gateway/root.crt";
+    document.getElementById("pac-text").textContent = baseProxyUrl + "/.horizon-gateway/proxy.pac";
+    document.getElementById("ip-text").textContent = reachHost;
+    document.getElementById("port-text").textContent = proxyPort;
 
     function showSuccess(btn) {
       const oldText = btn.textContent;

@@ -4,6 +4,30 @@ import { AVATAR_COLORS } from "@/entities/app";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
 
+const en = {
+  welcome: "Welcome to Horizon Gateway",
+  address: "How should we address you?",
+  name: "Name / Nickname",
+  namePlaceholder: "e.g. Alex",
+  role: "Role (optional)",
+  rolePlaceholder: "e.g. Developer, Administrator",
+  avatar: "Avatar theme",
+  language: "Language",
+  start: "Start Exploring",
+};
+
+const ko: typeof en = {
+  welcome: "Horizon Gateway에 오신 것을 환영합니다",
+  address: "어떻게 불러드릴까요?",
+  name: "이름 / 닉네임",
+  namePlaceholder: "예: 지수",
+  role: "역할 (선택)",
+  rolePlaceholder: "예: 개발자, 관리자",
+  avatar: "아바타 테마",
+  language: "언어",
+  start: "시작하기",
+};
+
 export interface UserProfileSetupViewProps {
   tempName: string;
   tempRole: string;
@@ -29,6 +53,7 @@ export function UserProfileSetupView({
   onLangChange,
   onSave,
 }: UserProfileSetupViewProps) {
+  const t = lang === "ko" ? ko : en;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-base-200/80 backdrop-blur-md">
       <div className="bg-base-100 border border-base-300/30 rounded-3xl overflow-hidden w-full max-w-md shadow-2xl flex flex-col mx-4 animate-in zoom-in-95 duration-500 text-base-content">
@@ -52,19 +77,19 @@ export function UserProfileSetupView({
           <div className="text-center flex flex-col gap-1">
             <h2 className="text-2xl font-black text-base-content flex items-center justify-center gap-2">
               <Sparkles className="w-5 h-5 text-primary" />
-              Welcome to Horizon Gateway
+              {t.welcome}
             </h2>
-            <p className="text-sm text-base-content/60">How should we address you?</p>
+            <p className="text-sm text-base-content/60">{t.address}</p>
           </div>
 
           <div className="flex flex-col gap-5 mt-2">
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="setup-name" className="text-xs font-bold uppercase tracking-wider text-base-content/50">
-                Name / Nickname
+              <label htmlFor="setup-name" className="text-[10px] font-medium text-base-content/50">
+                {t.name}
               </label>
               <Input
                 id="setup-name"
-                placeholder="e.g. Alex"
+                placeholder={t.namePlaceholder}
                 value={tempName}
                 onChange={(e) => onTempNameChange(e.target.value)}
                 maxLength={20}
@@ -77,12 +102,12 @@ export function UserProfileSetupView({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="setup-role" className="text-xs font-bold uppercase tracking-wider text-base-content/50">
-                Role (Optional)
+              <label htmlFor="setup-role" className="text-[10px] font-medium text-base-content/50">
+                {t.role}
               </label>
               <Input
                 id="setup-role"
-                placeholder="e.g. Developer, Administrator"
+                placeholder={t.rolePlaceholder}
                 value={tempRole}
                 onChange={(e) => onTempRoleChange(e.target.value)}
                 maxLength={30}
@@ -95,7 +120,7 @@ export function UserProfileSetupView({
             </div>
 
             <div className="flex flex-col gap-1.5 mt-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-base-content/50">Avatar Theme</span>
+              <span className="text-[10px] font-medium text-base-content/50">{t.avatar}</span>
               <div className="flex items-center gap-2 flex-wrap">
                 {AVATAR_COLORS.map((c) => (
                   <button
@@ -115,7 +140,7 @@ export function UserProfileSetupView({
             </div>
 
             <div className="flex flex-col gap-1.5 mt-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-base-content/50">Language</span>
+              <span className="text-[10px] font-medium text-base-content/50">{t.language}</span>
               <div className="flex gap-2 bg-base-200 p-1 rounded-xl">
                 <button
                   type="button"
@@ -152,7 +177,7 @@ export function UserProfileSetupView({
             disabled={!tempName.trim()}
             className="w-full mt-4 h-12 text-base font-bold shadow-lg shadow-primary/20"
           >
-            Start Exploring
+            {t.start}
           </Button>
         </div>
       </div>

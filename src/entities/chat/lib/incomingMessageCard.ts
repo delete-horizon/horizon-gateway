@@ -24,7 +24,7 @@ export function emitIncomingMessageCard(card: IncomingMessageCard): Promise<void
     return Promise.resolve();
   }
   window.dispatchEvent(new CustomEvent(INCOMING_MESSAGE_EVENT, { detail: card }));
-  return import("@tauri-apps/api/core")
+  return import("@/shared/lib/tauri/client")
     .then(({ invoke }) => invoke("push_incoming_card", { card }))
     .then(() => undefined)
     .catch((err) => {

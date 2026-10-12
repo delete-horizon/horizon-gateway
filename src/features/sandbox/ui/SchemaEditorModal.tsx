@@ -1,9 +1,36 @@
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { Check, Save, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { languageAtom } from "@/entities/app";
 import { createJsonSchema, type SavedJsonSchema, savedJsonSchemasAtom, updateJsonSchema } from "@/entities/sandbox";
 import { toastError } from "@/shared/ui/toast";
 import { generateJsonSchema, SchemaPropertiesEditor, type SchemaProperty } from "./SchemaPropertiesEditor";
+
+const en = {
+  editTitle: "Edit JSON schema",
+  newTitle: "New JSON schema",
+  schemaTitle: "Schema title",
+  titlePlaceholder: "e.g. UserPropsSchema",
+  description: "Description",
+  descriptionPlaceholder: "What this schema is for...",
+  output: "Output (JSON Schema)",
+  cancel: "Cancel",
+  saved: "Saved",
+  save: "Save",
+};
+
+const ko: typeof en = {
+  editTitle: "JSON 스키마 편집",
+  newTitle: "새 JSON 스키마",
+  schemaTitle: "스키마 제목",
+  titlePlaceholder: "예: UserPropsSchema",
+  description: "설명",
+  descriptionPlaceholder: "스키마 용도...",
+  output: "출력 (JSON Schema)",
+  cancel: "취소",
+  saved: "저장됨",
+  save: "저장",
+};
 
 interface SchemaEditorModalProps {
   isOpen: boolean;
@@ -13,6 +40,8 @@ interface SchemaEditorModalProps {
 }
 
 export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaEditorModalProps) {
+  const lang = useAtomValue(languageAtom);
+  const t = lang === "ko" ? ko : en;
   const [savedSchemas, setSavedSchemas] = useAtom(savedJsonSchemasAtom);
 
   const [title, setTitle] = useState("");
@@ -106,7 +135,7 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-base-200 bg-base-200/40 shrink-0">
           <span className="font-bold text-sm text-base-content/85 flex items-center gap-1.5">
-            📝 {schemaId ? "JSON 스키마 편집기" : "새 JSON 스키마 생성"}
+            {schemaId ? t.editTitle : t.newTitle}
           </span>
           <button onClick={onClose} className="btn btn-ghost btn-xs btn-circle text-base-content/50 hover:bg-base-300">
             <X className="w-4 h-4" />
@@ -120,23 +149,21 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
             {/* Meta details */}
             <div className="grid grid-cols-2 gap-4 shrink-0">
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-base-content/50 uppercase tracking-wider">
-                  스키마 제목
-                </label>
+                <label className="text-[10px] font-medium text-base-content/50">{t.schemaTitle}</label>
                 <input
                   type="text"
                   className="input input-bordered input-sm w-full text-xs font-bold focus:outline-none"
-                  placeholder="e.g. UserPropsSchema"
+                  placeholder={t.titlePlaceholder}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-base-content/50 uppercase tracking-wider">설명</label>
+                <label className="text-[10px] font-medium text-base-content/50">{t.description}</label>
                 <input
                   type="text"
                   className="input input-bordered input-sm w-full text-xs focus:outline-none"
-                  placeholder="스키마 용도 설명..."
+                  placeholder={t.descriptionPlaceholder}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                 />
@@ -151,9 +178,7 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
 
           {/* Right Panel: JSON Schema Preview (4 cols) */}
           <div className="lg:col-span-4 p-6 bg-base-200/30 flex flex-col overflow-hidden">
-            <label className="text-[10px] font-bold text-base-content/50 uppercase tracking-wider mb-2 shrink-0">
-              출력 결과 (JSON Schema)
-            </label>
+            <label className="text-[10px] font-medium text-base-content/50 mb-2 shrink-0">{t.output}</label>
             <div className="flex-1 bg-neutral rounded-2xl p-4 overflow-auto border border-neutral-content/10">
               <pre className="text-[10px] font-mono text-neutral-content leading-relaxed whitespace-pre-wrap">
                 {generatedSchemaText}
@@ -165,7 +190,7 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
         {/* Footer */}
         <div className="px-6 py-4 border-t border-base-200 bg-base-200/40 flex justify-end gap-2 shrink-0">
           <button onClick={onClose} className="btn btn-sm btn-ghost hover:bg-base-300">
-            취소
+            {t.cancel}
           </button>
           <button
             onClick={handleSave}
@@ -174,7 +199,7 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
             }`}
           >
             {justSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-            {justSaved ? "저장 완료" : "저장"}
+            {justSaved ? t.saved : t.save}
           </button>
         </div>
       </div>

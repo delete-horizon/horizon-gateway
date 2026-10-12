@@ -9,14 +9,13 @@ import {
   Smartphone,
   Usb,
   Wifi,
-  WifiOff,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { languageAtom, proxyRunningAtom } from "@/entities/app";
 import { ProxyServerWarning } from "@/entities/proxy";
-import type { AdbStatus, ProxyStatusPayload } from "@/shared/api";
+import type { AdbStatus, ProxyStatusPayload, RemoteAccessHosts } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Card } from "@/shared/ui/card/card";
@@ -24,6 +23,8 @@ import { StatusToggle } from "@/shared/ui/status-toggle/StatusToggle";
 import { SegmentedTabs } from "@/shared/ui/tabs";
 import { toastInfo } from "@/shared/ui/toast";
 import { H1, P } from "@/shared/ui/typography/typography";
+import { en } from "../i18n/en";
+import { ko } from "../i18n/ko";
 
 function Section({
   title,
@@ -50,28 +51,39 @@ function Section({
   );
 }
 
+const EMPTY_HOSTS: RemoteAccessHosts = {
+  tailscale_ip: null,
+  lan_ips: [],
+  allow_remote_access: false,
+  setup_port: 13030,
+};
+
+function directUrl(host: string | null, port: number): string | null {
+  if (!host || !port) {
+    return null;
+  }
+  return `http://${host}:${port}/connect`;
+}
+
 export function MobileConnectionContent({ embedded = false }: { embedded?: boolean }) {
   const lang = useAtomValue(languageAtom);
+  const t = lang === "ko" ? ko : en;
   const isProxyRunning = useAtomValue(proxyRunningAtom);
 
   const [activeTab, setActiveTab] = useState<"wireless" | "usb">("wireless");
-
   const [proxyStatus, setProxyStatus] = useState<ProxyStatusPayload>({
     running: false,
     port: 0,
     reverse_http_port: null,
     reverse_https_port: null,
   });
-
-  // Wireless connection states
-  const [tailscaleIp, setTailscaleIp] = useState<string | null>(null);
-  const [ipLoading, setIpLoading] = useState(true);
+  const [hosts, setHosts] = useState<RemoteAccessHosts>(EMPTY_HOSTS);
+  const [hostsLoading, setHostsLoading] = useState(true);
+  const [remoteSaving, setRemoteSaving] = useState(false);
   const [tunnelActive, setTunnelActive] = useState(false);
   const [tunnelUrl, setTunnelUrl] = useState<string | null>(null);
   const [tunnelLoading, setTunnelLoading] = useState(false);
   const [tunnelError, setTunnelError] = useState<string | null>(null);
-
-  // USB connection states
   const [adbStatus, setAdbStatus] = useState<AdbStatus | null>(null);
   const [adbLoading, setAdbLoading] = useState(true);
   const [usbTunnelActive, setUsbTunnelActive] = useState(false);
@@ -94,20 +106,20 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
     }
   }, []);
 
-  const fetchTailscaleIp = useCallback(async () => {
-    setIpLoading(true);
+  const fetchRemoteHosts = useCallback(async () => {
+    setHostsLoading(true);
     try {
-      const res = await commands.getTailscaleIp().then(unwrap);
+      const res = await commands.getRemoteAccessHosts().then(unwrap);
       if (res.success && res.data) {
-        setTailscaleIp(res.data);
+        setHosts(res.data);
       } else {
-        setTailscaleIp(null);
+        setHosts(EMPTY_HOSTS);
       }
     } catch (e) {
-      console.error("fetchTailscaleIp error:", e);
-      setTailscaleIp(null);
+      console.error("fetchRemoteHosts error:", e);
+      setHosts(EMPTY_HOSTS);
     } finally {
-      setIpLoading(false);
+      setHostsLoading(false);
     }
   }, []);
 
@@ -132,19 +144,28 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
 
   useEffect(() => {
     void fetchProxyStatus();
-    void fetchTailscaleIp();
+    void fetchRemoteHosts();
     void fetchAdbStatus();
-
     return () => {
-      // Synchronously stop the cloudflared tunnel when leaving the page to prevent leaks
       void commands.stopCloudflareTunnel().then(unwrap).catch(console.error);
-
-      // Clean up USB reverse port forwarding if it was active
       if (proxyPortRef.current) {
         void commands.stopUsbReverse(proxyPortRef.current).then(unwrap).catch(console.error);
       }
     };
-  }, [fetchProxyStatus, fetchTailscaleIp, fetchAdbStatus]);
+  }, [fetchProxyStatus, fetchRemoteHosts, fetchAdbStatus]);
+
+  const handleRemoteToggle = async (checked: boolean) => {
+    setRemoteSaving(true);
+    try {
+      await commands.updateProxySettings({ allowRemoteAccess: checked }).then(unwrap);
+      await fetchRemoteHosts();
+      toastInfo(t.remoteRestart);
+    } catch (e: unknown) {
+      console.error("updateProxySettings error:", e);
+    } finally {
+      setRemoteSaving(false);
+    }
+  };
 
   const handleToggleTunnel = async () => {
     setTunnelLoading(true);
@@ -160,21 +181,21 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
       } finally {
         setTunnelLoading(false);
       }
-    } else {
-      try {
-        const res = await commands.startCloudflareTunnel().then(unwrap);
-        if (res.success && res.data) {
-          setTunnelUrl(res.data);
-          setTunnelActive(true);
-        } else {
-          setTunnelError(res.message || "Failed to start tunnel");
-        }
-      } catch (e: unknown) {
-        console.error("startCloudflareTunnel error:", e);
-        setTunnelError(e instanceof Error ? e.message : String(e));
-      } finally {
-        setTunnelLoading(false);
+      return;
+    }
+    try {
+      const res = await commands.startCloudflareTunnel().then(unwrap);
+      if (res.success && res.data) {
+        setTunnelUrl(res.data);
+        setTunnelActive(true);
+      } else {
+        setTunnelError(res.message || t.tunnelFailed);
       }
+    } catch (e: unknown) {
+      console.error("startCloudflareTunnel error:", e);
+      setTunnelError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setTunnelLoading(false);
     }
   };
 
@@ -194,20 +215,30 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
       } finally {
         setUsbTunnelLoading(false);
       }
-    } else {
-      try {
-        await commands.startUsbReverse(proxyStatus.port).then(unwrap);
-        setUsbTunnelActive(true);
-      } catch (e: unknown) {
-        console.error("startUsbReverse error:", e);
-        setUsbError(e instanceof Error ? e.message : String(e));
-      } finally {
-        setUsbTunnelLoading(false);
-      }
+      return;
+    }
+    try {
+      await commands.startUsbReverse(proxyStatus.port).then(unwrap);
+      setUsbTunnelActive(true);
+    } catch (e: unknown) {
+      console.error("startUsbReverse error:", e);
+      setUsbError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUsbTunnelLoading(false);
     }
   };
 
-  const connectUrl = tunnelUrl ? `${tunnelUrl}/connect` : null;
+  const copyCommand = (command: string) => {
+    void navigator.clipboard.writeText(command);
+    toastInfo(t.commandCopied);
+  };
+
+  const lanHost = hosts.lan_ips[0] ?? null;
+  const lanConnect = hosts.allow_remote_access ? directUrl(lanHost, hosts.setup_port) : null;
+  const tailscaleConnect = hosts.allow_remote_access ? directUrl(hosts.tailscale_ip, hosts.setup_port) : null;
+  const tunnelConnect = tunnelUrl ? `${tunnelUrl}/connect` : null;
+  const connectUrl = tunnelConnect ?? lanConnect ?? tailscaleConnect;
+  const proxyPort = proxyStatus.port || 8888;
 
   return (
     <div className={`@container flex flex-col ${embedded ? "gap-3" : "gap-8 pb-20"}`}>
@@ -217,9 +248,7 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
             <div className="p-2 bg-primary/10 rounded-lg">
               <Smartphone className="w-5 h-5" />
             </div>
-            <H1 className="text-2xl tablet:text-3xl font-black text-base-content tracking-tight">
-              {lang === "ko" ? "모바일 연결" : "Mobile Connection"}
-            </H1>
+            <H1 className="text-2xl tablet:text-3xl font-black text-base-content tracking-tight">{t.title}</H1>
           </div>
         </div>
       )}
@@ -236,140 +265,100 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
         items={[
           {
             id: "wireless",
-            label: embedded
-              ? lang === "ko"
-                ? "무선"
-                : "Wireless"
-              : lang === "ko"
-                ? "무선 연결 (Wi-Fi / VPN)"
-                : "Wireless Connect (Wi-Fi / VPN)",
+            label: embedded ? t.tabWireless : t.tabWirelessFull,
             icon: Wifi,
           },
           {
             id: "usb",
-            label: embedded
-              ? lang === "ko"
-                ? "USB"
-                : "USB"
-              : lang === "ko"
-                ? "USB 연결 (안드로이드 전용)"
-                : "USB Connect (Android Only)",
+            label: embedded ? t.tabUsb : t.tabUsbFull,
             icon: Usb,
           },
         ]}
       />
 
       {activeTab === "wireless" ? (
-        <div className="grid grid-cols-1 @min-[36rem]:grid-cols-3 gap-4 @min-[36rem]:gap-8 items-start animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {/* Status and Controls */}
+        <div className="grid grid-cols-1 @min-[36rem]:grid-cols-3 gap-4 @min-[36rem]:gap-8 items-start">
           <div className="@min-[36rem]:col-span-2 flex flex-col gap-4 @min-[36rem]:gap-6">
             <Section
               title={
                 <>
                   <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
-                  {lang === "ko" ? "기기 및 네트워크 상태" : "Device & Network Status"}
+                  {t.deviceStatus}
                 </>
               }
             >
               <div className="space-y-4">
-                {/* Proxy Running State */}
-                <div className="flex items-center justify-between p-4 bg-base-200/50 rounded-xl border border-base-300/30">
-                  <div className="flex flex-col">
-                    <span className="font-bold text-sm">
-                      {lang === "ko" ? "로컬 프록시 서버" : "Local Proxy Server"}
-                    </span>
-                    <span className="text-xs text-base-content/50 mt-1">
-                      {lang === "ko"
-                        ? "모바일 기기 연결 수신을 위해 프록시가 작동 중이어야 합니다."
-                        : "Proxy must be active to receive mobile device connections."}
-                    </span>
+                <div className="flex items-center justify-between gap-3 p-4 bg-base-200/50 rounded-xl border border-base-300/30">
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-bold text-sm">{t.proxyServer}</span>
+                    <span className="text-xs text-base-content/55 mt-1">{t.proxyHint}</span>
                   </div>
                   <Badge variant={{ color: isProxyRunning ? "green" : "gray" }}>
-                    {isProxyRunning
-                      ? lang === "ko"
-                        ? `작동 중 (포트 ${proxyStatus.port})`
-                        : `Running (Port ${proxyStatus.port})`
-                      : lang === "ko"
-                        ? "중지됨"
-                        : "Stopped"}
+                    {isProxyRunning ? t.proxyRunning(proxyStatus.port) : t.proxyStopped}
                   </Badge>
                 </div>
 
-                {/* Tailscale IP Detection */}
-                <div className="flex items-center justify-between p-4 bg-base-200/50 rounded-xl border border-base-300/30">
-                  <div className="flex flex-col">
-                    <span className="font-bold text-sm">
-                      {lang === "ko" ? "Tailscale VPN 주소" : "Tailscale VPN IP"}
-                    </span>
-                    <span className="text-xs text-base-content/50 mt-1">
-                      {lang === "ko"
-                        ? "사용자 시스템의 안전한 가상 IP 대역(100.x.x.x)입니다."
-                        : "Secure private IP range (100.x.x.x) of your workstation."}
-                    </span>
+                <div className="flex items-center justify-between gap-3 p-4 bg-base-200/50 rounded-xl border border-base-300/30">
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-bold text-sm">{t.remoteTitle}</span>
+                    <span className="text-xs text-base-content/55 mt-1">{t.remoteDesc}</span>
                   </div>
-                  {ipLoading ? (
-                    <Loader2Icon className="w-5 h-5 text-primary animate-spin" />
-                  ) : tailscaleIp ? (
+                  <StatusToggle
+                    label={hosts.allow_remote_access ? t.remoteOn : t.remoteOff}
+                    checked={hosts.allow_remote_access}
+                    onChange={(checked) => void handleRemoteToggle(checked)}
+                    loading={remoteSaving || hostsLoading}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between gap-3 p-4 bg-base-200/50 rounded-xl border border-base-300/30">
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-bold text-sm">{t.lanTitle}</span>
+                    <span className="text-xs text-base-content/55 mt-1">{t.lanHint}</span>
+                  </div>
+                  {hostsLoading ? (
+                    <Loader2Icon className="w-5 h-5 text-primary animate-spin shrink-0" />
+                  ) : hosts.lan_ips.length > 0 ? (
                     <span className="font-mono text-sm font-bold text-success bg-success/10 px-3 py-1 rounded-lg border border-success/20">
-                      {tailscaleIp}
+                      {hosts.lan_ips.join(", ")}
                     </span>
                   ) : (
-                    <div className="flex items-center gap-1.5 text-warning bg-warning/10 px-3 py-1 rounded-lg border border-warning/20">
-                      <WifiOff className="w-4 h-4 shrink-0" />
-                      <span className="text-xs font-bold">{lang === "ko" ? "IP 미감지" : "IP Not Found"}</span>
-                    </div>
+                    <span className="text-xs font-medium text-base-content/55">{t.lanEmpty}</span>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between gap-3 p-4 bg-base-200/50 rounded-xl border border-base-300/30">
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-bold text-sm">{t.tailscaleTitle}</span>
+                    <span className="text-xs text-base-content/55 mt-1">{t.tailscaleHint}</span>
+                  </div>
+                  {hostsLoading ? (
+                    <Loader2Icon className="w-5 h-5 text-primary animate-spin shrink-0" />
+                  ) : hosts.tailscale_ip ? (
+                    <span className="font-mono text-sm font-bold text-success bg-success/10 px-3 py-1 rounded-lg border border-success/20">
+                      {hosts.tailscale_ip}
+                    </span>
+                  ) : (
+                    <span className="text-xs font-medium text-base-content/55">{t.tailscaleMissing}</span>
                   )}
                 </div>
               </div>
-
-              {!tailscaleIp && !ipLoading && (
-                <div className="mt-4 p-4 bg-warning/5 border border-warning/20 rounded-xl flex flex-col gap-3 text-warning">
-                  <div className="flex gap-3">
-                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                    <div className="text-sm leading-relaxed">
-                      <p className="font-bold mb-1">
-                        {lang === "ko" ? "Tailscale VPN 활성화 필요" : "Tailscale VPN Required"}
-                      </p>
-                      <p className="opacity-80">
-                        {lang === "ko"
-                          ? "시스템에서 Tailscale VPN이 비활성화되어 있거나 로그인되어 있지 않습니다. 모바일 연결 기능을 사용하려면 PC에서 Tailscale을 실행해 주세요."
-                          : "Tailscale is either disabled or not signed in. Please turn on Tailscale on this PC to enable mobile handoff."}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex pl-8">
-                    <a
-                      href="https://tailscale.com/download"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-warning-content bg-warning/15 hover:bg-warning/25 px-3 py-1.5 rounded-lg border border-warning/30 transition-colors"
-                    >
-                      {lang === "ko" ? "Tailscale PC용 다운로드" : "Download Tailscale for PC"}
-                    </a>
-                  </div>
-                </div>
-              )}
             </Section>
 
-            {/* Cloudflare Tunnel Controller */}
             <Section
               title={
                 <>
                   <Wifi className="w-4 h-4 text-primary shrink-0" />
-                  {lang === "ko" ? "임시 Cloudflare 외부 연결 터널" : "Temporary Cloudflare Tunnel"}
+                  {t.tunnelTitle}
                 </>
               }
-              desc={
-                lang === "ko"
-                  ? "모바일 브라우저의 최초 접속을 받기 위해 임시 cloudflared 터널을 백그라운드에서 구동합니다. 연결 진단 및 가이드 설정이 완료된 후 터널을 비활성화하면 통신이 자동으로 차단됩니다."
-                  : "Spawns a temporary cloudflared tunnel in the background to receive initial mobile connections. Once the configuration guide is set up, disabling the tunnel instantly blocks internet access."
-              }
+              desc={t.tunnelDesc}
             >
-              <div className="flex items-center justify-between p-4 bg-base-200/50 rounded-xl border border-base-300/30">
-                <div className="flex flex-col">
-                  <span className="font-bold text-sm">{lang === "ko" ? "터널 상태" : "Tunnel Status"}</span>
-                  <span className="text-xs text-base-content/60 font-mono break-all mt-1">
-                    {tunnelActive && tunnelUrl ? tunnelUrl : lang === "ko" ? "대기 중..." : "Standby..."}
+              <div className="flex items-center justify-between gap-3 p-4 bg-base-200/50 rounded-xl border border-base-300/30">
+                <div className="flex flex-col min-w-0">
+                  <span className="font-bold text-sm">{t.tunnelStatus}</span>
+                  <span className="text-xs text-base-content/55 font-mono break-all mt-1">
+                    {tunnelActive && tunnelUrl ? tunnelUrl : t.tunnelStandby}
                   </span>
                 </div>
                 <StatusToggle
@@ -377,98 +366,58 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
                   checked={tunnelActive}
                   onChange={handleToggleTunnel}
                   loading={tunnelLoading}
-                  disabled={!isProxyRunning || !tailscaleIp}
+                  disabled={!isProxyRunning}
                 />
               </div>
-
               {tunnelError && (
-                <div className="flex flex-col gap-4 text-left">
-                  <div className="p-4 bg-error/10 border border-error/20 rounded-xl text-error text-xs font-mono break-all">
-                    {tunnelError}
+                <div className="p-4 bg-error/10 border border-error/20 rounded-xl text-error text-xs font-mono break-all">
+                  {tunnelError}
+                </div>
+              )}
+              {tunnelError?.toLowerCase().includes("cloudflared") && (
+                <div className="space-y-3">
+                  <div>
+                    <p className="font-bold text-sm">{t.cloudflaredTitle}</p>
+                    <p className="text-xs text-base-content/55 mt-1">{t.cloudflaredDesc}</p>
                   </div>
-
-                  {tunnelError.toLowerCase().includes("cloudflared") && (
-                    <div className="p-5 bg-base-200/80 border border-base-300/50 rounded-xl space-y-4">
-                      <div className="flex flex-col">
-                        <span className="font-bold text-sm text-base-content">
-                          {lang === "ko" ? "cloudflared 설치 안내" : "Cloudflared Guide"}
-                        </span>
-                        <span className="text-xs text-base-content/50 mt-1 leading-relaxed">
-                          {lang === "ko"
-                            ? "임시 외부 터널(trycloudflare)을 생성하기 위해 호스트 PC에 cloudflared 패키지 설치가 필요합니다."
-                            : "To generate a temporary external tunnel, you must install the cloudflared package on your host PC."}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 @min-[28rem]:grid-cols-2 gap-3">
-                        <div className="p-3 bg-base-300/50 rounded-lg border border-base-300/80 flex flex-col justify-between">
-                          <div>
-                            <span className="text-[10px] font-bold opacity-40 uppercase">Windows</span>
-                            <p className="text-xs font-mono mt-1 text-primary font-bold break-all">
-                              winget install Cloudflare.cloudflared
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              void navigator.clipboard.writeText("winget install Cloudflare.cloudflared");
-                              toastInfo(lang === "ko" ? "명령어가 복사되었습니다." : "Command copied to clipboard.");
-                            }}
-                            className="mt-3 text-[11px] bg-base-100 hover:bg-base-200 border border-base-300 py-1.5 rounded-md font-medium text-base-content transition-all text-center"
-                          >
-                            {lang === "ko" ? "명령어 복사" : "Copy Command"}
-                          </button>
-                        </div>
-
-                        <div className="p-3 bg-base-300/50 rounded-lg border border-base-300/80 flex flex-col justify-between">
-                          <div>
-                            <span className="text-[10px] font-bold opacity-40 uppercase">macOS</span>
-                            <p className="text-xs font-mono mt-1 text-primary font-bold break-all">
-                              brew install cloudflared
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              void navigator.clipboard.writeText("brew install cloudflared");
-                              toastInfo(lang === "ko" ? "명령어가 복사되었습니다." : "Command copied to clipboard.");
-                            }}
-                            className="mt-3 text-[11px] bg-base-100 hover:bg-base-200 border border-base-300 py-1.5 rounded-md font-medium text-base-content transition-all text-center"
-                          >
-                            {lang === "ko" ? "명령어 복사" : "Copy Command"}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-center pt-2">
-                        <a
-                          href="https://github.com/cloudflare/cloudflared/releases"
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-xs text-primary hover:underline font-bold bg-primary/10 px-3 py-1.5 rounded-lg border border-primary/20 transition-colors"
-                        >
-                          {lang === "ko" ? "수동 다운로드 (GitHub Releases)" : "Manual Download (GitHub Releases)"}
-                        </a>
-                      </div>
-                    </div>
-                  )}
+                  <div className="grid grid-cols-1 @min-[28rem]:grid-cols-2 gap-3">
+                    <CommandCard
+                      label="Windows"
+                      command="winget install Cloudflare.cloudflared"
+                      copyLabel={t.copyCommand}
+                      onCopy={copyCommand}
+                    />
+                    <CommandCard
+                      label="macOS"
+                      command="brew install cloudflared"
+                      copyLabel={t.copyCommand}
+                      onCopy={copyCommand}
+                    />
+                  </div>
+                  <a
+                    href="https://github.com/cloudflare/cloudflared/releases"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-primary hover:underline font-medium"
+                  >
+                    {t.manualDownload}
+                  </a>
                 </div>
               )}
             </Section>
           </div>
 
-          {/* QR Code and Mobile Connection Steps */}
           <div className="flex flex-col gap-4 @min-[36rem]:gap-6">
             <Section
               title={
                 <>
                   <QrCode className="w-4 h-4 text-primary shrink-0" />
-                  {lang === "ko" ? "모바일 스캔용 QR 코드" : "Connection QR Code"}
+                  {t.qrTitle}
                 </>
               }
               cardClassName="flex flex-col items-center text-center"
             >
-              {tunnelActive && connectUrl ? (
+              {connectUrl ? (
                 <div className="flex flex-col items-center gap-5 w-full">
                   <div className="p-4 bg-white rounded-2xl shadow-lg border border-base-300/20">
                     <QRCodeSVG value={connectUrl} size={220} />
@@ -476,70 +425,57 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
                   <div className="bg-base-200/50 p-3 rounded-lg border border-base-300/30 font-mono text-[10px] break-all w-full select-all">
                     {connectUrl}
                   </div>
-                  <P className="text-xs text-base-content/60 leading-relaxed">
-                    {lang === "ko"
-                      ? "모바일 기기에서 위 QR 코드를 스캔하여 연결 및 가이드 진단 페이지를 여세요."
-                      : "Scan this QR code with your mobile device to open the handoff setup page."}
-                  </P>
+                  <P className="text-xs text-base-content/55 leading-relaxed">{t.qrHint}</P>
+                  {!hosts.allow_remote_access && (
+                    <P className="text-xs text-warning leading-relaxed">{t.qrNeedRemote}</P>
+                  )}
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-16 gap-3 text-base-content/30 w-full border-2 border-dashed border-base-300 rounded-2xl">
+                <div className="flex flex-col items-center justify-center py-16 gap-3 text-base-content/40 w-full border-2 border-dashed border-base-300 rounded-2xl">
                   <QrCode className="w-16 h-16 opacity-40" />
-                  <span className="text-sm font-medium">
-                    {lang === "ko" ? "터널 활성화 시 QR이 나타납니다" : "Enable tunnel to generate QR"}
-                  </span>
+                  <span className="text-sm font-medium">{t.qrEmpty}</span>
                 </div>
               )}
             </Section>
 
-            <Section title={lang === "ko" ? "접속 및 구성 가이드" : "Handoff Process"}>
+            {(lanConnect || tailscaleConnect) && (
+              <Section title={t.directAddress}>
+                <ul className="space-y-2 text-xs font-mono break-all text-base-content/70">
+                  {lanConnect && <li>{lanConnect}</li>}
+                  {tailscaleConnect && <li>{tailscaleConnect}</li>}
+                </ul>
+              </Section>
+            )}
+
+            <Section title={t.stepsTitle}>
               <ul className="space-y-3 text-xs leading-relaxed text-base-content/70">
-                <li className="flex gap-2">
-                  <span className="font-bold text-primary shrink-0">1.</span>
-                  <span>
-                    {lang === "ko"
-                      ? "모바일 기기에서 Tailscale VPN 스위치를 활성화해 주세요."
-                      : "Activate Tailscale VPN switch on your mobile device."}
-                  </span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="font-bold text-primary shrink-0">2.</span>
-                  <span>
-                    {lang === "ko"
-                      ? "QR 코드를 찍어 Horizon Gateway 가이드 페이지에 접속합니다."
-                      : "Scan the QR code to open the Horizon Gateway diagnostics page."}
-                  </span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="font-bold text-primary shrink-0">3.</span>
-                  <span>
-                    {lang === "ko"
-                      ? "가이드에 안내된 수동 혹은 자동 프록시(PAC) 주소를 기기의 Wi-Fi 설정에 대입해 주면 연결이 완료됩니다."
-                      : "Configure PAC or manual proxy on your Wi-Fi settings as guided on your phone to complete setup."}
-                  </span>
-                </li>
+                {[t.step1, t.step2, t.step3, t.step4].map((step, index) => (
+                  <li key={step} className="flex gap-2">
+                    <span className="font-bold text-primary shrink-0">{index + 1}.</span>
+                    <span>{step}</span>
+                  </li>
+                ))}
               </ul>
             </Section>
           </div>
         </div>
       ) : (
-        /* USB Tab */
-        <div className="grid grid-cols-1 @min-[36rem]:grid-cols-3 gap-4 @min-[36rem]:gap-8 items-start animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="grid grid-cols-1 @min-[36rem]:grid-cols-3 gap-4 @min-[36rem]:gap-8 items-start">
           <div className="@min-[36rem]:col-span-2 flex flex-col gap-4 @min-[36rem]:gap-6">
             <Section
               title={
                 <>
                   <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
-                  {lang === "ko" ? "ADB 및 USB 디바이스 감지" : "ADB & USB Device Detection"}
+                  {t.adbTitle}
                 </>
               }
               titleExtra={
                 <button
                   type="button"
-                  onClick={fetchAdbStatus}
+                  onClick={() => void fetchAdbStatus()}
                   disabled={adbLoading}
                   className="p-1.5 bg-base-200 hover:bg-base-300 border border-base-300 rounded-lg text-base-content/70 hover:text-base-content transition-all disabled:opacity-50 shrink-0"
-                  title={lang === "ko" ? "상태 갱신" : "Refresh Status"}
+                  title={t.refresh}
                 >
                   <RefreshCw className={`w-4 h-4 ${adbLoading ? "animate-spin" : ""}`} />
                 </button>
@@ -551,140 +487,86 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
                 </div>
               ) : adbStatus ? (
                 <div className="space-y-4">
-                  {/* ADB Installation State */}
-                  <div className="flex items-center justify-between p-4 bg-base-200/50 rounded-xl border border-base-300/30">
-                    <div className="flex flex-col">
-                      <span className="font-bold text-sm">{lang === "ko" ? "ADB 설치 상태" : "ADB Installation"}</span>
-                      <span className="text-xs text-base-content/50 mt-1 font-mono break-all pr-4">
-                        {adbStatus.found
-                          ? `${lang === "ko" ? "감지됨" : "Detected"}: ${adbStatus.path || ""}`
-                          : lang === "ko"
-                            ? "설치되지 않음"
-                            : "Not Detected"}
+                  <div className="flex items-center justify-between gap-3 p-4 bg-base-200/50 rounded-xl border border-base-300/30">
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-bold text-sm">{t.adbInstall}</span>
+                      <span className="text-xs text-base-content/55 mt-1 font-mono break-all pr-4">
+                        {adbStatus.found ? t.adbDetected(adbStatus.path || "") : t.adbNotInstalled}
                       </span>
                     </div>
                     <Badge variant={{ color: adbStatus.found ? "green" : "red" }}>
-                      {adbStatus.found ? (lang === "ko" ? "정상" : "Ready") : lang === "ko" ? "미설치" : "Missing"}
+                      {adbStatus.found ? t.adbReady : t.adbMissing}
                     </Badge>
                   </div>
-
-                  {/* Connected Devices */}
                   <div className="p-4 bg-base-200/50 rounded-xl border border-base-300/30">
-                    <span className="font-bold text-sm block mb-2">
-                      {lang === "ko" ? "연결된 안드로이드 디바이스" : "Connected Android Devices"}
-                    </span>
+                    <span className="font-bold text-sm block mb-2">{t.devicesTitle}</span>
                     {adbStatus.devices.length > 0 ? (
                       <div className="space-y-2 mt-2">
-                        {adbStatus.devices.map((device, i) => (
+                        {adbStatus.devices.map((device) => (
                           <div
-                            key={i}
+                            key={device}
                             className="flex items-center gap-2 p-2 bg-success/5 border border-success/15 rounded-lg text-success text-xs font-mono"
                           >
                             <CheckCircle2 className="w-4 h-4 shrink-0 text-success" />
-                            <span>{device} (device)</span>
+                            <span>{device}</span>
                           </div>
                         ))}
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 p-3 bg-warning/5 border border-warning/15 rounded-lg text-warning text-xs mt-2">
-                        <AlertCircle className="w-4 h-4 shrink-0 text-warning" />
-                        <span>
-                          {lang === "ko"
-                            ? "연결된 기기가 없습니다. 폰을 연결하고 'USB 디버깅'이 활성화되어 있는지 확인하세요."
-                            : "No devices connected. Ensure your phone is connected and 'USB Debugging' is enabled."}
-                        </span>
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        <span>{t.noDevices}</span>
                       </div>
                     )}
                   </div>
                 </div>
               ) : (
                 <div className="p-4 bg-error/10 border border-error/20 rounded-xl text-error text-xs font-mono">
-                  {lang === "ko" ? "ADB 상태 정보를 로드할 수 없습니다." : "Failed to load ADB status."}
+                  {usbError || t.adbLoadFailed}
                 </div>
               )}
 
               {!adbLoading && adbStatus && !adbStatus.found && (
-                <div className="mt-4 p-5 bg-warning/5 border border-warning/20 rounded-xl space-y-4 text-warning">
+                <div className="space-y-3 text-warning">
                   <div className="flex gap-3">
                     <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
                     <div className="text-sm leading-relaxed">
-                      <p className="font-bold mb-1">
-                        {lang === "ko" ? "ADB(Android Debug Bridge) 설치 필요" : "ADB Required"}
-                      </p>
-                      <p className="opacity-80">
-                        {lang === "ko"
-                          ? "USB 연결을 통한 역방향 포트 포워딩을 사용하려면 PC에 Android SDK 플랫폼 도구(ADB) 설치가 필요합니다."
-                          : "To tunnel connections over USB, you must install the Android SDK Platform Tools (ADB) on your PC."}
-                      </p>
+                      <p className="font-bold mb-1">{t.adbRequiredTitle}</p>
+                      <p className="text-base-content/70">{t.adbRequiredDesc}</p>
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-1 @min-[28rem]:grid-cols-2 gap-3 @min-[28rem]:pl-8">
-                    <div className="p-3 bg-base-300/40 rounded-lg border border-base-300/60 flex flex-col justify-between">
-                      <div>
-                        <span className="text-[10px] font-bold opacity-50 uppercase">Windows (Chocolatey)</span>
-                        <p className="text-xs font-mono mt-1 text-primary font-bold break-all">choco install adb</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void navigator.clipboard.writeText("choco install adb");
-                          toastInfo(lang === "ko" ? "명령어가 복사되었습니다." : "Command copied.");
-                        }}
-                        className="mt-3 text-[11px] bg-base-100 hover:bg-base-200 border border-base-300 py-1 rounded font-medium transition-all text-center"
-                      >
-                        {lang === "ko" ? "명령어 복사" : "Copy Command"}
-                      </button>
-                    </div>
-
-                    <div className="p-3 bg-base-300/40 rounded-lg border border-base-300/60 flex flex-col justify-between">
-                      <div>
-                        <span className="text-[10px] font-bold opacity-50 uppercase">macOS (Homebrew)</span>
-                        <p className="text-xs font-mono mt-1 text-primary font-bold break-all">
-                          brew install --cask android-platform-tools
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void navigator.clipboard.writeText("brew install --cask android-platform-tools");
-                          toastInfo(lang === "ko" ? "명령어가 복사되었습니다." : "Command copied.");
-                        }}
-                        className="mt-3 text-[11px] bg-base-100 hover:bg-base-200 border border-base-300 py-1 rounded font-medium transition-all text-center"
-                      >
-                        {lang === "ko" ? "명령어 복사" : "Copy Command"}
-                      </button>
-                    </div>
+                  <div className="grid grid-cols-1 @min-[28rem]:grid-cols-2 gap-3">
+                    <CommandCard
+                      label="Windows"
+                      command="choco install adb"
+                      copyLabel={t.copyCommandShort}
+                      onCopy={copyCommand}
+                    />
+                    <CommandCard
+                      label="macOS"
+                      command="brew install --cask android-platform-tools"
+                      copyLabel={t.copyCommandShort}
+                      onCopy={copyCommand}
+                    />
                   </div>
                 </div>
               )}
             </Section>
 
-            {/* USB Reverse Controller */}
             <Section
               title={
                 <>
                   <Usb className="w-4 h-4 text-primary shrink-0" />
-                  {lang === "ko" ? "USB 포트 터널링 스위치" : "USB Port Tunneling Switch"}
+                  {t.usbTunnelTitle}
                 </>
               }
-              desc={
-                lang === "ko"
-                  ? `안드로이드 폰의 로컬 ${proxyStatus.port || 8888} 포트를 PC의 Horizon Gateway 프록시 서버로 다이렉트 바인딩해주는 USB 터널을 켭니다. 무선 공유기 상태에 구애받지 않고 오프라인 상태에서도 온전히 감시와 모킹이 가능합니다.`
-                  : `Forward your Android device's local port ${proxyStatus.port || 8888} back to the Horizon Gateway proxy server on your host PC via USB. This operates offline and bypasses Wi-Fi router / corporate intranet restrictions.`
-              }
+              desc={t.usbTunnelDesc(proxyPort)}
             >
-              <div className="flex items-center justify-between p-4 bg-base-200/50 rounded-xl border border-base-300/30">
+              <div className="flex items-center justify-between gap-3 p-4 bg-base-200/50 rounded-xl border border-base-300/30">
                 <div className="flex flex-col">
-                  <span className="font-bold text-sm">{lang === "ko" ? "USB 터널 상태" : "USB Tunnel Status"}</span>
-                  <span className="text-xs text-base-content/60 font-mono mt-1">
-                    {usbTunnelActive
-                      ? lang === "ko"
-                        ? `터널 활성화됨 (port ${proxyStatus.port || 8888} -> ${proxyStatus.port || 8888})`
-                        : `Tunnel Active (port ${proxyStatus.port || 8888} -> ${proxyStatus.port || 8888})`
-                      : lang === "ko"
-                        ? "터널 중지됨"
-                        : "Tunnel Inactive"}
+                  <span className="font-bold text-sm">{t.usbTunnelStatus}</span>
+                  <span className="text-xs text-base-content/55 font-mono mt-1">
+                    {usbTunnelActive ? t.usbTunnelActive(proxyPort) : t.usbTunnelInactive}
                   </span>
                 </div>
                 <StatusToggle
@@ -695,78 +577,75 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
                   disabled={!isProxyRunning || !adbStatus?.found || adbStatus.devices.length === 0}
                 />
               </div>
-
-              {usbError && (
-                <div className="mt-4 p-4 bg-error/10 border border-error/20 rounded-xl text-error text-xs font-mono break-all">
+              {usbError && adbStatus && (
+                <div className="p-4 bg-error/10 border border-error/20 rounded-xl text-error text-xs font-mono break-all">
                   {usbError}
                 </div>
               )}
             </Section>
           </div>
 
-          {/* USB Connect Guidelines */}
           <div className="flex flex-col gap-4 @min-[36rem]:gap-6">
-            <Section title={lang === "ko" ? "USB 프록시 구성 가이드" : "USB Setup Process"}>
+            <Section title={t.usbStepsTitle}>
               <ul className="space-y-4 text-xs leading-relaxed text-base-content/70">
                 <li className="flex gap-2">
                   <span className="font-bold text-primary shrink-0">1.</span>
                   <div>
-                    <span className="font-bold block text-base-content">
-                      {lang === "ko" ? "안드로이드 개발자 모드 및 USB 디버깅 켜기" : "Enable USB Debugging"}
-                    </span>
-                    <span>
-                      {lang === "ko"
-                        ? "설정 -> 휴대전화 정보 -> 소프트웨어 정보 -> '빌드 번호'를 7번 연타하여 개발자 옵션을 연 뒤, 'USB 디버깅'을 활성화합니다."
-                        : "Go to Settings -> About Phone -> Software Info -> tap 'Build Number' 7 times to enable Developer Options, then enable 'USB Debugging'."}
-                    </span>
+                    <span className="font-bold block text-base-content">{t.usbStep1Title}</span>
+                    <span>{t.usbStep1}</span>
                   </div>
                 </li>
                 <li className="flex gap-2">
                   <span className="font-bold text-primary shrink-0">2.</span>
                   <div>
-                    <span className="font-bold block text-base-content">
-                      {lang === "ko" ? "USB 케이블 연결 및 터널 스위치 On" : "Connect USB & Toggle Switch"}
-                    </span>
-                    <span>
-                      {lang === "ko"
-                        ? "폰을 PC에 연결하고, 위의 'USB 포트 터널링 스위치'를 활성화하여 연결 상태를 등록합니다."
-                        : "Connect your phone to your PC via USB, then toggle the 'USB Port Tunneling Switch' above to establish the tunnel."}
-                    </span>
+                    <span className="font-bold block text-base-content">{t.usbStep2Title}</span>
+                    <span>{t.usbStep2}</span>
                   </div>
                 </li>
                 <li className="flex gap-2">
                   <span className="font-bold text-primary shrink-0">3.</span>
                   <div>
-                    <span className="font-bold block text-base-content">
-                      {lang === "ko"
-                        ? "자동 시스템 프록시 주입 (수동 설정 불필요)"
-                        : "Automated System Proxy Injection"}
-                    </span>
-                    <span>
-                      {lang === "ko"
-                        ? "위의 스위치를 켜는 즉시 Horizon Gateway가 폰의 전체 시스템 프록시를 127.0.0.1:8888로 자동 주입합니다. 혹시 이전에 와이파이 설정에서 수동으로 프록시를 설정하셨다면 충돌 방지를 위해 반드시 '없음(안함)' 상태로 원복해 주세요."
-                        : "Upon toggling the switch, Horizon Gateway will automatically configure your device's global HTTP proxy to 127.0.0.1:8888. If you have previously set a manual Wi-Fi proxy on your device, please revert it back to 'None'."}
-                    </span>
+                    <span className="font-bold block text-base-content">{t.usbStep3Title}</span>
+                    <span>{t.usbStep3}</span>
                   </div>
                 </li>
               </ul>
             </Section>
-
-            {/* iOS Unsupported warning card */}
-            <Card className="p-4 @min-[28rem]:p-6 border border-warning/20 bg-warning/5 text-warning">
-              <h2 className="text-sm font-bold mb-2 flex items-center gap-2 text-warning">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                {lang === "ko" ? "iOS (아이폰/아이패드) 미지원 안내" : "iOS Unsupported"}
-              </h2>
-              <P className="text-xs leading-relaxed opacity-85">
-                {lang === "ko"
-                  ? "Apple의 샌드박스 정책 및 iOS 시스템 제약으로 인해 USB 포트를 통한 웹 데이터 역방향 포워딩(Reverse tunneling)은 지원되지 않습니다. 아이폰 사용자의 경우 상단의 [무선 연결] 탭을 눌러 Tailscale VPN 또는 일반 Wi-Fi 프록시 구성을 이용해 주시기 바랍니다."
-                  : "Due to Apple's sandbox security policies and iOS system limitations, USB reverse port forwarding is not supported. For iOS devices, please click the [Wireless Connect] tab above to set up a Tailscale VPN or Wi-Fi proxy connection."}
-              </P>
+            <Card className="p-4 border border-warning/20 bg-warning/5 text-warning">
+              <h2 className="text-sm font-semibold mb-2 flex items-center gap-2">{t.iosTitle}</h2>
+              <P className="text-xs leading-relaxed text-base-content/70">{t.iosDesc}</P>
             </Card>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function CommandCard({
+  label,
+  command,
+  copyLabel,
+  onCopy,
+}: {
+  label: string;
+  command: string;
+  copyLabel: string;
+  onCopy: (command: string) => void;
+}) {
+  return (
+    <div className="p-3 bg-base-200/60 rounded-lg flex flex-col justify-between">
+      <div>
+        <span className="text-[10px] font-medium text-base-content/50">{label}</span>
+        <p className="text-xs font-mono mt-1 text-primary font-bold break-all">{command}</p>
+      </div>
+      <button
+        type="button"
+        onClick={() => onCopy(command)}
+        className="mt-3 text-[11px] bg-base-100 hover:bg-base-200 border border-base-300 py-1.5 rounded-md font-medium text-base-content"
+      >
+        {copyLabel}
+      </button>
     </div>
   );
 }

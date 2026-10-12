@@ -4,7 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import clsx from "clsx";
 import { AnimatePresence } from "framer-motion";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import {
   activeCustomThemeAtom,
   applyThemeToDocument,
@@ -23,6 +23,7 @@ import { useHubHandoffSync } from "@/features/panel-stack";
 import { DetachedWindowLayout, PopupWindowLayout } from "@/features/popup-window";
 import { UpdateBanner, UpdateChangelogModal, UpdateToolbarBadge, useUpdateCheck } from "@/features/update";
 import { UserProfileSetup } from "@/features/user-profile";
+import { AppLangProvider } from "@/shared/lib/i18n/app-lang";
 import { useShortcut } from "@/shared/lib/keyboard";
 import { useIsChatWindow, useIsDetachedWindow, useIsPopupWindow } from "@/shared/lib/tauri/useEmbedMode";
 import { useIsDetached } from "@/shared/lib/tauri/useIsDetached";
@@ -210,20 +211,22 @@ const RootLayout = () => {
     </>
   );
 
+  const withLang = (node: ReactNode) => <AppLangProvider lang={lang}>{node}</AppLangProvider>;
+
   if (shellLabel === "chat-resident") {
-    return <div className="bg-base-100 text-base-content">{content}</div>;
+    return withLang(<div className="bg-base-100 text-base-content">{content}</div>);
   }
 
   if (shellLabel === "chat-action-menu") {
-    return <div className="h-screen w-full overflow-hidden bg-base-100 text-base-content">{content}</div>;
+    return withLang(<div className="h-screen w-full overflow-hidden bg-base-100 text-base-content">{content}</div>);
   }
 
   if (shellLabel === "chat-incoming") {
-    return <div className="h-screen w-full overflow-hidden bg-transparent text-base-content">{content}</div>;
+    return withLang(<div className="h-screen w-full overflow-hidden bg-transparent text-base-content">{content}</div>);
   }
 
   if (isCompactWindow) {
-    return (
+    return withLang(
       <ErrorBoundary fallbackTitle={isChatWindow ? "Chat window error" : "Popup window error"}>
         <div className="h-screen w-full overflow-hidden bg-base-200 text-base-content font-sans transition-colors duration-300">
           {isPopupWindow ? (
@@ -241,12 +244,12 @@ const RootLayout = () => {
           <ChatLiveBridge />
           {showRouterDevtools ? <TanStackRouterDevtools position="bottom-right" /> : null}
         </div>
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
   }
 
   if (isDetachedWindow && pathname === "/") {
-    return (
+    return withLang(
       <ErrorBoundary fallbackTitle="Detached window error">
         <div className="flex flex-col h-screen w-full overflow-hidden bg-base-200 text-base-content font-sans transition-colors duration-300">
           <AnimatePresence>{isLoading && <LoadingScreen key="global-loader" />}</AnimatePresence>
@@ -255,12 +258,12 @@ const RootLayout = () => {
           <ChatLiveBridge />
           {showRouterDevtools ? <TanStackRouterDevtools position="bottom-right" /> : null}
         </div>
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
   }
 
   if (isDetachedWindow) {
-    return (
+    return withLang(
       <ErrorBoundary fallbackTitle="Detached window error">
         <div className="h-screen w-full overflow-hidden bg-base-200 text-base-content font-sans transition-colors duration-300">
           <DetachedWindowLayout>
@@ -271,11 +274,11 @@ const RootLayout = () => {
           <ChatLiveBridge />
           {showRouterDevtools ? <TanStackRouterDevtools position="bottom-right" /> : null}
         </div>
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
   }
 
-  return (
+  return withLang(
     <ErrorBoundary fallbackTitle="Horizon Gateway error">
       <div className="flex flex-col bg-base-200 h-screen w-full font-sans text-base-content selection:bg-primary/20 selection:text-primary overflow-hidden transition-colors duration-300">
         {!isHubPage && <Titlebar trailing={<UpdateToolbarBadge />} />}
@@ -288,7 +291,7 @@ const RootLayout = () => {
         <TeamCommsRuntime />
         {showRouterDevtools ? <TanStackRouterDevtools position="bottom-right" /> : null}
       </div>
-    </ErrorBoundary>
+    </ErrorBoundary>,
   );
 };
 

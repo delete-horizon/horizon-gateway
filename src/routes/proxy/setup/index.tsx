@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { listen } from "@tauri-apps/api/event";
 import { useAtom, useAtomValue } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { CheckCircle2, Circle, Download, RotateCcw, ShieldCheck } from "lucide-react";
@@ -8,6 +7,7 @@ import { languageAtom } from "@/entities/app";
 import { ProxyServerWarning } from "@/entities/proxy";
 import type { ProxyStatusPayload } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
+import { listen } from "@/shared/lib/tauri/client";
 import { saveTextDownload } from "@/shared/lib/tauri/saveDownload";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";

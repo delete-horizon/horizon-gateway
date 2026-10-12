@@ -5,7 +5,7 @@ export const en = {
   noGroupDefault: "No Group (Default)",
   groupTip: "Tip: You can manage groups in the Groups section of the sidebar.",
   importUrls: "Import URLs",
-  placeholder: "example.com\napi.service.io, dev.test.com",
+  placeholder: "example.com\napi.example.com, www.example.com",
   uploadJson: "Upload JSON",
   export: "Export",
   parseBtn: "Parse & Add",

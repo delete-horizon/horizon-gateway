@@ -179,12 +179,15 @@ pub struct CreateMockRulePayload {
     pub response_headers: HashMap<String, String>,
     pub response_body: Option<String>,
     pub enabled: bool,
+    /// Milliseconds to wait before the mocked response. Omitted values mean `0`.
+    #[serde(default)]
+    pub delay_ms: u64,
 }
 
 pub const CREATE_MOCK_RULE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "create_mock_rule",
     description: "새로운 모킹 룰을 생성합니다.",
-    payload_example: r#"{"name": "test rule", "scenarioId": null, "host": null, "method": "GET", "urlPattern": "/api/*", "responseStatus": 200, "responseHeaders": {}, "responseBody": "{}", "enabled": true}"#,
+    payload_example: r#"{"name": "test rule", "scenarioId": null, "host": null, "method": "GET", "urlPattern": "/api/*", "responseStatus": 200, "responseHeaders": {}, "responseBody": "{}", "enabled": true, "delayMs": 0}"#,
     category: "mocking",
     gui_only: false,
 };
@@ -203,6 +206,7 @@ pub fn create_mock_rule_svc(
         payload.response_headers,
         payload.response_body,
         payload.enabled,
+        payload.delay_ms,
     );
     Ok(ApiResponse {
         message: "모킹 규칙이 생성되었습니다.".to_string(),
@@ -223,12 +227,15 @@ pub struct UpdateMockRulePayload {
     pub response_headers: Option<HashMap<String, String>>,
     pub response_body: Option<String>,
     pub enabled: Option<bool>,
+    /// When omitted, the stored delay is left unchanged.
+    #[serde(default)]
+    pub delay_ms: Option<u64>,
 }
 
 pub const UPDATE_MOCK_RULE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "update_mock_rule",
     description: "모킹 룰을 수정합니다.",
-    payload_example: r#"{"id": "rule-uuid", "name": null, "host": null, "method": null, "urlPattern": null, "responseStatus": null, "responseHeaders": null, "responseBody": null, "enabled": null}"#,
+    payload_example: r#"{"id": "rule-uuid", "name": null, "host": null, "method": null, "urlPattern": null, "responseStatus": null, "responseHeaders": null, "responseBody": null, "enabled": null, "delayMs": null}"#,
     category: "mocking",
     gui_only: false,
 };
@@ -248,6 +255,7 @@ pub fn update_mock_rule_svc(
             payload.response_headers,
             payload.response_body,
             payload.enabled,
+            payload.delay_ms,
         )
         .ok_or_else(|| "MockRule not found".to_string())?;
 
@@ -330,6 +338,7 @@ pub fn create_mock_rule_from_log_svc(
         response_headers,
         response_body,
         true,
+        0,
     );
 
     Ok(ApiResponse {
@@ -337,4 +346,30 @@ pub fn create_mock_rule_from_log_svc(
         success: true,
         data: rule,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CreateMockRulePayload, UpdateMockRulePayload};
+
+    #[test]
+    fn existing_cli_payloads_omit_delay() {
+        let created: CreateMockRulePayload = serde_json::from_str(
+            r#"{"name":"hg-smoke","scenarioId":null,"host":null,"method":"GET","urlPattern":"/hg-smoke","responseStatus":200,"responseHeaders":{},"responseBody":"ok","enabled":true}"#,
+        )
+        .expect("create payload");
+        assert_eq!(created.delay_ms, 0);
+
+        let updated: UpdateMockRulePayload = serde_json::from_str(
+            r#"{"id":"rule-uuid","name":null,"host":null,"method":null,"urlPattern":null,"responseStatus":null,"responseHeaders":null,"responseBody":null,"enabled":null}"#,
+        )
+        .expect("update payload");
+        assert!(updated.delay_ms.is_none());
+
+        let with_delay: CreateMockRulePayload = serde_json::from_str(
+            r#"{"name":"slow","scenarioId":null,"host":null,"method":"GET","urlPattern":"/slow","responseStatus":200,"responseHeaders":{},"responseBody":null,"enabled":true,"delayMs":120}"#,
+        )
+        .expect("delay payload");
+        assert_eq!(with_delay.delay_ms, 120);
+    }
 }

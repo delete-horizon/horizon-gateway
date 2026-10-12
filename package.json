@@ -29,10 +29,12 @@
     "smoke:headless-serve:macos": "node scripts/smoke-headless-serve-macos.mjs",
     "format": "biome check --write",
     "format:f": "biome check --write --unsafe",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "type-check": "tsc --noEmit",
     "check:layout": "node scripts/check-slice-layout.mjs",
-    "check": "biome check && node scripts/check-slice-layout.mjs",
+    "check": "biome check && node scripts/check-slice-layout.mjs && node scripts/check-locale-parity.mjs",
+    "check:i18n": "node scripts/check-locale-parity.mjs",
     "clippy": "cd src-tauri && cargo clippy --workspace --all-targets",
     "prepare": "husky",
     "version:patch": "node scripts/bump-version.mjs patch",
@@ -89,7 +91,8 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
     "typescript": "~5.8.3",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vitest": "^3.2.7"
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [

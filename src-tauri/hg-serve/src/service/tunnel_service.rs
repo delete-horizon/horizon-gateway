@@ -6,7 +6,7 @@ use axum::{
     routing::get,
     Router,
 };
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Child;
@@ -47,6 +47,11 @@ impl TunnelService {
     #[allow(clippy::unused_self)]
     pub fn get_tailscale_ip(&self) -> Option<String> {
         get_tailscale_ip()
+    }
+
+    #[allow(clippy::unused_self)]
+    pub fn remote_hosts(&self) -> RemoteHostSet {
+        collect_remote_hosts()
     }
 
     /// Binds 127.0.0.1, or 0.0.0.0 with the proxy peer allowlist when remote access is enabled
@@ -275,20 +280,152 @@ fn which_exists(name: &str) -> bool {
         .unwrap_or(false)
 }
 
-pub fn get_tailscale_ip() -> Option<String> {
+/// Addresses a phone can use. Tailscale is optional; RFC1918 LAN addresses are separate.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RemoteHostSet {
+    pub tailscale_ip: Option<String>,
+    pub lan_ips: Vec<String>,
+}
+
+pub fn is_lan_ipv4(ip: Ipv4Addr) -> bool {
+    let [a, b, ..] = ip.octets();
+    a == 10 || (a == 172 && (16..=31).contains(&b)) || (a == 192 && b == 168)
+}
+
+pub fn is_tailscale_ipv4(ip: Ipv4Addr) -> bool {
+    let [a, b, ..] = ip.octets();
+    a == 100 && (64..=127).contains(&b)
+}
+
+pub fn collect_remote_hosts() -> RemoteHostSet {
+    let mut lan_ips = Vec::new();
+    let mut tailscale_ip = None;
     if let Ok(interfaces) = get_if_addrs::get_if_addrs() {
         for interface in interfaces {
-            if !interface.is_loopback() {
-                if let get_if_addrs::IfAddr::V4(v4_addr) = interface.addr {
-                    let ip = v4_addr.ip.to_string();
-                    if ip.starts_with("100.") {
-                        return Some(ip);
-                    }
+            if interface.is_loopback() {
+                continue;
+            }
+            let get_if_addrs::IfAddr::V4(v4) = interface.addr else {
+                continue;
+            };
+            if is_tailscale_ipv4(v4.ip) {
+                if tailscale_ip.is_none() {
+                    tailscale_ip = Some(v4.ip.to_string());
+                }
+            } else if is_lan_ipv4(v4.ip) {
+                let text = v4.ip.to_string();
+                if !lan_ips.contains(&text) {
+                    lan_ips.push(text);
                 }
             }
         }
     }
-    None
+    RemoteHostSet {
+        tailscale_ip,
+        lan_ips,
+    }
+}
+
+pub fn get_tailscale_ip() -> Option<String> {
+    collect_remote_hosts().tailscale_ip
+}
+
+fn host_without_port(host: &str) -> &str {
+    let host = host.trim();
+    if let Some(rest) = host.strip_prefix('[') {
+        return rest.split(']').next().unwrap_or(rest);
+    }
+    match host.rsplit_once(':') {
+        Some((name, port)) if !name.contains(':') && port.chars().all(|c| c.is_ascii_digit()) => {
+            name
+        }
+        _ => host,
+    }
+}
+
+fn usable_request_host(host: &str) -> bool {
+    if host.is_empty()
+        || host.eq_ignore_ascii_case("localhost")
+        || host == "127.0.0.1"
+        || host == "::1"
+        || host == "0.0.0.0"
+        || host.ends_with(".trycloudflare.com")
+    {
+        return false;
+    }
+    match host.parse::<IpAddr>() {
+        Ok(IpAddr::V4(v4)) => is_lan_ipv4(v4) || is_tailscale_ipv4(v4),
+        Ok(IpAddr::V6(v6)) => {
+            let seg = v6.segments()[0];
+            (seg & 0xfe00) == 0xfc00 || (seg & 0xffc0) == 0xfe80
+        }
+        Err(_) => true,
+    }
+}
+
+/// Host written into the mobile setup page.
+/// Remote access off (the default) always yields loopback, even if LAN or Tailscale addresses exist.
+pub fn resolve_setup_host(
+    host_header: Option<&str>,
+    allow_remote: bool,
+    hosts: &RemoteHostSet,
+) -> String {
+    if !allow_remote {
+        return "127.0.0.1".to_string();
+    }
+    if let Some(raw) = host_header {
+        let bare = host_without_port(raw);
+        if usable_request_host(bare) {
+            return bare.to_string();
+        }
+    }
+    if let Some(ip) = &hosts.tailscale_ip {
+        return ip.clone();
+    }
+    hosts
+        .lan_ips
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "127.0.0.1".to_string())
+}
+
+pub fn access_kind(host: &str, hosts: &RemoteHostSet) -> &'static str {
+    if host == "127.0.0.1" || host.eq_ignore_ascii_case("localhost") {
+        return "local";
+    }
+    if hosts.tailscale_ip.as_deref() == Some(host) {
+        return "tailscale";
+    }
+    if hosts.lan_ips.iter().any(|ip| ip == host) {
+        return "lan";
+    }
+    if host.parse::<Ipv4Addr>().is_ok_and(is_tailscale_ipv4) {
+        return "tailscale";
+    }
+    if host.parse::<Ipv4Addr>().is_ok_and(is_lan_ipv4) {
+        return "lan";
+    }
+    "remote"
+}
+
+/// Proxy host advertised in PAC. Loopback, or any request while remote access is off, stays on this computer.
+pub fn proxy_advertise_host(
+    request_host: &str,
+    allow_remote: bool,
+    hosts: &RemoteHostSet,
+) -> String {
+    let host = request_host.trim();
+    let loopback = host.eq_ignore_ascii_case("localhost")
+        || host == "127.0.0.1"
+        || host == "[::1]"
+        || host == "::1";
+    if loopback || !allow_remote {
+        return "127.0.0.1".to_string();
+    }
+    if host.ends_with(".trycloudflare.com") || host == "0.0.0.0" || host.is_empty() {
+        return resolve_setup_host(None, true, hosts);
+    }
+    host.to_string()
 }
 
 fn parse_cloudflare_url(line: &str) -> Option<String> {
@@ -322,29 +459,110 @@ async fn peer_guard(
     }
 }
 
-async fn connect_handler(State(state): State<AxumState>) -> impl IntoResponse {
-    let tailscale_ip = get_tailscale_ip().unwrap_or_else(|| "127.0.0.1".to_string());
-
-    let proxy_port = state.proxy_settings.get().proxy_port;
-
-    let html = include_str!("../../resources/landing.html")
-        .replace("{{TAILSCALE_IP}}", &tailscale_ip)
-        .replace("{{PROXY_PORT}}", &proxy_port.to_string())
-        .replace("{{AXUM_PORT}}", &SETUP_SERVER_PORT.to_string());
-
-    Html(html)
+fn render_mobile_page(template: &str, host_header: Option<&str>, state: &AxumState) -> String {
+    let settings = state.proxy_settings.get();
+    let hosts = collect_remote_hosts();
+    let reach = resolve_setup_host(host_header, settings.allow_remote_access, &hosts);
+    let kind = access_kind(&reach, &hosts);
+    template
+        .replace("{{TAILSCALE_IP}}", &reach)
+        .replace("{{REACH_HOST}}", &reach)
+        .replace("{{ACCESS_KIND}}", kind)
+        .replace(
+            "{{REMOTE_ON}}",
+            if settings.allow_remote_access {
+                "1"
+            } else {
+                "0"
+            },
+        )
+        .replace("{{PROXY_PORT}}", &settings.proxy_port.to_string())
+        .replace("{{AXUM_PORT}}", &SETUP_SERVER_PORT.to_string())
 }
 
-/// Setup guide page: served over HTTP on the Tailscale IP (100.x.x.x:13030/setup).
-/// If the mobile device can load this page, it proves VPN connectivity.
-async fn setup_handler(State(state): State<AxumState>) -> impl IntoResponse {
-    let tailscale_ip = get_tailscale_ip().unwrap_or_else(|| "127.0.0.1".to_string());
+async fn connect_handler(
+    State(state): State<AxumState>,
+    headers: axum::http::HeaderMap,
+) -> impl IntoResponse {
+    let host = headers
+        .get(axum::http::header::HOST)
+        .and_then(|value| value.to_str().ok());
+    Html(render_mobile_page(
+        include_str!("../../resources/landing.html"),
+        host,
+        &state,
+    ))
+}
 
-    let proxy_port = state.proxy_settings.get().proxy_port;
+/// Setup guide. Reachable on the LAN or over Tailscale when remote access is enabled.
+async fn setup_handler(
+    State(state): State<AxumState>,
+    headers: axum::http::HeaderMap,
+) -> impl IntoResponse {
+    let host = headers
+        .get(axum::http::header::HOST)
+        .and_then(|value| value.to_str().ok());
+    Html(render_mobile_page(
+        include_str!("../../resources/setup_guide.html"),
+        host,
+        &state,
+    ))
+}
 
-    let html = include_str!("../../resources/setup_guide.html")
-        .replace("{{TAILSCALE_IP}}", &tailscale_ip)
-        .replace("{{PROXY_PORT}}", &proxy_port.to_string());
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    Html(html)
+    fn hosts() -> RemoteHostSet {
+        RemoteHostSet {
+            tailscale_ip: Some("100.64.0.2".to_string()),
+            lan_ips: vec!["192.168.1.20".to_string()],
+        }
+    }
+
+    #[test]
+    fn remote_access_off_stays_on_loopback() {
+        let set = hosts();
+        assert_eq!(
+            resolve_setup_host(Some("192.168.1.20:13030"), false, &set),
+            "127.0.0.1"
+        );
+        assert_eq!(
+            proxy_advertise_host("192.168.1.20", false, &set),
+            "127.0.0.1"
+        );
+        assert_eq!(proxy_advertise_host("100.64.0.2", false, &set), "127.0.0.1");
+    }
+
+    #[test]
+    fn lan_host_is_kept_when_remote_access_is_on() {
+        let set = hosts();
+        assert_eq!(
+            resolve_setup_host(Some("192.168.1.20:13030"), true, &set),
+            "192.168.1.20"
+        );
+        assert_eq!(access_kind("192.168.1.20", &set), "lan");
+        assert_eq!(
+            proxy_advertise_host("192.168.1.20", true, &set),
+            "192.168.1.20"
+        );
+    }
+
+    #[test]
+    fn tailscale_is_optional_fallback() {
+        let set = hosts();
+        assert_eq!(
+            resolve_setup_host(Some("abc.trycloudflare.com"), true, &set),
+            "100.64.0.2"
+        );
+        let lan_only = RemoteHostSet {
+            tailscale_ip: None,
+            lan_ips: vec!["10.0.0.8".to_string()],
+        };
+        assert_eq!(resolve_setup_host(None, true, &lan_only), "10.0.0.8");
+        assert_eq!(proxy_advertise_host("", true, &lan_only), "10.0.0.8");
+        assert!(is_lan_ipv4("10.1.2.3".parse().unwrap()));
+        assert!(!is_lan_ipv4("100.64.0.1".parse().unwrap()));
+        assert!(is_tailscale_ipv4("100.127.0.1".parse().unwrap()));
+    }
 }
