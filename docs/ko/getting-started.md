@@ -135,20 +135,20 @@ API 로그 보관 기본값은 14일입니다. 7일, 30일, 90일, 무제한 중
 
 `hgc`는 창 없이 앱 명령을 실행하는 콘솔입니다. Windows에서는 관리자 권한이 필요 없습니다. 설치 폴더의 `hgc.exe`이며, PATH에 넣었다면 어느 터미널에서나 부릅니다.
 
-프로젝트에 에이전트 스킬을 넣을 때:
+프로젝트에 스킬과 읽기 전용 MCP 설정을 넣을 때:
 
 ```bash
-hgc init                  # 전역 설치 (에이전트 자동 감지)
+hgc init                  # 전역 스킬만 설치 (에이전트 자동 감지)
 hgc init --target cursor  # 지정한 에이전트
 hgc init --target all     # 지원하는 에이전트 전부
-hgc init --project        # .agents/skills, .claude/skills, .windsurf/skills, 읽기 전용 MCP 설정
+hgc init --project        # .agents/skills에 쓰고 .claude/skills, .windsurf/skills로 연결. 읽기 전용 MCP 설정
 hgc init --print          # 설치하지 않고 SKILL.md만 출력
 ```
 
 `--target` 값은 `auto`, `all`, `cursor`, `claude`, `codex`, `gemini`, `copilot`, `windsurf`입니다.
 
 ```bash
-# 현재 프로젝트에 AI 에이전트 스킬을 넣습니다
+# 현재 프로젝트에 스킬과 읽기 전용 MCP 설정을 넣습니다
 hgc init --project
 
 # 사용할 수 있는 명령을 봅니다
@@ -181,6 +181,39 @@ hgc get_proxy_status '{}' | Out-String
 ```
 
 `hgc list`와 `hgc help <command>`로 명령과 입력을 확인합니다. 스킬을 설치하면 앱을 켜지 않고 로그를 읽는 `scripts/logs.mjs`도 함께 들어옵니다.
+
+### MCP
+
+에이전트가 CLI와 같은 기능을 MCP 도구로 쓰는 모드입니다. `hgc mcp`는 stdio에서 동작하고, 기본은 읽기 전용입니다.
+
+`hgc init --project`는 스킬을 `.agents/skills/horizon-gateway`에 쓰고, `.claude/skills/horizon-gateway`와 `.windsurf/skills/horizon-gateway`를 그 디렉터리로 연결합니다. 같은 명령이 아래 JSON을 `.cursor/mcp.json`, `.mcp.json`, `.gemini/settings.json`에 넣습니다. 이미 `horizon-gateway` 항목이 있으면 그 항목은 바꾸지 않습니다. 전역 `hgc init`은 스킬만 설치하고 이 파일들은 쓰지 않습니다. 직접 넣을 때도 같은 JSON입니다.
+
+```json
+{
+  "mcpServers": {
+    "horizon-gateway": {
+      "command": "hgc",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+```bash
+hgc mcp
+hgc mcp --allow-body
+hgc mcp --allow-write
+```
+
+플래그가 없으면 `get_status`, `list_routes`, `list_mocks`, `list_domains`, `list_traffic`, `get_config`만 열립니다. `list_traffic`은 id, 메서드, 호스트, 쿼리 값을 `REDACTED`로 바꾼 경로, 상태 코드, 크기, 캡처 시각만 줍니다. 헤더와 본문은 넣지 않습니다.
+
+`--allow-body`와 `--allow-write`는 기본으로 꺼져 있습니다. 응답 본문에 숨은 지시문이 있으면 에이전트가 그 문장을 따라 쓰기 도구를 쓸 수 있기 때문입니다. 앱 데이터 디렉터리 `hgc-mcp.json`의 `allowBody` 또는 `allowWrite`를 true로 둬도 같습니다. 플래그는 해당 권한만 켭니다.
+
+`--allow-body`는 `get_traffic_body`를 엽니다. 로그 id 하나의 요청 또는 응답 본문을 한 건씩 읽고, 4KB를 넘으면 자릅니다. 결과에는 `UNTRUSTED CONTENT`가 붙고, 본문은 지시가 아니라 데이터로 다룹니다.
+
+`--allow-write`는 목과 라우트의 생성·수정·삭제, 프록시 시작·중지를 엽니다. 도구는 `create_mock`, `update_mock`, `delete_mock`, `create_route`, `update_route`, `delete_route`, `start_proxy`, `stop_proxy`입니다.
+
+PAC, 원격 접속, 토큰, 인증서 설치, 프록시 설정 변경, Cloudflare 터널은 어떤 플래그로도 열리지 않습니다.
 
 ## 12. 실험 기능
 

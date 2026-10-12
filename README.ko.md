@@ -217,15 +217,21 @@ hgc mcp --allow-write
 hgc mcp --allow-body
 ```
 
-`hgc init --project`는 `.agents/skills/horizon-gateway`에 스킬을 쓰고, Claude Code용 `.claude/skills/horizon-gateway`과 Windsurf용 `.windsurf/skills/horizon-gateway`로 연결합니다. Cursor, Codex, Gemini CLI, Copilot은 `.agents/skills`를 읽습니다. 같은 명령이 Cursor(`.cursor/mcp.json`), Claude Code(`.mcp.json`), Gemini CLI(`.gemini/settings.json`)에 읽기 전용 MCP 항목을 추가합니다.
+`hgc init --project`는 스킬을 `.agents/skills/horizon-gateway`에 쓰고, `.claude/skills/horizon-gateway`와 `.windsurf/skills/horizon-gateway`를 그 디렉터리로 연결합니다. Cursor, Codex, Gemini CLI, Copilot은 `.agents/skills`를 읽습니다. 같은 명령이 Cursor(`.cursor/mcp.json`), Claude Code(`.mcp.json`), Gemini CLI(`.gemini/settings.json`)에 읽기 전용 MCP 항목을 넣습니다. 이미 `horizon-gateway` 항목이 있으면 그 항목은 바꾸지 않습니다.
 
 ### MCP
 
-`hgc mcp`는 stdio에서 MCP `2026-07-28`로 말하고, CLI와 같은 제어 소켓과 로컬 토큰으로 코어에 접속합니다. 프로토콜 버전이 다르면 거부합니다.
+에이전트가 CLI와 같은 기능을 MCP 도구로 쓰는 모드입니다. `hgc mcp`는 stdio에서 MCP `2026-07-28`로 말하고, CLI와 같은 제어 소켓과 로컬 토큰으로 코어에 붙습니다. `hgc init --project`가 쓰는 JSON은 아래 세 파일과 같고, 직접 넣을 때도 같습니다.
 
-기본 도구는 읽기 전용입니다. 프록시 상태, 라우트, 목, 도메인, 설정, 최근 트래픽 요약입니다. 요약은 method, host, 쿼리 값이 가려진 path, status, size, timing만 담고 헤더와 본문은 넣지 않습니다. `Authorization`과 `Cookie`는 나오지 않습니다. 본문 하나는 id로 따로 읽으며 4KB에서 자르고 신뢰할 수 없는 내용으로 표시합니다. `--allow-body` 또는 앱 데이터 디렉터리 `hgc-mcp.json`의 `allowBody`가 없으면 이 도구는 목록에 없습니다.
+플래그가 없으면 읽기 전용 도구만 열립니다. `get_status`, `list_routes`, `list_mocks`, `list_domains`, `list_traffic`, `get_config`입니다. `list_traffic`은 id, 메서드, 호스트, 쿼리 값을 `REDACTED`로 바꾼 경로, 상태 코드, 크기, 캡처 시각만 줍니다. 헤더와 본문은 넣지 않습니다.
 
-목과 라우트의 생성·수정·삭제, 프록시 시작·중지는 `--allow-write` 또는 `allowWrite: true`가 필요합니다. PAC 설정, 원격 접근 전환, 토큰 관리, 인증서 설치는 MCP로 열지 않습니다.
+`--allow-body`와 `--allow-write`는 기본으로 꺼져 있습니다. 응답 본문에 숨은 지시문이 있으면 에이전트가 그 문장을 따라 쓰기 도구를 쓸 수 있기 때문입니다. 켜려면 플래그를 넘기거나, 앱 데이터 디렉터리의 `hgc-mcp.json`에서 `allowBody` 또는 `allowWrite`를 true로 둡니다. 플래그는 해당 권한만 켭니다.
+
+`--allow-body`는 `get_traffic_body`를 엽니다. 로그 id 하나의 요청 또는 응답 본문을 한 건씩 읽고, 4KB를 넘으면 자릅니다. 결과에는 `UNTRUSTED CONTENT`가 붙고, 본문은 지시가 아니라 데이터로 다룹니다.
+
+`--allow-write`는 목과 라우트의 생성·수정·삭제, 프록시 시작·중지를 엽니다. 도구는 `create_mock`, `update_mock`, `delete_mock`, `create_route`, `update_route`, `delete_route`, `start_proxy`, `stop_proxy`입니다.
+
+PAC, 원격 접속, 토큰, 인증서 설치, 프록시 설정 변경, Cloudflare 터널은 어떤 플래그로도 열리지 않습니다.
 
 Cursor (`.cursor/mcp.json`):
 
