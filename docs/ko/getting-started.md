@@ -15,7 +15,7 @@ Horizon Gateway를 설치하고, 브라우저를 로컬 프록시로 보낸 다�
 | macOS Intel | `horizon-gateway_<버전>_x64.dmg` | |
 | Linux x64 | `.AppImage`, `.deb`, `.rpm` | Ubuntu 22.04에서 빌드합니다. |
 
-v2.8.15 크기는 Windows 설치 파일이 약 22MB, macOS dmg이 약 29–30MB, Linux deb·rpm이 약 32MB, AppImage가 약 106MB입니다.
+v2.8.15 크기는 십진 MB로 Windows 설치 파일이 22.9MB, macOS dmg이 Apple Silicon 30.5MB와 Intel 31.7MB, Linux deb·rpm이 33.7MB, AppImage가 110.8MB입니다.
 
 `*.app.tar.gz`, `*.sig`, `latest.json`은 업데이트용입니다.
 
@@ -97,7 +97,9 @@ PAC는 `localhost`, `127.0.0.1`, `::1`, 이름에 `tailscale`이 들어가거나
 
 캡처한 로그에서 규칙을 만들 수도 있습니다.
 
-시나리오를 꺼 두어도 켜진 규칙은 그대로 응답합니다. 지연 시간 설정은 아직 응답에 적용되지 않습니다.
+목 응답을 보내기 전에 규칙의 지연 시간만큼 기다립니다. 단위는 밀리초이고, 0이면 바로 보냅니다. 30000을 넘기면 30초로 맞춥니다. 프록시를 탄 페이지의 모킹 편집기에서 **지연 시간 (ms)** 에 넣거나, `hgc create_mock_rule`의 `delayMs`로 넣습니다. 만들 때 `delayMs`를 생략하면 0입니다. `hgc update_mock_rule`에서 `delayMs`를 생략하면 저장해 둔 지연은 바꾸지 않습니다.
+
+시나리오를 지정하지 않으면 규칙은 기본 시나리오 `Default`에 붙습니다. 이 규칙은 켜져 있으면 요청에 맞으며, `Default`를 꺼도 같습니다. 그 외 시나리오에 넣은 규칙은 그 시나리오가 켜져 있을 때만 맞습니다. 시나리오를 하나 켜면 나머지는 꺼집니다. 켜진 시나리오의 규칙과 `Default` 규칙이 같은 요청에 맞으면 켜진 시나리오의 규칙을 쓰고, 같은 쪽에서 여러 규칙이 맞으면 먼저 저장한 규칙을 씁니다. `Default`가 아닌 시나리오가 하나도 켜져 있지 않으면 `Default` 규칙만 응답합니다. 시나리오는 `hgc create_scenario`로 만들고, `hgc set_scenario_enabled`로 켜고 끕니다. `hgc update_scenario`의 `enabled`도 같은 값을 바꿉니다. 앱에서는 Ctrl+P 명령 팔레트의 **[모킹] 실행: 테스트 시나리오 활성화**로 하나를 켭니다.
 
 ## 8. 도메인이 살아 있는지
 
@@ -117,9 +119,11 @@ API 로그 보관 기본값은 14일입니다. 7일, 30일, 90일, 무제한 중
 
 앱이 안내하는 설치 예는 Windows `choco install adb`, macOS `brew install --cask android-platform-tools`입니다.
 
-**무선.** Tailscale을 쓰면 `100.`으로 시작하는 IPv4를 그 주소로 보여 줍니다. 처음 안내 페이지는 PC의 `cloudflared`로 임시 터널과 QR을 만듭니다. `cloudflared`는 따로 설치합니다. 없을 때 앱이 안내하는 명령은 Windows `winget install Cloudflare.cloudflared`, macOS `brew install cloudflared`입니다. QR로 연 페이지의 PAC나 수동 프록시를 기기 Wi-Fi에 넣습니다.
+**무선.** 같은 Wi-Fi의 휴대폰은 LAN 주소를 씁니다. Tailscale은 필요 없습니다. 다른 망일 때만 Tailscale을 쓰며, 실행 중이면 `100.`으로 시작하는 IPv4를 보여 줍니다. LAN이나 Tailscale로 붙으려면 **다른 기기 접속 허용**을 켜고, 프록시나 앱을 다시 시작합니다.
 
-**iOS.** USB 연결은 지원하지 않습니다. 무선 탭의 Tailscale이나 Wi-Fi 프록시를 사용합니다.
+`cloudflared` 임시 터널은 LAN이나 Tailscale이 아닐 때의 선택입니다. 터널은 설정 페이지만 엽니다. 프록시를 타려면 **다른 기기 접속 허용**이 켜져 있어야 합니다. `cloudflared`는 따로 설치합니다. 없을 때 앱이 안내하는 명령은 Windows `winget install Cloudflare.cloudflared`, macOS `brew install cloudflared`입니다. QR은 다른 기기 접속을 허용했거나 터널을 켰을 때 나타납니다. 연 페이지의 PAC나 수동 프록시를 기기 Wi-Fi에 넣습니다.
+
+**iOS.** USB 연결은 지원하지 않습니다. 무선 탭에서 같은 Wi-Fi를 쓰고, 다른 망일 때만 Tailscale을 사용합니다.
 
 ## 10. UI/UX 가이드
 

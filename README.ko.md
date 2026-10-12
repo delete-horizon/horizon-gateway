@@ -73,7 +73,9 @@ HTTPS 본문을 보려면 그 도메인에서 **HTTPS 복호화**를 켭니다. 
 
 **도구 → API 모킹**에서 메서드, URL 패턴, 상태 코드, 응답 헤더, 본문을 지정합니다. 패턴에는 `*`를 쓸 수 있고, 캡처한 API 로그에서 규칙을 만들 수도 있습니다. HTTPS를 가로채려면 그 호스트의 복호화가 켜져 있어야 하고, 프록시가 꺼져 있으면 규칙은 적용되지 않습니다.
 
-시나리오를 꺼 두어도 켜진 규칙은 그대로 응답합니다. 지연 시간 설정은 아직 응답에 적용되지 않습니다.
+목 응답을 보내기 전에 규칙의 지연 시간만큼 기다립니다. 단위는 밀리초이고, 0이면 바로 보냅니다. 30000을 넘기면 30초로 맞춥니다. 프록시를 탄 페이지의 모킹 편집기에서 **지연 시간 (ms)** 에 넣거나, `hgc create_mock_rule`의 `delayMs`로 넣습니다. 만들 때 `delayMs`를 생략하면 0입니다. `hgc update_mock_rule`에서 `delayMs`를 생략하면 저장해 둔 지연은 바꾸지 않습니다.
+
+시나리오를 지정하지 않으면 규칙은 기본 시나리오 `Default`에 붙습니다. 이 규칙은 켜져 있으면 요청에 맞으며, `Default`를 꺼도 같습니다. 그 외 시나리오에 넣은 규칙은 그 시나리오가 켜져 있을 때만 맞습니다. 시나리오를 하나 켜면 나머지는 꺼집니다. 켜진 시나리오의 규칙과 `Default` 규칙이 같은 요청에 맞으면 켜진 시나리오의 규칙을 쓰고, 같은 쪽에서 여러 규칙이 맞으면 먼저 저장한 규칙을 씁니다. `Default`가 아닌 시나리오가 하나도 켜져 있지 않으면 `Default` 규칙만 응답합니다. 시나리오는 `hgc create_scenario`로 만들고, `hgc set_scenario_enabled`로 켜고 끕니다. `hgc update_scenario`의 `enabled`도 같은 값을 바꿉니다. 앱에서는 Ctrl+P 명령 팔레트의 **[모킹] 실행: 테스트 시나리오 활성화**로 하나를 켭니다.
 
 ### OpenAPI와 API 로그
 
@@ -104,8 +106,9 @@ PC의 프록시를 안드로이드나 같은 네트워크의 폰에 연결합니
 **설정 → 프록시 → 모바일 연결**에서 다룹니다.
 
 - Android USB는 PC에 `adb`가 있어야 합니다. USB 탭을 켜면 연결된 기기에 `adb reverse tcp:<프록시 포트> tcp:<프록시 포트>`를 겁니다.
-- 무선은 PC에 설치한 `cloudflared`로 임시 터널과 QR을 만든 뒤, 기기 Wi-Fi에 PAC나 수동 프록시를 넣습니다. Tailscale 칸은 `100.`으로 시작하는 IPv4를 그 주소로 보여 줍니다.
-- iPhone USB 연결은 지원하지 않습니다. 무선 탭의 Tailscale이나 Wi-Fi 프록시를 사용합니다.
+- 무선은 같은 Wi-Fi의 LAN 주소를 먼저 보여 줍니다. Tailscale은 선택이며, 휴대폰이 같은 Wi-Fi에 없을 때 씁니다. 실행 중이면 `100.`으로 시작하는 IPv4를 보여 줍니다. LAN이나 Tailscale로 붙으려면 **다른 기기 접속 허용**이 켜져 있어야 합니다.
+- PC에 설치한 `cloudflared`로 여는 임시 터널은 LAN이나 Tailscale이 아닐 때의 선택입니다. 터널은 설정 페이지만 열고, 프록시를 타려면 **다른 기기 접속 허용**이 켜져 있어야 합니다. QR은 다른 기기 접속을 허용했거나 터널을 켰을 때 나옵니다. 연 페이지의 PAC나 수동 프록시를 기기 Wi-Fi에 넣습니다.
+- iPhone USB 연결은 지원하지 않습니다. 무선 탭에서 같은 Wi-Fi를 쓰고, 다른 망일 때만 Tailscale을 사용합니다.
 
 ### UI/UX 가이드
 
@@ -131,13 +134,13 @@ API를 직접 부르거나, 데이터 가공과 화면 확인에 쓰는 도구�
 
 [GitHub Releases](https://github.com/delete-horizon/horizon-gateway/releases)에서 받습니다. Windows x64, macOS Apple Silicon, macOS Intel, Linux x64용을 제공합니다. Windows ARM과 Linux ARM용은 없습니다. Linux 패키지는 Ubuntu 22.04에서 빌드합니다.
 
-v2.8.15 설치 파일 크기입니다.
+v2.8.15 설치 파일 크기입니다. 숫자는 십진 MB입니다.
 
 | 운영체제 | 받는 파일 | 아키텍처 | 크기 |
 |---|---|---|---|
-| Windows | NSIS `horizon-gateway_*_x64-setup.exe` | x64 | 약 22MB |
-| macOS | `horizon-gateway_*_aarch64.dmg`, `horizon-gateway_*_x64.dmg` | Apple Silicon, Intel 각각 | 약 29MB, 약 30MB |
-| Linux | `.AppImage`, `.deb`, `.rpm` | x64 (`amd64` / `x86_64`) | AppImage 약 106MB, deb·rpm 약 32MB |
+| Windows | NSIS `horizon-gateway_*_x64-setup.exe` | x64 | 22.9MB |
+| macOS | `horizon-gateway_*_aarch64.dmg`, `horizon-gateway_*_x64.dmg` | Apple Silicon, Intel 각각 | 30.5MB, 31.7MB |
+| Linux | `.AppImage`, `.deb`, `.rpm` | x64 (`amd64` / `x86_64`) | AppImage 110.8MB, deb·rpm 33.7MB |
 
 Windows 설치는 머신 단위라 설치할 때 권한 상승이 있습니다. `*.app.tar.gz`, `*.sig`, `latest.json`은 업데이트용입니다.
 
