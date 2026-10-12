@@ -1,3 +1,4 @@
+English | [한국어](README.ko.md)
 <div align="center">
 
 <img src="./public/logo-animated.svg" alt="Horizon Gateway Logo" width="100%" />
