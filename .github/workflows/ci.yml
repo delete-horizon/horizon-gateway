@@ -141,10 +141,9 @@ jobs:
           HG_HGC_BIN: ${{ matrix.hgc_bin }}
         run: node ${{ matrix.script }}
 
-  # Advisory scans stay visible on the PR but do not block merge.
+  # Accepted leftovers are ignored below. A new advisory fails this job.
   dependency-audit:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
@@ -170,11 +169,39 @@ jobs:
 
       - name: Audits
         run: |
-          status=0
-          pnpm audit || status=1
-          (cd src-tauri && cargo audit) || status=1
-          (cd src-tauri && cargo deny check advisories sources) || status=1
-          exit "$status"
+          set -euo pipefail
+          pnpm audit --json > /tmp/pnpm-audit.json || true
+          node <<'JS'
+          const fs = require("fs");
+          const data = JSON.parse(fs.readFileSync("/tmp/pnpm-audit.json", "utf8"));
+          const allowed = new Set([
+            "braces",
+            "esbuild",
+            "vitest",
+            "@vitest/mocker",
+            "tinypool",
+          ]);
+          const unexpected = [];
+          for (const advisory of Object.values(data.advisories || {})) {
+            if (!allowed.has(advisory.module_name)) {
+              unexpected.push(`${advisory.module_name}: ${advisory.title}`);
+            }
+          }
+          if (unexpected.length) {
+            console.error(unexpected.join("\n"));
+            process.exit(1);
+          }
+          console.log("pnpm audit: only accepted leftovers");
+          JS
+          (
+            cd src-tauri
+            cargo audit \
+              --ignore RUSTSEC-2026-0118 \
+              --ignore RUSTSEC-2026-0119 \
+              --ignore RUSTSEC-2026-0194 \
+              --ignore RUSTSEC-2026-0195
+            cargo deny check advisories sources
+          )
 
   gitleaks:
     runs-on: ubuntu-latest
