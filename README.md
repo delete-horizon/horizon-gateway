@@ -35,7 +35,8 @@ Horizon Gateway is a desktop app for local HTTPS inspection, API mocks, and doma
 
 - HTTPS proxy built with Hyper and Tokio. It serves a PAC file, and a TLS bypass list can skip decryption for hosts you choose.
 - Map one hostname, such as `api.example.dev`, to a local target such as `localhost:3000`. Matching is the exact hostname. This does not edit the hosts file.
-- Mock rules set a status code, response headers, and a body.
+- Mock rules set a status code, response headers, a body, and a delay. The proxy waits that long before the mock response. A delay above 30 seconds is capped at 30 seconds.
+- A rule on the built-in Default scenario applies while that rule is enabled. A rule on another scenario applies only while that scenario is enabled. When both match, the enabled scenario's rule is used.
 - OpenAPI: download a spec for a domain and browse or try its endpoints.
 - Domain monitor: HTTP status and latency for registered domains. Domains can be grouped.
 - UI/UX Guides (Tools → UI/UX Guides): edit guides, import and export JSON, and write a PDF report.
@@ -43,10 +44,9 @@ Horizon Gateway is a desktop app for local HTTPS inspection, API mocks, and doma
 
 ## Experimental
 
-These are in the app, and they are not finished:
+This is in the app, and it is not finished:
 
 - **Transparent proxy** (Windows only): Settings calls this experimental. It uses WinDivert, needs an elevated backend, and needs the local proxy running.
-- **Mock scenarios**: rules are stored on a scenario, but the proxy applies enabled rules and does not check which scenario is active.
 
 ## Other devices
 
