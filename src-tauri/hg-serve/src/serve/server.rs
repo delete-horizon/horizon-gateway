@@ -1,8 +1,7 @@
-use std::io::{BufRead, Write};
-use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener};
 use std::sync::Arc;
 
-use hg_core::{serve_token_matches, ServeRequest, ServeResponse, SERVE_TCP_PORT};
+use hg_core::{ServeRequest, ServeResponse, SERVE_TCP_PORT};
 
 use crate::cli;
 use crate::runtime::{bootstrap_app_context, AppContext, CliRuntime};
@@ -57,20 +56,43 @@ fn serve_loop(rt: tokio::runtime::Runtime) -> Result<(), String> {
     let domain_service = Arc::new(ctx.domain_service.clone());
 
     let token: Arc<str> = super::auth::generate_token().into();
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let remote_cfg = super::remote::RemoteAttachConfig::from_process(&args, &ctx.app_data_dir)?;
+    let remote = super::remote::RemoteAttach::bootstrap(&ctx.app_data_dir, &remote_cfg, &token)?;
+    super::remote::install_global(Arc::clone(&remote));
 
     let event_bus = super::events::ServeEventBus::new();
     super::events::ServeEventBus::init_global(Arc::clone(&event_bus));
 
-    let listener = bind_loopback(SERVE_TCP_PORT)?;
+    let listener = bind_serve_socket(SERVE_TCP_PORT, remote.listen_ip())?;
     let command_addr = listener
         .local_addr()
         .map_err(|err| format!("serve socket has no local address: {err}"))?;
-    let event_addr = super::events::start_event_listener(event_bus, Arc::clone(&token))?;
+    let event_addr =
+        super::events::start_event_listener(event_bus, Arc::clone(&token), Arc::clone(&remote))?;
+    remote.note_ports(command_addr.port(), event_addr.port());
 
     // Publish only after both sockets are ours, so a second instance never replaces the token.
-    super::endpoints::publish(command_addr, event_addr)?;
+    // Local clients keep the loopback address. Remote bind details are omitted unless enabled.
+    super::endpoints::publish(super::endpoints::PublishedBind {
+        command: command_addr,
+        event: event_addr,
+        remote_fingerprint: remote.fingerprint().map(ToOwned::to_owned),
+    })?;
     super::auth::publish_token(&token)?;
-    tracing::info!("[serve] listening on {command_addr} (events {event_addr})");
+    if remote.enabled() {
+        if let Some(warning) = super::remote::all_interfaces_warning(command_addr.ip()) {
+            tracing::warn!("{warning}");
+        }
+        tracing::info!(
+            "[serve] listening on {command_addr} (events {event_addr}); remote attach tls fingerprint {} scope {} bind {}",
+            remote.fingerprint().unwrap_or(""),
+            remote.scope_name(),
+            command_addr.ip(),
+        );
+    } else {
+        tracing::info!("[serve] listening on {command_addr} (events {event_addr})");
+    }
 
     rt.spawn(async move {
         if let Err(e) = crate::command::local_route_commands::auto_start_proxy(
@@ -150,7 +172,7 @@ fn serve_loop(rt: tokio::runtime::Runtime) -> Result<(), String> {
     } else {
         tracing::info!("[serve] desktop shell owns the tray; IPC accept loop holds the process");
     }
-    accept_loop(listener, ctx, rt, token);
+    accept_loop(listener, ctx, rt, token, remote);
     Ok(())
 }
 
@@ -159,6 +181,7 @@ fn accept_loop(
     ctx: Arc<AppContext>,
     rt: Arc<tokio::runtime::Runtime>,
     token: Arc<str>,
+    remote: Arc<super::remote::RemoteAttach>,
 ) {
     for stream in listener.incoming() {
         let stream = match stream {
@@ -168,80 +191,44 @@ fn accept_loop(
                 continue;
             }
         };
+        let peer = stream.peer_addr().ok();
+        let ip = peer
+            .map(|addr| addr.ip())
+            .unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
+        let ingress = match peer {
+            Some(addr) => super::remote::ingress_for(addr.ip(), remote.enabled()),
+            None if remote.enabled() => super::remote::Ingress::Remote,
+            None => super::remote::Ingress::Local,
+        };
         let ctx = Arc::clone(&ctx);
         let rt = Arc::clone(&rt);
         let token = Arc::clone(&token);
+        let remote = Arc::clone(&remote);
         std::thread::spawn(move || {
-            if let Err(e) = handle_client(stream, &ctx, rt.as_ref(), &token) {
-                tracing::warn!("[serve] client session error: {e}");
+            if let Err(err) = super::session::run_command_session(
+                stream,
+                ip,
+                ingress,
+                token.as_ref(),
+                remote.as_ref(),
+                |request| dispatch_serve_request(request, ctx.as_ref(), rt.as_ref()),
+            ) {
+                tracing::warn!("[serve] client session error: {}", remote.redact(&err));
             }
         });
     }
 }
 
-fn handle_client(
-    stream: TcpStream,
-    ctx: &Arc<AppContext>,
-    rt: &tokio::runtime::Runtime,
-    token: &str,
-) -> Result<(), String> {
-    let mut reader = std::io::BufReader::new(stream.try_clone().map_err(|e| e.to_string())?);
-    let mut writer = stream;
-
-    let mut line = String::new();
-    loop {
-        line.clear();
-        let n = reader
-            .read_line(&mut line)
-            .map_err(|e| format!("read failed: {e}"))?;
-        if n == 0 {
-            break;
-        }
-
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        let request: ServeRequest = serde_json::from_str(trimmed)
-            .map_err(|e| format!("invalid serve request JSON: {e}"))?;
-
-        if let Some(err) = request.unsupported_version_error() {
-            write_response(
-                &mut writer,
-                &ServeResponse::failure(request.id.clone(), err.clone()),
-            )?;
-            return Err(format!("rejected command `{}`: {err}", request.command));
-        }
-
-        let authorized = serve_token_matches(token, request.token.as_deref());
-        let response = if authorized {
-            dispatch_serve_request(&request, ctx, rt)
-        } else {
-            ServeResponse::failure(request.id.clone(), UNAUTHORIZED)
-        };
-        write_response(&mut writer, &response)?;
-        if !authorized {
-            return Err(format!(
-                "rejected command `{}`: {UNAUTHORIZED}",
-                request.command
-            ));
-        }
+/// Loopback when remote attach is off. Otherwise bind `remote`, which is
+/// `0.0.0.0` only when no address was configured.
+pub(crate) fn bind_serve_socket(
+    preferred: u16,
+    remote: Option<IpAddr>,
+) -> Result<TcpListener, String> {
+    match remote {
+        Some(ip) => super::remote::bind_remote(ip, preferred),
+        None => bind_loopback(preferred),
     }
-
-    Ok(())
-}
-
-const UNAUTHORIZED: &str = "unauthorized: missing or invalid serve token";
-
-fn write_response(writer: &mut TcpStream, response: &ServeResponse) -> Result<(), String> {
-    let mut out = serde_json::to_string(response).map_err(|e| format!("encode response: {e}"))?;
-    out.push('\n');
-    writer
-        .write_all(out.as_bytes())
-        .map_err(|e| format!("write failed: {e}"))?;
-    writer.flush().map_err(|e| format!("flush failed: {e}"))?;
-    Ok(())
 }
 
 /// Bind `127.0.0.1:preferred`. If that port is taken, bind an ephemeral loopback port.

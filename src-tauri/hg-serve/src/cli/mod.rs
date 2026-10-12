@@ -129,6 +129,8 @@ pub const CLI_COMMANDS: &[CliCommandInfo] = &[
     crate::command::settings_commands::EXPORT_ALL_SETTINGS_CLI_INFO,
     crate::command::settings_commands::IMPORT_ALL_SETTINGS_CLI_INFO,
     crate::command::settings_commands::SAVE_ROOT_CA_CLI_INFO,
+    crate::serve::remote::GET_REMOTE_ATTACH_STATUS_CLI_INFO,
+    crate::serve::remote::REISSUE_REMOTE_TOKEN_CLI_INFO,
     // --- Tunnel ---
     crate::command::tunnel_commands::GET_TAILSCALE_IP_CLI_INFO,
     crate::command::tunnel_commands::GET_REMOTE_ACCESS_HOSTS_CLI_INFO,
@@ -195,14 +197,15 @@ fn print_usage() {
     let output = serde_json::json!({
         "success": true,
         "data": {
-            "usage": "hgc init | mcp | list | help <command> | [run] <command> [payload]",
+            "usage": "hgc init | mcp | list | help <command> | [run] <command> [payload] [--attach host:port --remote-token-file <path>]",
             "examples": [
                 "hgc init",
                 "hgc mcp",
                 "hgc list",
                 "hgc help get_proxy_status",
                 "hgc get_proxy_status '{}'",
-                "hgc get_domains '{}' --query data.[].url"
+                "hgc get_domains '{}' --query data.[].url",
+                "hgc --attach 100.64.0.2:17345 --remote-token-file ./remote.token --tls-fingerprint <sha256> get_proxy_status '{}'"
             ]
         }
     });
@@ -210,7 +213,14 @@ fn print_usage() {
 }
 
 pub fn execute_cli_entry(args: &[String]) -> i32 {
-    let args = normalize_args(args);
+    let (args, attach) = match crate::serve::remote::extract_client_flags(args) {
+        Ok(parsed) => parsed,
+        Err(err) => {
+            print_error(&err);
+            return 1;
+        }
+    };
+    let args = normalize_args(&args);
     if args.is_empty() {
         print_error(
             "명령어가 지정되지 않았습니다. (예: hgc init, hgc list, hgc get_proxy_status '{}')",
@@ -222,7 +232,11 @@ pub fn execute_cli_entry(args: &[String]) -> i32 {
         return 0;
     }
 
+    // Remote attach applies only to `run`. `hgc mcp` stays on the local socket.
     if args[0] == "run" {
+        if attach.attach.is_some() || std::env::var(crate::serve::remote::ENV_ATTACH).is_ok() {
+            return execute_run_via_remote(&args, &attach);
+        }
         if crate::serve::client::is_port_open(std::time::Duration::from_millis(50)) {
             return execute_run_via_serve(&args);
         }
@@ -429,6 +443,56 @@ pub fn execute_run_via_serve(args: &[String]) -> i32 {
     0
 }
 
+fn execute_run_via_remote(args: &[String], attach: &crate::serve::remote::ClientAttachOpts) -> i32 {
+    let cmd_name = match args.get(1) {
+        Some(name) => name.as_str(),
+        None => {
+            print_error("실행할 명령어 이름을 입력해주세요. (예: hgc get_api_logs '{}')");
+            return 1;
+        }
+    };
+    let raw_payload = resolve_payload_arg(args).unwrap_or_else(|| "{}".to_string());
+    let query = get_arg_val(args, "--query");
+    let payload: Value = match serde_json::from_str(&raw_payload) {
+        Ok(value) => value,
+        Err(err) => {
+            print_error(&format!(
+                "요청 페이로드가 올바른 JSON 형식이 아닙니다: {err}"
+            ));
+            return 1;
+        }
+    };
+    let pins = match crate::runtime::paths::resolve_app_data_dir() {
+        Ok(dir) => dir.join(crate::serve::remote::REMOTE_PINS_FILE),
+        Err(err) => {
+            print_error(&err);
+            return 1;
+        }
+    };
+    let endpoint = match crate::serve::remote::client_endpoint(attach, pins) {
+        Ok(endpoint) => endpoint,
+        Err(err) => {
+            print_error(&err);
+            return 1;
+        }
+    };
+    let token = endpoint.token.clone();
+    let response = match crate::serve::remote::call_remote(&endpoint, cmd_name, payload) {
+        Ok(value) => value,
+        Err(err) => {
+            print_error(&crate::serve::remote::redact_text(&err, &[token.as_str()]));
+            return 1;
+        }
+    };
+    let final_response = if let Some(ref query) = query {
+        query::apply_query(&response, query)
+    } else {
+        response
+    };
+    cli_println(&serde_json::to_string_pretty(&final_response).unwrap());
+    0
+}
+
 fn read_payload_source(source: &str) -> Option<String> {
     if source == "-" {
         use std::io::Read;
@@ -602,6 +666,8 @@ const DISPATCHED_COMMAND_NAMES: &[&str] = &[
     "export_all_settings",
     "import_all_settings",
     "save_root_ca",
+    "get_remote_attach_status",
+    "reissue_remote_token",
     "download_api_schema",
     "send_api_request",
     "check_domain_status",
@@ -661,8 +727,8 @@ mod parity_tests {
         );
     }
 
-    /// Keep in sync with `collect_commands!` in lib.rs — every registered Tauri
-    /// command name must appear in CLI_COMMANDS (agent visibility).
+    /// Keep in sync with `CLI_COMMANDS`. Serve-only names such as remote attach
+    /// status and token reissue are included here even though they are not Tauri commands.
     const SPECTA_COMMAND_NAMES: &[&str] = &[
         "regist_domains",
         "get_domains",
@@ -702,6 +768,8 @@ mod parity_tests {
         "export_all_settings",
         "import_all_settings",
         "save_root_ca",
+        "get_remote_attach_status",
+        "reissue_remote_token",
         "get_domain_monitor_list",
         "set_domain_monitor_check_enabled",
         "get_domain_api_logging_links",
@@ -819,6 +887,13 @@ mod parity_tests {
             normalize_args(&s(&["mcp", "--allow-write"])),
             s(&["mcp", "--allow-write"])
         );
+        let mcp_args = s(&["mcp", "--allow-write", "--allow-body"]);
+        let (rest, opts) = crate::serve::remote::extract_client_flags(&mcp_args).unwrap();
+        assert!(opts.attach.is_none());
+        assert!(opts.token.is_none());
+        assert!(opts.token_file.is_none());
+        assert!(opts.fingerprint.is_none());
+        assert_eq!(normalize_args(&rest), mcp_args);
         assert_eq!(normalize_args(&s(&["list"])), s(&["list"]));
         assert_eq!(
             normalize_args(&s(&["help", "get_api_logs"])),

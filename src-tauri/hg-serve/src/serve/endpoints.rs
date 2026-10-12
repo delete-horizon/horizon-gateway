@@ -4,7 +4,7 @@
 //! read it and fall back to the fixed loopback addresses when the file is absent,
 //! so an older serve and a newer client can still meet on `127.0.0.1:17345`.
 
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -23,19 +23,38 @@ fn lock() -> std::sync::MutexGuard<'static, Option<ServeEndpoints>> {
     PUBLISHED.lock().unwrap_or_else(|err| err.into_inner())
 }
 
+pub struct PublishedBind {
+    pub command: SocketAddr,
+    pub event: SocketAddr,
+    /// Present only when remote attach is enabled. The value is the certificate
+    /// fingerprint, not a token.
+    pub remote_fingerprint: Option<String>,
+}
+
 /// Record the sockets this process actually bound and write them for clients.
-pub fn publish(command: SocketAddr, event: SocketAddr) -> Result<(), String> {
+///
+/// `command_addr` / `event_addr` stay on loopback for local clients. Remote
+/// bind addresses are separate fields and are omitted when remote attach is off.
+pub fn publish(bound: PublishedBind) -> Result<(), String> {
+    let remote = bound.remote_fingerprint.is_some();
     let endpoints = ServeEndpoints {
         protocol_version: hg_core::PROTOCOL_VERSION,
         pid: std::process::id(),
-        command_addr: command.to_string(),
-        event_addr: event.to_string(),
+        command_addr: loopback_display(bound.command),
+        event_addr: loopback_display(bound.event),
         proxy_addr: None,
+        remote_command_addr: remote.then(|| bound.command.to_string()),
+        remote_event_addr: remote.then(|| bound.event.to_string()),
+        remote_tls_fingerprint: bound.remote_fingerprint,
         updated_at: chrono::Utc::now().to_rfc3339(),
     };
     write(&endpoints)?;
     *lock() = Some(endpoints);
     Ok(())
+}
+
+fn loopback_display(bound: SocketAddr) -> String {
+    SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), bound.port()).to_string()
 }
 
 /// Remember the proxy listen address and refresh the published file.
@@ -84,6 +103,8 @@ pub fn recorded_control_ports() -> Vec<u16> {
             [
                 endpoints.command_addr.as_str(),
                 endpoints.event_addr.as_str(),
+                endpoints.remote_command_addr.as_deref().unwrap_or(""),
+                endpoints.remote_event_addr.as_deref().unwrap_or(""),
             ]
             .into_iter()
             .filter_map(port_of)

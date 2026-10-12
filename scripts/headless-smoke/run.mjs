@@ -292,10 +292,30 @@ function readEndpoints(dataDir) {
     if (typeof command !== "string" || typeof event !== "string") {
       return null;
     }
-    return { command, event };
+    return {
+      command,
+      event,
+      remoteCommandAddr: parsed.remoteCommandAddr ?? null,
+      remoteEventAddr: parsed.remoteEventAddr ?? null,
+      remoteTlsFingerprint: parsed.remoteTlsFingerprint ?? null,
+    };
   } catch {
     return null;
   }
+}
+
+function assertRemoteAttachOff(dataDir, endpoints) {
+  if (!endpoints.command.startsWith("127.0.0.1:")) {
+    fail(`command address must stay on loopback when remote attach is off: ${endpoints.command}`);
+  }
+  if (endpoints.remoteCommandAddr || endpoints.remoteEventAddr || endpoints.remoteTlsFingerprint) {
+    fail(`remote attach fields must be absent by default: ${JSON.stringify(endpoints)}`);
+  }
+  const remoteToken = path.join(dataDir, "serve.remote.token");
+  if (existsSync(remoteToken)) {
+    fail(`${remoteToken} exists while remote attach is off`);
+  }
+  ok("remote attach off: loopback command address, no remote fields, no remote token");
 }
 
 function portOf(addr) {
@@ -325,6 +345,7 @@ async function waitForServe(child, dataDir) {
       (await portOpen(eventPort))
     ) {
       ok(`endpoints command=${endpoints.command} event=${endpoints.event}`);
+      assertRemoteAttachOff(dataDir, endpoints);
       return;
     }
     await sleep(200);

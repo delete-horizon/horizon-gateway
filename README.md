@@ -198,6 +198,17 @@ Gemini CLI (`.gemini/settings.json`):
 
 Add `"--allow-write"` or `"--allow-body"` to `args` only when that agent should be allowed to change state or read a captured body. `server.json` at the repository root is the MCP Registry document. Publishing still needs an installable package entry (npm with `mcpName`, OCI, NuGet, or an MCPB file plus `fileSha256`). `hgc` ships with the desktop build, so the registry file has no `packages` entry yet.
 
+`hgc mcp` always uses the local control socket and the local token. It does not use remote attach.
+
+### Remote attach
+
+Remote attach is off unless the daemon is started with `--remote-attach`, `HG_SERVE_REMOTE_ATTACH=1`, or `remote-attach.json`. Bind it to the Tailscale IP with `--remote-bind`, `HG_SERVE_REMOTE_BIND`, or the `bind` field in `remote-attach.json`. If that address is omitted, the socket falls back to `0.0.0.0` and the daemon logs a warning. Remote clients must use TLS with the self-signed certificate created on first enable. Pin the SHA-256 fingerprint with `--tls-fingerprint` or `HG_SERVE_TLS_FINGERPRINT`. Without a pin, `hgc` stores the first fingerprint it sees. Send the remote token only after the handshake (`--remote-token-file`, `--remote-token`, or `HG_SERVE_REMOTE_TOKEN`). The default scope is read-only plus mock and route edits. `HG_SERVE_REMOTE_SCOPE=admin` (or `full`) is required for proxy start/stop, PAC set/clear, `allow_remote_access`, and token reissue. `reissue_remote_token` invalidates the previous token and live remote sessions immediately; the new token is only in `serve.remote.token` on the host.
+
+```bash
+horizon-gateway-serve --remote-attach --remote-bind 100.64.0.2
+hgc --attach 100.64.0.2:17345 --remote-token-file ./remote.token --tls-fingerprint <sha256> get_proxy_status '{}'
+```
+
 ---
 
 ## Tech Stack
