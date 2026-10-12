@@ -92,7 +92,7 @@ Sizes are decimal megabytes of those release files. The same release also has up
 
 ## Quick Start
 
-1. **Start the Proxy**: Launch Horizon Gateway and toggle the local proxy switch in the sidebar.
+1. **Start the Proxy**: Open **Settings** from the top bar. On the **Proxy** tab, turn on **Proxy**.
 2. **Install Root CA**: Open **Settings → Proxy → HTTPS certificate (Root CA)** and click **Save certificate** so the OS or browser can trust HTTPS decryption.
 3. **Add a route**: Under **Tools → Proxy Connections**, map a domain (for example `api.example.dev`) to a local target such as `localhost:3000`.
 4. **Mock an API**: Under **Tools → API Mocking**, add a rule for a path (for example `/api/users`) with a status code and JSON body.
