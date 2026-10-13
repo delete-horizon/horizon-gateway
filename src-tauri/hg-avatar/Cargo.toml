@@ -4,6 +4,7 @@ workspace = true
 [package]
 name = "hg-avatar"
 version = "2.8.8"
+authors = ["Delete Horizon <hello@delete-horizon.com>"]
 edition = "2021"
 description = "Avatar catalog and compose shared by the GUI overlay and serve CLI"
 

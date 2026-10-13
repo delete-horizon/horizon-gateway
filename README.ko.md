@@ -7,7 +7,7 @@
 # Horizon Gateway
 
 로컬 MITM 프록시, API 목, 도메인 상태 확인을 데스크톱 앱 하나에 넣었습니다.  
-설치 프로그램의 기본 기능은 개인용·상업용 모두 무료입니다. 터미널에서는 `hgc`로 같은 기능을 조작합니다.
+터미널에서는 `hgc`로 같은 기능을 조작합니다.
 
 <p align="center">
   <a href="https://github.com/delete-horizon/horizon-gateway/releases"><strong>다운로드</strong></a> ·
@@ -17,7 +17,7 @@
 </p>
 
 [![Release](https://img.shields.io/github/v/release/delete-horizon/horizon-gateway?style=flat-square&color=blue)](https://github.com/delete-horizon/horizon-gateway/releases)
-[![License](https://img.shields.io/badge/license-개인·상업%20사용%20무료-green?style=flat-square)](./LICENSE)
+[![License](https://img.shields.io/badge/license-All%20rights%20reserved-lightgrey?style=flat-square)](./LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat-square)](#설치)
 [![Built with](https://img.shields.io/badge/built%20with-Rust%20%2B%20Tauri%202%20%2B%20React%2019-orange?style=flat-square)](https://tauri.app)
 
@@ -272,7 +272,7 @@ Gemini CLI (`.gemini/settings.json`):
 }
 ```
 
-상태를 바꾸거나 캡처 본문을 읽혀도 될 때만 `args`에 `"--allow-write"` 또는 `"--allow-body"`를 넣습니다. `server.json`은 MCP Registry 이름 `io.github.delete-horizon/horizon-gateway`용 문서입니다. 릴리스에는 Windows x64와 Linux x64용 `horizon-gateway.mcpb` 하나가 붙고, 그 안의 명령은 `hgc mcp`입니다. 무료 데스크톱 앱이 실행 중이어야 합니다. macOS 번들은 없습니다. 앱 안에 들어 있는 `hgc`를 씁니다. [docs/mcp-registry.md](./docs/mcp-registry.md)를 보세요.
+상태를 바꾸거나 캡처 본문을 읽혀도 될 때만 `args`에 `"--allow-write"` 또는 `"--allow-body"`를 넣습니다. `server.json`은 MCP Registry 이름 `io.github.delete-horizon/horizon-gateway`용 문서입니다. 릴리스에는 Windows x64와 Linux x64용 `horizon-gateway.mcpb` 하나가 붙고, 그 안의 명령은 `hgc mcp`입니다. 데스크톱 앱이 실행 중이어야 합니다. macOS 번들은 없습니다. 앱 안에 들어 있는 `hgc`를 씁니다. [docs/mcp-registry.md](./docs/mcp-registry.md)를 보세요.
 
 `hgc mcp`는 항상 로컬 제어 소켓과 로컬 토큰을 씁니다. 원격 attach를 쓰지 않습니다.
 
@@ -299,10 +299,7 @@ Windows PowerShell에서 JSON을 넘기는 방법은 [시작 가이드의 hgc �
 
 ## 라이선스
 
-[LICENSE](./LICENSE)가 원문입니다.
+© 2026 Delete Horizon. All rights reserved.
 
-- 설치 프로그램이 기본으로 제공하는 기능은 개인용과 상업용 모두 무료입니다.
-- 소스 저작권은 규연에게 있습니다. 소스를 무단으로 복제, 배포, 양도, 수정하거나 상업적으로 재배포하는 것은 금지됩니다.
-- 만든 사람: 규연 (kyuyeon)
 - 문의: `hello@delete-horizon.com`
 - 변경 이력: [CHANGELOG.ko.md](./CHANGELOG.ko.md)

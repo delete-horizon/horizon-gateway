@@ -5,8 +5,8 @@ English | [한국어](README.ko.md)
 
 # Horizon Gateway
 
-Free local MITM, API mock, and domain health in one desktop app.  
-Personal and commercial use. Your AI agent can drive it with `hgc`.
+Local MITM, API mock, and domain health in one desktop app.  
+Your AI agent can drive it with `hgc`.
 
 <p align="center">
   <a href="https://github.com/delete-horizon/horizon-gateway/releases"><strong>Download</strong></a> ·
@@ -15,7 +15,7 @@ Personal and commercial use. Your AI agent can drive it with `hgc`.
 </p>
 
 [![Release](https://img.shields.io/github/v/release/delete-horizon/horizon-gateway?style=flat-square&color=blue)](https://github.com/delete-horizon/horizon-gateway/releases)
-[![License](https://img.shields.io/badge/license-Free%20for%20Personal%20%26%20Commercial%20Use-green?style=flat-square)](./LICENSE)
+[![License](https://img.shields.io/badge/license-All%20rights%20reserved-lightgrey?style=flat-square)](./LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat-square)](#installation)
 [![Built with](https://img.shields.io/badge/built%20with-Rust%20%2B%20Tauri%202%20%2B%20React%2019-orange?style=flat-square)](https://tauri.app)
 
@@ -212,7 +212,7 @@ Gemini CLI (`.gemini/settings.json`):
 }
 ```
 
-Add `"--allow-write"` or `"--allow-body"` to `args` only for an agent that should change the proxy or read a captured body. `server.json` is the MCP Registry document for `io.github.delete-horizon/horizon-gateway`. Releases attach one `horizon-gateway.mcpb` for Windows x64 and Linux x64; it runs `hgc mcp` and the free desktop app must be running. macOS is not in that bundle. Use the `hgc` that ships inside the app. See [docs/mcp-registry.md](./docs/mcp-registry.md).
+Add `"--allow-write"` or `"--allow-body"` to `args` only for an agent that should change the proxy or read a captured body. `server.json` is the MCP Registry document for `io.github.delete-horizon/horizon-gateway`. Releases attach one `horizon-gateway.mcpb` for Windows x64 and Linux x64; it runs `hgc mcp` and the desktop app must be running. macOS is not in that bundle. Use the `hgc` that ships inside the app. See [docs/mcp-registry.md](./docs/mcp-registry.md).
 
 `hgc mcp` always uses the local control socket and the local token. It does not use remote attach.
 
@@ -235,9 +235,9 @@ hgc --attach 100.64.0.2:17345 --remote-token-file ./remote.token --tls-fingerpri
 
 ---
 
-## License & Notice
+## License
 
-- **Free for Personal and Commercial Use**: Core desktop features and CLI are completely free to use. Source code is not open; download the official installer.
-- **Author**: 규연 (kyuyeon)
+© 2026 Delete Horizon. All rights reserved.
+
 - **Contact**: `hello@delete-horizon.com`
 - **Changelog**: See [CHANGELOG.md](./CHANGELOG.md) for detailed version history.

@@ -62,7 +62,7 @@ export const ui = {
     "cta.btn": "최신 릴리즈 다운로드",
     "footer.desc":
       "로컬 개발 인프라 도메인 관리, MITM 프록시 패킷 분석 및 OpenAPI Mocking 기능을 통합하여 개발 효율성을 향상시킵니다.",
-    "footer.license": "Copyright © 2026 규연. All rights reserved.",
+    "footer.license": "Copyright © 2026 Delete Horizon. All rights reserved.",
     "changelog.subtitle": "Horizon Gateway의 최신 기능 추가 및 업데이트 이력입니다.",
     "gallery.title": "실제 앱의 ",
     "gallery.title.accent": "주요 기능",
@@ -136,7 +136,7 @@ export const ui = {
     "cta.btn": "Download Latest Release",
     "footer.desc":
       "Boost development efficiency by unifying local domain health monitoring, MITM proxy analysis, and OpenAPI mocking.",
-    "footer.license": "Copyright © 2026 Gyuyeon. All rights reserved.",
+    "footer.license": "Copyright © 2026 Delete Horizon. All rights reserved.",
     "changelog.subtitle": "Version history and release notes for Horizon Gateway.",
     "gallery.title": "Explore ",
     "gallery.title.accent": "Key Features",

@@ -35,6 +35,8 @@
   },
   "bundle": {
     "active": true,
+    "copyright": "Copyright (c) 2026 Delete Horizon. All rights reserved.",
+    "publisher": "Delete Horizon <hello@delete-horizon.com>",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
