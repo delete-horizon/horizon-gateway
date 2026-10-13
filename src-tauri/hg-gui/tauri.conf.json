@@ -33,6 +33,7 @@
   },
   "bundle": {
     "active": true,
+    "copyright": "Copyright (c) 2026 Delete Horizon. All rights reserved.",
     "publisher": "Delete Horizon <hello@delete-horizon.com>",
     "homepage": "https://gateway.delete-horizon.com",
     "shortDescription": "Local MITM proxy, API mock, and domain inspector",

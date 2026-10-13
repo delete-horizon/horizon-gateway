@@ -2,6 +2,7 @@
   "name": "@delete-horizon/horizon-gateway",
   "private": true,
   "version": "2.8.15",
+  "author": "Delete Horizon",
   "packageManager": "pnpm@10.26.0",
   "type": "module",
   "scripts": {

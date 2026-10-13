@@ -2,6 +2,7 @@
   "name": "website",
   "type": "module",
   "version": "0.0.1",
+  "author": "Delete Horizon",
   "engines": {
     "node": ">=22.12.0"
   },
