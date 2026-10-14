@@ -1,5 +1,6 @@
 import { ChevronLeft, Minimize2, Pin } from "lucide-react";
 import type { InjectionAppState } from "../hooks/useInjectionAppState";
+import { useInjectionCopy } from "../i18n";
 import { StatusDot } from "./StatusDot";
 
 type State = Pick<
@@ -34,6 +35,7 @@ type State = Pick<
 >;
 
 export function Toolbar({ s }: { s: State }) {
+  const t = useInjectionCopy();
   return (
     <>
       {s.isDocked && !s.isHovered && !s.editingElement && (
@@ -70,7 +72,7 @@ export function Toolbar({ s }: { s: State }) {
               s.setDragOffset({ x: 24, y: s.dragOffset.y });
             }
           }}
-          title="클릭/호버하여 툴바 펼치기"
+          title={t.toolbarDockHint}
         >
           <ChevronLeft style={{ width: "14px", height: "14px", color: "var(--color-warning, #f59e0b)" }} />
           <div
@@ -129,7 +131,7 @@ export function Toolbar({ s }: { s: State }) {
                   e.stopPropagation();
                   s.setIsCompact(false);
                 }}
-                title="클릭하여 툴바 펼치기"
+                title={t.toolbarExpand}
                 style={{
                   cursor: "pointer",
                   display: "flex",
@@ -156,7 +158,7 @@ export function Toolbar({ s }: { s: State }) {
                     display: "flex",
                     alignItems: "center",
                   }}
-                  title="클릭하여 로컬 프록시 상태 보기"
+                  title={t.toolbarProxy}
                 >
                   <StatusDot
                     active={s.status.proxy}
@@ -176,7 +178,7 @@ export function Toolbar({ s }: { s: State }) {
                     display: "flex",
                     alignItems: "center",
                   }}
-                  title="클릭하여 모킹된 API 목록 보기"
+                  title={t.toolbarMocks}
                 >
                   <StatusDot
                     active={s.mockedRequests.length > 0}
@@ -196,7 +198,7 @@ export function Toolbar({ s }: { s: State }) {
                     display: "flex",
                     alignItems: "center",
                   }}
-                  title="클릭하여 실시간 API 통신 로그 보기"
+                  title={t.toolbarLogs}
                 >
                   <StatusDot
                     active={s.apiTrafficLogs.length > 0}
@@ -216,7 +218,7 @@ export function Toolbar({ s }: { s: State }) {
                     display: "flex",
                     alignItems: "center",
                   }}
-                  title="클릭하여 가이드 관리 및 탐색기 열기"
+                  title={t.toolbarGuides}
                 >
                   <StatusDot
                     active={s.currentPagePolicies.length > 0 || s.isInspectMode}
@@ -251,7 +253,7 @@ export function Toolbar({ s }: { s: State }) {
                       alignItems: "center",
                       justifyContent: "center",
                     }}
-                    title="화면 오른쪽 가장자리에 숨기기"
+                    title={t.toolbarHideEdge}
                   >
                     <Pin style={{ width: "12px", height: "12px" }} />
                   </button>
@@ -270,7 +272,7 @@ export function Toolbar({ s }: { s: State }) {
                       alignItems: "center",
                       justifyContent: "center",
                     }}
-                    title="미니 아이콘 모드로 접기"
+                    title={t.toolbarCompact}
                   >
                     <Minimize2 style={{ width: "12px", height: "12px" }} />
                   </button>

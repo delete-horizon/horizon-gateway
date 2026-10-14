@@ -66,4 +66,8 @@ export const policiesEn = {
   saveFailed: "Save failed.",
   saveRoleRequired: "Enter a role / title.",
   deleteFailed: "Delete failed.",
+  pdfSuccess: "The PDF report was created.",
+  pdfFailed: "Failed to create the PDF:",
+  exportFailed: "Export failed:",
+  importFailed: "Import failed:",
 };

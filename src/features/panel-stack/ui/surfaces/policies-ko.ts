@@ -66,4 +66,8 @@ export const policiesKo = {
   saveFailed: "저장에 실패했습니다.",
   saveRoleRequired: "요소 명칭을 입력하세요.",
   deleteFailed: "삭제에 실패했습니다.",
+  pdfSuccess: "PDF 리포트가 생성되었습니다.",
+  pdfFailed: "PDF 생성 중 오류:",
+  exportFailed: "내보내기 실패:",
+  importFailed: "가져오기 실패:",
 };

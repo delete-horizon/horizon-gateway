@@ -1,8 +1,10 @@
 import { Check, Copy } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useInjectionCopy } from "../i18n";
 import { parsePartialJson } from "../lib/json";
 
 export function JsonViewer({ src }: { src: string }) {
+  const t = useInjectionCopy();
   const [parsed, setParsed] = useState<unknown | null>(null);
   const [isError, setIsError] = useState(false);
   const [copiedAll, setCopiedAll] = useState(false);
@@ -59,9 +61,9 @@ export function JsonViewer({ src }: { src: string }) {
     <div style={{ display: "flex", flexDirection: "column", gap: "6px", flex: 1, minHeight: 0 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontSize: "10px", color: "var(--wt-text-muted)", fontWeight: "600" }}>
-          💡 ▼/▶ 클릭하여 접기 · 마우스 드래그로 원하는 텍스트 부분 복사 가능
+          {t.jsonHint}
           {isTruncated && (
-            <span style={{ color: "var(--color-warning, #f59e0b)", marginLeft: "6px" }}>(⚠️ 데이터 일부 생략됨)</span>
+            <span style={{ color: "var(--color-warning, #f59e0b)", marginLeft: "6px" }}>{t.jsonTruncated}</span>
           )}
         </span>
         <button
@@ -86,7 +88,7 @@ export function JsonViewer({ src }: { src: string }) {
           }}
         >
           {copiedAll ? <Check style={{ width: 11, height: 11 }} /> : <Copy style={{ width: 11, height: 11 }} />}
-          {copiedAll ? "전체 복사됨!" : "전체 JSON 복사"}
+          {copiedAll ? t.jsonCopied : t.copyJson}
         </button>
       </div>
 
@@ -122,6 +124,7 @@ function TreeJsonNode({
   isLast?: boolean;
   depth?: number;
 }) {
+  const t = useInjectionCopy();
   const [folded, setFolded] = useState(depth >= 2);
   const [copiedNode, setCopiedNode] = useState(false);
   const comma = isLast ? "" : ",";
@@ -162,7 +165,7 @@ function TreeJsonNode({
             justifyContent: "center",
             verticalAlign: "middle",
           }}
-          title={folded ? "펼치기" : "접기"}
+          title={folded ? t.expand : t.collapse}
         >
           {folded ? "▶" : "▼"}
         </button>
@@ -291,7 +294,7 @@ function TreeJsonNode({
             alignItems: "center",
             verticalAlign: "middle",
           }}
-          title="이 노드 데이터 복사"
+          title={t.copyNode}
         >
           {copiedNode ? <Check style={{ width: 10, height: 10 }} /> : <Copy style={{ width: 10, height: 10 }} />}
         </button>

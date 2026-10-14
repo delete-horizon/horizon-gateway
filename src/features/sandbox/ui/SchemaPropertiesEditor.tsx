@@ -91,6 +91,10 @@ const en = {
   extractFromResponse: "Extract sub properties from API response",
   deleteProperty: "Delete property (also removes nested items)",
   refType: "ref",
+  invalidOpenApi: "This is not a valid OpenAPI schema (missing components.schemas).",
+  missingTargetSchema: "The selected schema does not exist, or its body is empty.",
+  extractRequest: "Extract schema from the request body",
+  extractResponse: "Extract schema from the response body",
 };
 
 const ko: typeof en = {
@@ -155,6 +159,10 @@ const ko: typeof en = {
   extractFromResponse: "API 응답에서 하위 속성 추출",
   deleteProperty: "속성 삭제 (하위 속성도 함께 삭제됩니다)",
   refType: "ref (참조)",
+  invalidOpenApi: "올바른 OpenAPI 스키마 구조가 아닙니다 (components.schemas가 없음).",
+  missingTargetSchema: "선택한 대상 스키마가 존재하지 않거나 바디 정의가 비어 있습니다.",
+  extractRequest: "요청 바디에서 스키마 추출",
+  extractResponse: "응답 바디에서 스키마 추출",
 };
 
 export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertiesEditorProps) {
@@ -434,7 +442,7 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
     let rootSchema: SchemaObject | null = null;
     if (target.type === "component") {
       if (!spec.components || !spec.components.schemas) {
-        toastError("올바른 OpenAPI 스키마 구조가 아닙니다 (components.schemas가 없음).");
+        toastError(t.invalidOpenApi);
         return null;
       }
       rootSchema = spec.components.schemas[target.name];
@@ -443,7 +451,7 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
     }
 
     if (!rootSchema) {
-      toastError("선택한 대상 스키마가 존재하지 않거나 바디 정의가 비어 있습니다.");
+      toastError(t.missingTargetSchema);
       return null;
     }
 
@@ -814,7 +822,7 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
                             disabled={!log.has_bodies}
                             onClick={() => void handleImportFromLog(log.id, "request")}
                             className="btn btn-outline btn-primary btn-[9px] px-2 h-6 min-h-0 text-[9px] font-bold rounded-lg disabled:opacity-30 disabled:cursor-not-allowed"
-                            title="요청 바디에서 스키마 추출"
+                            title={t.extractRequest}
                           >
                             {t.reqBtn}
                           </button>
@@ -823,7 +831,7 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
                             disabled={!log.has_bodies}
                             onClick={() => void handleImportFromLog(log.id, "response")}
                             className="btn btn-primary btn-[9px] px-2 h-6 min-h-0 text-[9px] font-bold rounded-lg disabled:opacity-30 disabled:cursor-not-allowed"
-                            title="응답 바디에서 스키마 추출"
+                            title={t.extractResponse}
                           >
                             {t.resBtn}
                           </button>

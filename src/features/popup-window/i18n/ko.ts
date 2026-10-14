@@ -4,6 +4,7 @@ export const popupKo = {
   infraProxyDesc: "로컬 트래픽을 가로채 API 로깅, 라우팅, HTTPS 검사를 수행하는 핵심 엔진입니다.",
   infraStart: "시작",
   infraStop: "중지",
+  infraStopped: "중지됨",
   infraCert: "HTTPS 인증서 (Root CA)",
   infraCertDesc: "HTTPS 트래픽을 검사하려면 이 Root CA를 OS/브라우저에 신뢰 인증서로 설치해야 합니다.",
   infraCertSave: "인증서 저장",

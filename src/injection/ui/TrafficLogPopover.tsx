@@ -1,5 +1,6 @@
 import { Activity, Search, Trash2, X } from "lucide-react";
 import type { InjectionAppState } from "../hooks/useInjectionAppState";
+import { useInjectionCopy } from "../i18n";
 
 type State = Pick<
   InjectionAppState,
@@ -14,6 +15,7 @@ type State = Pick<
 >;
 
 export function TrafficLogPopover({ s }: { s: State }) {
+  const t = useInjectionCopy();
   return (
     <div
       style={{
@@ -48,7 +50,7 @@ export function TrafficLogPopover({ s }: { s: State }) {
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <Activity style={{ width: "15px", height: "15px", color: "var(--color-primary)" }} />
           <span style={{ fontWeight: "700", fontSize: "13px", color: "var(--color-primary)" }}>
-            실시간 API 통신 로그 ({s.apiTrafficLogs.length})
+            {t.logsTitle(s.apiTrafficLogs.length)}
           </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -68,10 +70,10 @@ export function TrafficLogPopover({ s }: { s: State }) {
                 gap: "4px",
                 borderRadius: "4px",
               }}
-              title="지우기"
+              title={t.clear}
             >
               <Trash2 style={{ width: "12px", height: "12px" }} />
-              <span>지우기</span>
+              <span>{t.clear}</span>
             </button>
           )}
           <button
@@ -96,7 +98,7 @@ export function TrafficLogPopover({ s }: { s: State }) {
               justifyContent: "center",
               borderRadius: "4px",
             }}
-            title="닫기"
+            title={t.close}
           >
             <X style={{ width: "16px", height: "16px" }} />
           </button>
@@ -119,7 +121,7 @@ export function TrafficLogPopover({ s }: { s: State }) {
           <Search style={{ width: "13px", height: "13px", color: "var(--wt-text-muted)", flexShrink: 0 }} />
           <input
             type="text"
-            placeholder="URL 또는 Method로 검색..."
+            placeholder={t.logSearch}
             value={s.logSearchQuery}
             onChange={(e) => s.setLogSearchQuery(e.target.value)}
             style={{
@@ -137,7 +139,7 @@ export function TrafficLogPopover({ s }: { s: State }) {
 
       {s.apiTrafficLogs.length === 0 ? (
         <div style={{ padding: "24px 16px", textAlign: "center", color: "var(--wt-text-muted)", fontSize: "12px" }}>
-          현재 페이지에서 감지된 API 요청이 없습니다.
+          {t.noPageLogs}
         </div>
       ) : (
         <div style={{ overflowY: "auto", padding: "8px", display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -236,7 +238,7 @@ export function TrafficLogPopover({ s }: { s: State }) {
                         borderRadius: "4px",
                         cursor: "pointer",
                       }}
-                      title="이 API를 모킹 규칙으로 전환"
+                      title={t.logToMock}
                     >
                       + Mock
                     </button>
@@ -253,9 +255,9 @@ export function TrafficLogPopover({ s }: { s: State }) {
                         borderRadius: "4px",
                         cursor: "pointer",
                       }}
-                      title="상세 보기 및 복사"
+                      title={t.detail}
                     >
-                      상세
+                      {t.detail}
                     </button>
                   </div>
                 </div>

@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { atom, useAtom, useAtomValue } from "jotai";
 import { Copy, Pause, Play, SearchIcon, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { proxyRunningAtom } from "@/entities/app";
+import { languageAtom, proxyRunningAtom } from "@/entities/app";
 import { ProxyServerWarning } from "@/entities/proxy";
 import { atomWithWindowStorage } from "@/shared/lib/jotai/window-storage";
 import { listen } from "@/shared/lib/tauri/client";
@@ -17,6 +17,38 @@ interface ServerLog {
   target: string;
   message: string;
 }
+
+const en = {
+  title: "Server Logs",
+  search: "Search...",
+  allLevels: "All Levels",
+  resume: "Resume",
+  pause: "Pause",
+  clear: "Clear",
+  empty: "No logs yet. Wait for events or check the terminal.",
+  details: "Log Details",
+  level: "Level",
+  timestamp: "Timestamp",
+  message: "Message",
+  copy: "Copy",
+  close: "Close",
+};
+
+const ko: typeof en = {
+  title: "서버 로그",
+  search: "검색...",
+  allLevels: "모든 레벨",
+  resume: "재개",
+  pause: "일시정지",
+  clear: "지우기",
+  empty: "아직 로그가 없습니다. 이벤트를 기다리거나 터미널을 확인하세요.",
+  details: "로그 상세",
+  level: "레벨",
+  timestamp: "시각",
+  message: "메시지",
+  copy: "복사",
+  close: "닫기",
+};
 
 const MAX_LOGS = 10000;
 const serverLogsAtom = atom<ServerLog[]>([]);
@@ -38,6 +70,8 @@ function ServerLogsPage() {
   const [selectedLog, setSelectedLog] = useState<ServerLog | null>(null);
   const parentRef = useRef<HTMLDivElement>(null);
   const isProxyRunning = useAtomValue(proxyRunningAtom);
+  const lang = useAtomValue(languageAtom);
+  const t = lang === "ko" ? ko : en;
   const isEmbedded = useIsEmbeddedPage();
 
   // Keep track of pause state for listener
@@ -103,9 +137,7 @@ function ServerLogsPage() {
     >
       <div className="flex flex-col tablet:flex-row tablet:items-center justify-between gap-4 shrink-0">
         {!isEmbedded && (
-          <h1 className="text-2xl tablet:text-3xl font-black tracking-tight text-base-content font-sans">
-            Server Logs
-          </h1>
+          <h1 className="text-2xl tablet:text-3xl font-black tracking-tight text-base-content font-sans">{t.title}</h1>
         )}
         {isProxyRunning && (
           <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -113,7 +145,7 @@ function ServerLogsPage() {
               <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-base-content/40" />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder={t.search}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9 pr-4 py-2 bg-base-100 border border-base-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full tablet:w-48 transition-all text-base-content placeholder:text-base-content/30"
@@ -124,7 +156,7 @@ function ServerLogsPage() {
               onChange={(e) => setFilterLevel(e.target.value)}
               className="px-3 py-2 bg-base-100 border border-base-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all cursor-pointer text-base-content h-9"
             >
-              <option value="ALL">All Levels</option>
+              <option value="ALL">{t.allLevels}</option>
               <option value="DEBUG">DEBUG</option>
               <option value="INFO">INFO</option>
               <option value="WARN">WARN</option>
@@ -137,7 +169,7 @@ function ServerLogsPage() {
                 className="flex-1 tablet:flex-initial flex items-center justify-center px-4 py-2 bg-base-100 border border-base-200 rounded-lg hover:bg-base-200 text-sm font-bold transition-all text-base-content h-9"
               >
                 {isPaused ? <Play className="w-3.5 h-3.5 mr-2" /> : <Pause className="w-3.5 h-3.5 mr-2" />}
-                {isPaused ? "Resume" : "Pause"}
+                {isPaused ? t.resume : t.pause}
               </button>
               <button
                 type="button"
@@ -145,7 +177,7 @@ function ServerLogsPage() {
                 className="tablet:flex-initial flex items-center justify-center px-4 py-2 bg-base-100 border border-error/20 rounded-lg hover:bg-error/10 text-sm font-bold text-error transition-all h-9"
               >
                 <Trash2 className="w-3.5 h-3.5 mr-2" />
-                Clear
+                {t.clear}
               </button>
             </div>
           </div>
@@ -221,7 +253,7 @@ function ServerLogsPage() {
               })}
               {filteredLogs.length === 0 && (
                 <div className="flex items-center justify-center h-full text-base-content/40 w-full mt-12 text-sm">
-                  No logs generated yet. Wait for events or check terminal.
+                  {t.empty}
                 </div>
               )}
             </div>
@@ -230,13 +262,13 @@ function ServerLogsPage() {
       )}
 
       <Modal isOpen={!!selectedLog} onClose={() => setSelectedLog(null)}>
-        <Modal.Header title="Log Details" description={selectedLog?.target} />
+        <Modal.Header title={t.details} description={selectedLog?.target} />
         <Modal.Body>
           <div className="flex flex-col space-y-5">
             <div className="flex gap-6">
               <div>
                 <span className="text-xs font-semibold text-base-content/40 block mb-1.5 uppercase tracking-wider">
-                  Level
+                  {t.level}
                 </span>
                 <span
                   className={clsx(
@@ -255,7 +287,7 @@ function ServerLogsPage() {
               </div>
               <div className="flex-1">
                 <span className="text-xs font-semibold text-base-content/40 block mb-1.5 uppercase tracking-wider">
-                  Timestamp
+                  {t.timestamp}
                 </span>
                 <span className="text-sm font-mono text-base-content/80 bg-base-200 px-2.5 py-1 rounded-md border border-base-300 inline-block">
                   {selectedLog?.timestamp}
@@ -265,7 +297,7 @@ function ServerLogsPage() {
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-semibold text-base-content/40 uppercase tracking-wider">Message</span>
+                <span className="text-xs font-semibold text-base-content/40 uppercase tracking-wider">{t.message}</span>
                 {selectedLog && (
                   <button
                     type="button"
@@ -273,7 +305,7 @@ function ServerLogsPage() {
                     className="text-xs text-info hover:text-info/80 font-medium flex items-center bg-info/10 px-2 py-1 rounded-md transition-colors"
                   >
                     <Copy className="w-3 h-3 mr-1" />
-                    Copy
+                    {t.copy}
                   </button>
                 )}
               </div>
@@ -289,7 +321,7 @@ function ServerLogsPage() {
             onClick={() => setSelectedLog(null)}
             className="px-5 py-2.5 bg-base-100 border border-base-200 hover:bg-base-200 text-base-content/80 rounded-xl text-sm font-bold transition-all shadow-sm hover:shadow"
           >
-            Close
+            {t.close}
           </button>
         </Modal.Footer>
       </Modal>

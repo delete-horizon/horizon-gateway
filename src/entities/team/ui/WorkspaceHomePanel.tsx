@@ -137,9 +137,13 @@ export function WorkspaceHomePanel({ ctrl, onClose }: WorkspaceHomePanelProps) {
               <p className="text-sm font-bold">{lang === "ko" ? "요금제" : "Plan"}</p>
               <p className="text-[10px] text-base-content/45">
                 {activeIsPro
-                  ? lang === "ko"
-                    ? "Team Pro / Unlimited 이용 중"
-                    : "Team Pro / Unlimited active"
+                  ? unlimited
+                    ? lang === "ko"
+                      ? "Unlimited 이용 중"
+                      : "Unlimited active"
+                    : lang === "ko"
+                      ? "Team Pro 이용 중 · 좌석 5명"
+                      : "Team Pro active · 5 seats"
                   : paidCheckoutEnabled
                     ? lang === "ko"
                       ? "이 워크스페이스를 Team Pro로 업그레이드"

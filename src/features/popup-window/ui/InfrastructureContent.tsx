@@ -99,7 +99,11 @@ export function InfrastructureContent() {
           <p className="text-xs text-base-content/55 leading-relaxed">{t.infraProxyDesc}</p>
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs text-base-content/40">
-              {proxyStatus.running ? `Port ${proxyStatus.port}` : "Stopped"}
+              {proxyStatus.running
+                ? lang === "ko"
+                  ? `포트 ${proxyStatus.port}`
+                  : `Port ${proxyStatus.port}`
+                : t.infraStopped}
             </p>
             <Button
               variant={proxyStatus.running ? "secondary" : "primary"}

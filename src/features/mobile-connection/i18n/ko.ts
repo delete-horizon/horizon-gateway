@@ -20,16 +20,16 @@ export const ko: TranslationSchema = {
   lanEmpty: "LAN 주소가 없습니다",
   tailscaleTitle: "Tailscale (선택)",
   tailscaleHint: "휴대폰이 같은 Wi-Fi에 없을 때만 사용합니다.",
-  tailscaleMissing: "실행 중이 아님",
+  tailscaleMissing: "선택 사항 — 감지되지 않음",
   remoteTitle: "다른 기기 접속 허용",
   remoteDesc:
-    "기본값은 꺼짐입니다. 켜면 사설 LAN과 Tailscale 피어만 프록시와 설정 페이지에 접속할 수 있습니다. 앱을 다시 시작하면 적용됩니다.",
+    "기본값은 꺼짐입니다. 켜면 같은 네트워크의 휴대폰이 프록시와 설정 페이지에 접속할 수 있습니다. Tailscale은 사용할 때만 포함됩니다. 앱을 다시 시작하면 적용됩니다.",
   remoteRestart: "저장했습니다. 다른 기기가 접속하려면 앱을 다시 시작하세요.",
   remoteOn: "켜짐",
   remoteOff: "꺼짐",
   tunnelTitle: "임시 Cloudflare 터널",
   tunnelDesc:
-    "LAN이나 Tailscale이 아닌 휴대폰을 위한 선택 경로입니다. 터널은 설정 페이지만 엽니다. 프록시 자체는 “다른 기기 접속 허용”이 켜져 있어야 합니다.",
+    "같은 네트워크가 아닌 휴대폰을 위한 선택 경로입니다. 터널은 설정 페이지만 엽니다. 프록시 자체는 “다른 기기 접속 허용”이 켜져 있어야 합니다.",
   tunnelStatus: "터널 상태",
   tunnelStandby: "대기 중...",
   tunnelFailed: "터널을 시작하지 못했습니다",
@@ -44,8 +44,9 @@ export const ko: TranslationSchema = {
   qrNeedRemote: "허용을 켜고 앱을 다시 시작하기 전에는 다른 기기가 차단됩니다.",
   directAddress: "직접 주소",
   stepsTitle: "설정 단계",
-  step1: "LAN이나 Tailscale로 휴대폰을 연결할 때만 “다른 기기 접속 허용”을 켜세요. 켠 뒤에는 앱을 다시 시작합니다.",
-  step2: "같은 Wi-Fi를 사용하세요. 다른 망일 때만 Tailscale을 설치합니다.",
+  step1:
+    "같은 네트워크의 휴대폰을 연결할 때만 “다른 기기 접속 허용”을 켜세요. 켠 뒤에는 앱을 다시 시작합니다. Tailscale은 선택 사항입니다.",
+  step2: "같은 Wi-Fi와 LAN 주소를 사용하세요. 휴대폰이 다른 네트워크에 있을 때 Tailscale은 하나의 선택입니다.",
   step3: "QR 코드를 스캔하거나, 휴대폰에서 주소를 엽니다.",
   step4: "휴대폰의 설정 페이지에 나온 PAC 또는 수동 프록시를 적용합니다.",
   adbTitle: "ADB 및 USB 디바이스",
@@ -76,5 +77,5 @@ export const ko: TranslationSchema = {
     "스위치를 켜면 휴대폰 HTTP 프록시가 127.0.0.1과 프록시 포트로 설정됩니다. Wi-Fi 프록시를 직접 넣었다면 없음으로 되돌리세요.",
   iosTitle: "iOS는 USB로 지원되지 않습니다",
   iosDesc:
-    "iOS는 USB 역방향 포워딩을 허용하지 않습니다. 무선 탭에서 같은 Wi-Fi를 쓰고, 다른 망일 때만 Tailscale을 사용하세요.",
+    "iOS는 USB 역방향 포워딩을 허용하지 않습니다. 무선 탭에서 같은 Wi-Fi로 연결하세요. LAN 밖에서는 Tailscale을 선택할 수 있습니다.",
 };

@@ -58,11 +58,11 @@ export function BillingPanel({ ctrl, onClose }: BillingPanelProps) {
         <p className="text-[11px] text-base-content/55 leading-relaxed">
           {paidCheckoutEnabled
             ? lang === "ko"
-              ? "결제는 워크스페이스 단위입니다. Free는 소유 워크스페이스 1개·좌석 3명, Pro는 이 워크스페이스의 좌석·한도를 확장합니다."
-              : "Billing is per workspace. Free: 1 owned workspace and 3 seats. Pro expands seats/limits for this workspace."
+              ? "결제는 워크스페이스 단위입니다. Free는 소유 워크스페이스 1개와 좌석 3명입니다. Team Pro는 좌석 5명입니다."
+              : "Billing is per workspace. Free includes 1 owned workspace and 3 seats. Team Pro includes 5 seats."
             : lang === "ko"
-              ? "Free 플랜은 소유 워크스페이스 1개·좌석 3명입니다."
-              : "Free plan: 1 owned workspace and 3 seats."}
+              ? "Free는 소유 워크스페이스 1개와 좌석 3명입니다. Team Pro는 좌석 5명입니다."
+              : "Free includes 1 owned workspace and 3 seats. Team Pro includes 5 seats."}
         </p>
 
         {entitlement && import.meta.env.DEV && (
@@ -91,8 +91,8 @@ export function BillingPanel({ ctrl, onClose }: BillingPanelProps) {
                   ? "Team Pro 이용 중"
                   : "Team Pro active"
               : lang === "ko"
-                ? "이 워크스페이스 Pro 업그레이드"
-                : "Upgrade this workspace to Pro"}
+                ? "이 워크스페이스를 Team Pro로 업그레이드"
+                : "Upgrade this workspace to Team Pro"}
           </Button>
         ) : null}
       </div>

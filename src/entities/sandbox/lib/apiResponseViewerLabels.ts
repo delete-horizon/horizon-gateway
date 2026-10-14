@@ -11,6 +11,12 @@ export function buildApiResponseViewerLabels(t: {
   schemaPassed?: string;
   schemaFailed?: string;
   empty?: string;
+  importSavedSchema?: string;
+  validationResult?: string;
+  validationDone?: string;
+  validationFailedTitle?: string;
+  validationPending?: string;
+  awaitingResponse?: string;
 }) {
   return {
     response: t.response,
@@ -24,5 +30,11 @@ export function buildApiResponseViewerLabels(t: {
     schemaPassed: t.schemaPassed,
     schemaFailed: t.schemaFailed,
     empty: t.empty,
+    importSavedSchema: t.importSavedSchema,
+    validationResult: t.validationResult,
+    validationDone: t.validationDone,
+    validationFailedTitle: t.validationFailedTitle,
+    validationPending: t.validationPending,
+    awaitingResponse: t.awaitingResponse,
   };
 }

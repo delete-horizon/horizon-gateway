@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Annotation, LocatorValidation } from "@/entities/inspector";
 import { annotationMatchesPage } from "@/shared/lib/guideMatch";
 import { deleteAnnotationApi, fetchAnnotationsApi, saveAnnotationApi, subscribeAnnotations } from "../api/gateway";
+import { useInjectionCopy } from "../i18n";
 import { captureElementThumbnail, capturePageMeta } from "../lib/capture";
 import { denormalizedSelector, ensureLocators, promoteLocator, resolveAnnotation } from "../lib/locator";
 
 export function useAnnotations() {
+  const t = useInjectionCopy();
   const [allAnnotations, setAnnotations] = useState<Annotation[]>([]);
   const [showPolicyBadges, setShowPolicyBadges] = useState(true);
   const [activeBadgeId, setActiveBadgeId] = useState<string | null>(null);
@@ -61,9 +63,9 @@ export function useAnnotations() {
   const copyDescription = useCallback(
     (ann: Annotation, e?: React.MouseEvent) => {
       e?.stopPropagation();
-      copyToClipboard(ann.description || "", `'${ann.role}' 설명이 복사되었습니다`);
+      copyToClipboard(ann.description || "", t.copiedDescription(ann.role));
     },
-    [copyToClipboard],
+    [copyToClipboard, t],
   );
 
   const copySelector = useCallback(
@@ -75,9 +77,9 @@ export function useAnnotations() {
         primary?.strategy === "role"
           ? `role=${primary.role} name=${primary.name}`
           : `${primary?.strategy ?? "css"}=${primary?.value ?? ann.selector}`;
-      copyToClipboard(line || ann.selector || "", `'${ann.role}' Locator가 복사되었습니다`);
+      copyToClipboard(line || ann.selector || "", t.copiedLocator(ann.role));
     },
-    [copyToClipboard],
+    [copyToClipboard, t],
   );
 
   const copySummary = useCallback(
@@ -92,9 +94,9 @@ export function useAnnotations() {
         })
         .join(", ");
       const summary = `### [${ann.role}]\n${ann.description || "-"}\n\n- Locators: \`${locs}\`\n- Selector: \`${ann.selector}\`\n- Host Pattern: \`${ann.hostPattern || ann.domain || "*"}\`\n- Path Pattern: \`${ann.pathPattern || "*"}\`\n- Validation: \`${ann.lastValidation?.status ?? "unknown"}\`\n- URL: ${ann.url || "-"}`;
-      copyToClipboard(summary, `'${ann.role}' 가이드 요약이 복사되었습니다`);
+      copyToClipboard(summary, t.copiedSummary(ann.role));
     },
-    [copyToClipboard],
+    [copyToClipboard, t],
   );
 
   const deleteAnnotation = async (id: string, e?: React.MouseEvent) => {
@@ -106,7 +108,7 @@ export function useAnnotations() {
     const res = await deleteAnnotationApi(id);
     if (res.ok) {
       fetchAnnotations();
-      setToastMessage("가이드가 삭제되었습니다");
+      setToastMessage(t.guideDeleted);
     }
   };
 
@@ -119,12 +121,12 @@ export function useAnnotations() {
     async (ann: Annotation) => {
       const { el } = resolveAnnotation(ann);
       if (!el) {
-        setToastMessage(`'${ann.role}' 요소를 이 페이지에서 찾지 못했습니다`);
+        setToastMessage(t.elementMissing(ann.role));
         return;
       }
       const rect = el.getBoundingClientRect();
       if (rect.width < 2 || rect.height < 2) {
-        setToastMessage(`'${ann.role}' 요소 크기가 너무 작아 캡처할 수 없습니다`);
+        setToastMessage(t.elementTooSmall(ann.role));
         return;
       }
       const thumbnail = await captureElementThumbnail(el);
@@ -139,18 +141,14 @@ export function useAnnotations() {
       };
       const res = await saveAnnotationApi(updated as unknown as Record<string, unknown>);
       if (res.ok) {
-        setToastMessage(
-          thumbnail
-            ? `'${ann.role}' 캡처를 현재 페이지로 바꿨습니다`
-            : `'${ann.role}' 캡처 출처는 갱신됐지만 미리보기 생성에 실패했습니다`,
-        );
+        setToastMessage(thumbnail ? t.recaptureOk(ann.role) : t.recapturePartial(ann.role));
         fetchAnnotations();
         window.parent.postMessage({ type: "WT_POLICY_SAVED" }, "*");
       } else {
-        setToastMessage("캡처 다시 지정에 실패했습니다");
+        setToastMessage(t.recaptureFailed);
       }
     },
-    [fetchAnnotations],
+    [fetchAnnotations, t],
   );
 
   const promoteAnnotation = useCallback(
@@ -165,15 +163,15 @@ export function useAnnotations() {
       setAnnotations((prev) => prev.map((a) => (a.id === ann.id ? updated : a)));
       const res = await saveAnnotationApi(updated as unknown as Record<string, unknown>);
       if (res.ok) {
-        setToastMessage(`'${ann.role}' locator를 primary로 승격했습니다`);
+        setToastMessage(t.promoted(ann.role));
         fetchAnnotations();
         window.parent.postMessage({ type: "WT_POLICY_SAVED" }, "*");
       } else {
-        setToastMessage("승격에 실패했습니다");
+        setToastMessage(t.promoteFailed);
         fetchAnnotations();
       }
     },
-    [fetchAnnotations],
+    [fetchAnnotations, t],
   );
 
   return {

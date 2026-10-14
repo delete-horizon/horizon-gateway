@@ -37,6 +37,8 @@ const en = {
   download: "Download JSON",
   deleteConfirm: "Are you sure you want to delete this schema?",
   validationResult: "Output Result (JSON Schema)",
+  details: "Schema details",
+  modified: "Modified",
 };
 
 const ko = {
@@ -56,6 +58,8 @@ const ko = {
   download: "다운로드",
   deleteConfirm: "이 스키마를 삭제하시겠습니까?",
   validationResult: "출력 결과 (JSON Schema)",
+  details: "스키마 상세",
+  modified: "변경됨",
 };
 
 function JsonSchemaPage() {
@@ -344,12 +348,12 @@ function JsonSchemaPage() {
               <div className="lg:col-span-7 card bg-base-100 border border-base-300 p-5 shadow-sm flex flex-col h-full overflow-hidden">
                 {/* Save Status & Action Header */}
                 <div className="flex justify-between items-center pb-3 border-b border-base-200 mb-4 shrink-0">
-                  <h3 className="font-bold text-sm text-primary flex items-center gap-1.5">
-                    ⚙️ {title || "Schema Details"}
-                  </h3>
+                  <h3 className="font-bold text-sm text-primary flex items-center gap-1.5">⚙️ {title || t.details}</h3>
                   <div className="flex items-center gap-3">
                     {hasUnsavedChanges && (
-                      <span className="badge badge-warning badge-xs font-bold text-[10px] py-1.5 px-2">변경됨</span>
+                      <span className="badge badge-warning badge-xs font-bold text-[10px] py-1.5 px-2">
+                        {t.modified}
+                      </span>
                     )}
                     <button
                       onClick={handleSave}
@@ -368,7 +372,7 @@ function JsonSchemaPage() {
                       <input
                         type="text"
                         className="input input-bordered input-sm font-semibold focus:outline-none"
-                        placeholder="Schema Title"
+                        placeholder={t.schemaTitle}
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                       />
@@ -378,7 +382,7 @@ function JsonSchemaPage() {
                       <input
                         type="text"
                         className="input input-bordered input-sm focus:outline-none"
-                        placeholder="Schema Description"
+                        placeholder={t.schemaDesc}
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                       />

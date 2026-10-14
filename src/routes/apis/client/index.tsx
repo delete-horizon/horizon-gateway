@@ -48,7 +48,7 @@ export const Route = createFileRoute("/apis/client/")({
   component: ApiClientPage,
 });
 
-const DEFAULT_REQUEST = parseRequestUrl("https://jsonplaceholder.typicode.com/todos/1");
+const DEFAULT_REQUEST = parseRequestUrl("https://api.example.com/todos/1");
 
 function createInitialDraft(): ApiRequestDraft {
   return {

@@ -25,6 +25,12 @@ export interface ApiResponseViewerProps {
     schemaPassed?: string;
     schemaFailed?: string;
     empty?: string;
+    importSavedSchema?: string;
+    validationResult?: string;
+    validationDone?: string;
+    validationFailedTitle?: string;
+    validationPending?: string;
+    awaitingResponse?: string;
     [key: string]: unknown;
   };
   showSchemaTab?: boolean;
@@ -122,7 +128,7 @@ export function ApiResponseViewer({
                         }
                       }}
                     >
-                      <option value="">📥 저장된 스키마 가져오기</option>
+                      <option value="">{t.importSavedSchema || "Import a saved schema"}</option>
                       {savedJsonSchemas.map((schema) => (
                         <option key={schema.id} value={schema.schemaText}>
                           {schema.name}
@@ -143,13 +149,15 @@ export function ApiResponseViewer({
               </div>
 
               <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-bold text-base-content/50 uppercase">검증 결과</span>
+                <span className="text-[10px] font-bold text-base-content/50 uppercase">
+                  {t.validationResult || "Validation result"}
+                </span>
                 {schemaValidationResult ? (
                   schemaValidationResult.valid ? (
                     <div className="p-3 bg-success/15 border border-success/30 rounded-lg text-success flex items-start gap-2">
                       <CheckCircle className="w-5 h-5 shrink-0" />
                       <div>
-                        <h4 className="font-semibold">검증 완료</h4>
+                        <h4 className="font-semibold">{t.validationDone || "Validation passed"}</h4>
                         <p className="text-[11px] mt-0.5">{t.schemaPassed || "Passed!"}</p>
                       </div>
                     </div>
@@ -157,7 +165,7 @@ export function ApiResponseViewer({
                     <div className="p-3 bg-error/15 border border-error/30 rounded-lg text-error flex items-start gap-2">
                       <AlertTriangle className="w-5 h-5 shrink-0" />
                       <div>
-                        <h4 className="font-semibold">검증 실패</h4>
+                        <h4 className="font-semibold">{t.validationFailedTitle || "Validation failed"}</h4>
                         <p className="text-[11px] mt-0.5 whitespace-pre-wrap">
                           {(t.schemaFailed || "Failed: ") + schemaValidationResult.errors}
                         </p>
@@ -165,7 +173,9 @@ export function ApiResponseViewer({
                     </div>
                   )
                 ) : (
-                  <div className="text-center py-6 text-base-content/40 italic">검증 대기 중...</div>
+                  <div className="text-center py-6 text-base-content/40 italic">
+                    {t.validationPending || "Waiting for validation..."}
+                  </div>
                 )}
               </div>
             </div>
@@ -182,10 +192,15 @@ export function ApiResponseViewer({
     schemaText,
     schemaValidationResult,
     showSchemaTab,
+    t.importSavedSchema,
     t.schemaFailed,
     t.schemaPassed,
     t.schemaText,
     t.validateSchema,
+    t.validationDone,
+    t.validationFailedTitle,
+    t.validationPending,
+    t.validationResult,
   ]);
 
   if (hideOnEmpty && !response && !loading && !error) {
@@ -224,7 +239,7 @@ export function ApiResponseViewer({
         <h2 className="text-sm font-semibold text-base-content">{t.response}</h2>
         <Card className="p-5 flex flex-col flex-1 min-h-0">
           <div className="flex-1 flex items-center justify-center text-base-content/40 italic text-sm min-h-[240px]">
-            요청을 보내면 여기에 응답 결과가 출력됩니다.
+            {t.awaitingResponse || "Send a request to see the response here."}
           </div>
         </Card>
       </section>
