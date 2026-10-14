@@ -521,13 +521,130 @@ export type Database = {
         };
         Relationships: [];
       };
+      license_keys: {
+        Row: {
+          id: string;
+          lemon_id: string;
+          license_key: string;
+          order_id: string | null;
+          subscription_id: string | null;
+          status: string;
+          ends_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          lemon_id: string;
+          license_key: string;
+          order_id?: string | null;
+          subscription_id?: string | null;
+          status?: string;
+          ends_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          lemon_id?: string;
+          license_key?: string;
+          order_id?: string | null;
+          subscription_id?: string | null;
+          status?: string;
+          ends_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      license_devices: {
+        Row: {
+          id: string;
+          license_key_id: string;
+          device_id: string;
+          app_version: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          license_key_id: string;
+          device_id: string;
+          app_version?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          license_key_id?: string;
+          device_id?: string;
+          app_version?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      refund_events: {
+        Row: {
+          id: string;
+          email: string;
+          order_id: string;
+          refunded_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          email: string;
+          order_id: string;
+          refunded_at: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          order_id?: string;
+          refunded_at?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
-    Views: Record<string, never>;
+    Views: {
+      admin_repeat_refunders: {
+        Row: {
+          email: string | null;
+          refund_count: number | null;
+          last_refund_at: string | null;
+        };
+        Relationships: [];
+      };
+    };
     Functions: {
       is_workspace_member: { Args: { ws_id: string }; Returns: boolean };
       is_workspace_admin: { Args: { ws_id: string }; Returns: boolean };
       shares_workspace_with: { Args: { target_profile: string }; Returns: boolean };
       avatar_author_name: { Args: { target: string }; Returns: string };
+      record_refund_event: {
+        Args: { p_email: string; p_order_id: string; p_refunded_at: string };
+        Returns: undefined;
+      };
+      is_billing_admin: { Args: Record<string, never>; Returns: boolean };
+      deactivate_license_for_refund: {
+        Args: { p_order_id: string | null; p_subscription_id: string | null; p_refunded_at: string };
+        Returns: number;
+      };
+      upsert_license_key: {
+        Args: {
+          p_lemon_id: string;
+          p_license_key: string;
+          p_order_id: string | null;
+          p_status: string;
+          p_ends_at: string | null;
+        };
+        Returns: undefined;
+      };
+      link_license_subscription: {
+        Args: { p_order_id: string; p_subscription_id: string };
+        Returns: undefined;
+      };
+      purge_billing_retention: { Args: Record<string, never>; Returns: Json };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

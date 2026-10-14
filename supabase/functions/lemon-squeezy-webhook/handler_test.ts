@@ -16,17 +16,26 @@ interface RecordedDelete {
   value: string;
 }
 
+interface RecordedRpc {
+  fn: string;
+  args: Record<string, unknown>;
+}
+
 interface MockOptions {
   /** Number of workspace updates that return an error before later calls succeed. */
   failUpdates?: number;
   updateThrows?: boolean;
+  /** Number of rpc calls that return an error before later calls succeed. */
+  failRpcs?: number;
 }
 
 function createMock(options: MockOptions = {}) {
   const events = new Map<string, string>();
   const updates: RecordedUpdate[] = [];
   const deletes: RecordedDelete[] = [];
+  const rpcs: RecordedRpc[] = [];
   let updateFailuresLeft = options.failUpdates ?? 0;
+  let rpcFailuresLeft = options.failRpcs ?? 0;
 
   const supabase: WebhookSupabase = {
     from(table: string) {
@@ -68,9 +77,17 @@ function createMock(options: MockOptions = {}) {
         },
       };
     },
+    rpc(fn: string, args: Record<string, unknown>) {
+      rpcs.push({ fn, args });
+      if (rpcFailuresLeft > 0) {
+        rpcFailuresLeft -= 1;
+        return Promise.resolve({ error: { message: "rpc down" } });
+      }
+      return Promise.resolve({ error: null });
+    },
   };
 
-  return { supabase, events, updates, deletes };
+  return { supabase, events, updates, deletes, rpcs };
 }
 
 function assertEquals(actual: unknown, expected: unknown): void {
@@ -310,4 +327,138 @@ Deno.test("processing exception clears the dedupe record", async () => {
   assertEquals(mock.deletes.length, 1);
   assertEquals(mock.deletes[0].table, "webhook_events");
   assertEquals(mock.deletes[0].column, "id");
+});
+
+Deno.test("subscription_created does not record a refund or touch a license key", async () => {
+  const mock = createMock();
+  const body = subscriptionBody({
+    event: "subscription_created",
+    status: "active",
+    variantId: Number(PRO_VARIANT_ID),
+  });
+  const response = await handleLemonSqueezyWebhook(post(body, await sign(body)), {
+    supabase: mock.supabase,
+    webhookSecret: SECRET,
+  });
+
+  assertEquals(response.status, 200);
+  assertEquals(mock.rpcs.length, 0);
+  assertEquals(mock.updates.length, 1);
+  assertEquals(mock.updates[0].values.plan, "pro");
+  assertEquals(mock.updates[0].values.seat_limit, 5);
+});
+
+Deno.test("order_refunded records the buyer email and deactivates the license key", async () => {
+  const mock = createMock();
+  const body = JSON.stringify({
+    meta: { event_name: "order_refunded", custom_data: { workspace_id: "ws-1" } },
+    data: {
+      id: "42",
+      attributes: {
+        user_email: "  Buyer@Example.COM ",
+        refunded_at: "2026-10-01T12:00:00.000000Z",
+        status: "refunded",
+      },
+    },
+  });
+  const response = await handleLemonSqueezyWebhook(post(body, await sign(body)), {
+    supabase: mock.supabase,
+    webhookSecret: SECRET,
+  });
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.text(), "ok");
+  assertEquals(mock.updates.length, 0);
+  assertEquals(mock.rpcs.map((call) => call.fn), ["record_refund_event", "deactivate_license_for_refund"]);
+  assertEquals(mock.rpcs[0].args, {
+    p_email: "buyer@example.com",
+    p_order_id: "42",
+    p_refunded_at: "2026-10-01T12:00:00.000Z",
+  });
+  assertEquals(mock.rpcs[1].args, {
+    p_order_id: "42",
+    p_subscription_id: null,
+    p_refunded_at: "2026-10-01T12:00:00.000Z",
+  });
+});
+
+Deno.test("subscription_payment_refunded deactivates the key and still updates the workspace", async () => {
+  const mock = createMock();
+  const body = JSON.stringify({
+    meta: { event_name: "subscription_payment_refunded", custom_data: { workspace_id: "ws-1" } },
+    data: {
+      id: "9",
+      attributes: {
+        status: "refunded",
+        user_email: "sub@example.com",
+        subscription_id: 77,
+        refunded_at: "2026-10-02T00:00:00.000Z",
+        variant_id: Number(PRO_VARIANT_ID),
+      },
+    },
+  });
+  const response = await handleLemonSqueezyWebhook(post(body, await sign(body)), {
+    supabase: mock.supabase,
+    webhookSecret: SECRET,
+  });
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.text(), "ok");
+  assertEquals(mock.rpcs[0].fn, "record_refund_event");
+  assertEquals(mock.rpcs[0].args.p_email, "sub@example.com");
+  assertEquals(mock.rpcs[0].args.p_order_id, "invoice:9");
+  assertEquals(mock.rpcs[1].args, {
+    p_order_id: null,
+    p_subscription_id: "77",
+    p_refunded_at: "2026-10-02T00:00:00.000Z",
+  });
+  assertEquals(mock.updates.length, 1);
+  assertEquals(mock.updates[0].values, {
+    status: "active",
+    plan: "pro",
+    seat_limit: 5,
+    ls_subscription_id: "9",
+  });
+});
+
+Deno.test("refund without a buyer email still deactivates the license key", async () => {
+  const mock = createMock();
+  const body = JSON.stringify({
+    meta: { event_name: "order_refunded" },
+    data: { id: "42", attributes: { refunded_at: "2026-10-01T12:00:00.000Z" } },
+  });
+  const response = await handleLemonSqueezyWebhook(post(body, await sign(body)), {
+    supabase: mock.supabase,
+    webhookSecret: SECRET,
+  });
+
+  assertEquals(response.status, 200);
+  assertEquals(mock.rpcs.map((call) => call.fn), ["deactivate_license_for_refund"]);
+  assertEquals(mock.updates.length, 0);
+});
+
+Deno.test("refund insert failure clears the dedupe record so the retry is processed", async () => {
+  const mock = createMock({ failRpcs: 1 });
+  const body = JSON.stringify({
+    meta: { event_name: "order_refunded" },
+    data: {
+      id: "42",
+      attributes: { user_email: "buyer@example.com", refunded_at: "2026-10-01T12:00:00.000Z" },
+    },
+  });
+  const signature = await sign(body);
+  const deps = { supabase: mock.supabase, webhookSecret: SECRET };
+
+  const failed = await handleLemonSqueezyWebhook(post(body, signature), deps);
+  assertEquals(failed.status, 500);
+  assertEquals(await failed.text(), "refund insert failed");
+  assertEquals(mock.events.size, 0);
+  assertEquals(mock.deletes.length, 1);
+  assertEquals(mock.updates.length, 0);
+
+  const retried = await handleLemonSqueezyWebhook(post(body, signature), deps);
+  assertEquals(retried.status, 200);
+  assertEquals(await retried.text(), "ok");
+  assertEquals(mock.events.size, 1);
+  assertEquals(mock.rpcs.filter((call) => call.fn === "deactivate_license_for_refund").length, 1);
 });
