@@ -25,7 +25,7 @@ function loadEnv(path) {
 const env = loadEnv(resolve(process.cwd(), ".env"));
 const url = env.VITE_SUPABASE_URL;
 const anon = env.VITE_SUPABASE_ANON_KEY || env.SUPABASE_ANON_KEY;
-const service = env.SUPABASE_SERVICE_ROLE_KEY || env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+const service = env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!url || !anon) {
   console.error("Missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY in .env");

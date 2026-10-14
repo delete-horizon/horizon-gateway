@@ -1,5 +1,6 @@
 import type { Json } from "@/shared/api/database.types";
 import { supabase } from "@/shared/api/supabase";
+import { decideMemberRoleChange, isWorkspaceRole, memberRoleDenialMessage } from "./lib/memberRoleChange";
 import type {
   ResourceKind,
   Workspace,
@@ -108,17 +109,9 @@ export async function transferWorkspaceOwnership(workspaceId: string, newOwnerPr
     throw new Error("Target user is not a workspace member");
   }
 
-  const { data: updated, error: updateError } = await supabase
-    .from("workspaces")
-    .update({ owner_id: newOwnerProfileId })
-    .eq("id", workspaceId)
-    .eq("owner_id", currentOwnerId)
-    .select()
-    .single();
-  if (updateError) {
-    throw updateError;
-  }
-
+  // Promote first while the caller is still owner_id. The billing trigger
+  // rejects an owner_id change until the target membership role is owner,
+  // and the old owner can no longer update members after the transfer.
   const { error: promoteError } = await supabase
     .from("workspace_members")
     .update({ role: "owner" })
@@ -135,6 +128,17 @@ export async function transferWorkspaceOwnership(workspaceId: string, newOwnerPr
     .eq("profile_id", currentOwnerId);
   if (demoteError) {
     throw demoteError;
+  }
+
+  const { data: updated, error: updateError } = await supabase
+    .from("workspaces")
+    .update({ owner_id: newOwnerProfileId })
+    .eq("id", workspaceId)
+    .eq("owner_id", currentOwnerId)
+    .select()
+    .single();
+  if (updateError) {
+    throw updateError;
   }
 
   return updated as Workspace;
@@ -159,8 +163,19 @@ export async function setMemberRole(
   if (workspaceError || !workspace) {
     throw workspaceError ?? new Error("Workspace not found");
   }
-  if (workspace.owner_id !== currentUserId) {
-    throw new Error("Only the workspace owner can change member roles");
+  const callerIsWorkspaceOwner = workspace.owner_id === currentUserId;
+  let callerIsAdmin = false;
+  if (!callerIsWorkspaceOwner) {
+    const { data: callerMember, error: callerError } = await supabase
+      .from("workspace_members")
+      .select("role")
+      .eq("workspace_id", workspaceId)
+      .eq("profile_id", currentUserId)
+      .maybeSingle();
+    if (callerError) {
+      throw callerError;
+    }
+    callerIsAdmin = callerMember?.role === "admin";
   }
 
   const { data: member, error: memberError } = await supabase
@@ -169,14 +184,21 @@ export async function setMemberRole(
     .eq("id", memberId)
     .eq("workspace_id", workspaceId)
     .single();
-  if (memberError || !member) {
+  if (memberError || !member || !isWorkspaceRole(member.role)) {
     throw memberError ?? new Error("Member not found");
   }
-  if (member.profile_id === workspace.owner_id) {
-    throw new Error("Cannot change the workspace owner's role");
-  }
-  if (member.profile_id === currentUserId) {
-    throw new Error("Cannot change your own role");
+
+  const decision = decideMemberRoleChange({
+    callerIsWorkspaceOwner,
+    callerIsAdmin,
+    callerId: currentUserId,
+    targetProfileId: member.profile_id,
+    targetIsWorkspaceOwner: member.profile_id === workspace.owner_id,
+    targetRole: member.role,
+    nextRole: role,
+  });
+  if (!decision.ok) {
+    throw new Error(memberRoleDenialMessage(decision.reason));
   }
 
   const { data: updated, error: updateError } = await supabase
@@ -369,44 +391,45 @@ export async function listInvites(workspaceId: string): Promise<WorkspaceInvite[
   return (data ?? []) as WorkspaceInvite[];
 }
 
-export async function acceptInvite(token: string, profileId?: string): Promise<WorkspaceMember> {
+function inviteClientError(message: string): Error {
+  const normalized = message.toLowerCase();
+  if (normalized.includes("rate limit")) {
+    return new Error("Too many attempts. Try again later.");
+  }
+  if (normalized.includes("seat limit")) {
+    return new Error("Seat limit reached.");
+  }
+  if (normalized.includes("not active")) {
+    return new Error("This workspace is not accepting members.");
+  }
+  if (normalized.includes("authentication required")) {
+    return new Error("User must be authenticated to accept an invite");
+  }
+  return new Error("Invite not found or already used.");
+}
+
+export async function acceptInvite(token: string): Promise<WorkspaceMember> {
   const { data: userData } = await supabase.auth.getUser();
-  const effectiveProfileId = userData?.user?.id ?? profileId;
-  if (!effectiveProfileId) {
+  if (!userData?.user?.id) {
     throw new Error("User must be authenticated to accept an invite");
   }
 
-  const { data: invite, error: inviteError } = await supabase
-    .from("workspace_invites")
-    .select("*")
-    .eq("token", token.trim())
-    .eq("status", "pending")
-    .single();
-  if (inviteError || !invite) {
-    throw inviteError ?? new Error("Invite not found or already used");
+  const { data, error } = await supabase.rpc("accept_workspace_invite", { invite_token: token.trim() });
+  if (error) {
+    console.error("acceptInvite failed");
+    throw inviteClientError(error.message);
   }
-
-  const { data: member, error: memberError } = await supabase
-    .from("workspace_members")
-    .upsert(
-      { workspace_id: invite.workspace_id, profile_id: effectiveProfileId, role: invite.role },
-      { onConflict: "workspace_id,profile_id" },
-    )
-    .select()
-    .single();
-  if (memberError) {
-    throw memberError;
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("Invite not found or already used.");
   }
-
-  const { error: updateError } = await supabase
-    .from("workspace_invites")
-    .update({ status: "accepted" })
-    .eq("id", invite.id);
-  if (updateError) {
-    console.error("acceptInvite: failed to mark invite accepted:", updateError.message);
+  const record = data as Record<string, unknown>;
+  if (typeof record.error === "string") {
+    throw inviteClientError(record.error);
   }
-
-  return member as WorkspaceMember;
+  if (typeof record.id !== "string" || typeof record.workspace_id !== "string") {
+    throw new Error("Invite not found or already used.");
+  }
+  return record as unknown as WorkspaceMember;
 }
 
 export interface MyPendingInvite extends WorkspaceInvite {

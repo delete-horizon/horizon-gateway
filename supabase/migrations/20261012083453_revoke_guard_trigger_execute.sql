@@ -3,9 +3,9 @@
 -- Drop the default grants so anon, authenticated, and public cannot call them
 -- through the Data API.
 --
--- The two guard_* functions live in that remote migration, which is not in this
--- repo's migration history. Revoke each function only when it is installed so a
--- local reset that has not replayed rls_hardening_2026_10_12 still applies.
+-- Those functions are created by 20261012014925_rls_hardening_2026_10_12.sql,
+-- which sorts before this file. Revoke each function only when it is installed
+-- so a database that has not replayed that migration still applies.
 do $$
 begin
   if to_regprocedure('public.prevent_sponsor_field_tamper()') is not null then

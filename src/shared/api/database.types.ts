@@ -24,6 +24,7 @@ export type Database = {
           github_id: string | null;
           github_login: string | null;
           sponsor_since: string | null;
+          sponsor_cycle_at: string | null;
           team_entitlement: "pro" | "unlimited" | null;
         };
         Insert: {
@@ -37,6 +38,7 @@ export type Database = {
           github_id?: string | null;
           github_login?: string | null;
           sponsor_since?: string | null;
+          sponsor_cycle_at?: string | null;
           team_entitlement?: "pro" | "unlimited" | null;
         };
         Update: {
@@ -50,6 +52,7 @@ export type Database = {
           github_id?: string | null;
           github_login?: string | null;
           sponsor_since?: string | null;
+          sponsor_cycle_at?: string | null;
           team_entitlement?: "pro" | "unlimited" | null;
         };
         Relationships: [];
@@ -621,6 +624,8 @@ export type Database = {
       is_workspace_admin: { Args: { ws_id: string }; Returns: boolean };
       shares_workspace_with: { Args: { target_profile: string }; Returns: boolean };
       avatar_author_name: { Args: { target: string }; Returns: string };
+      accept_workspace_invite: { Args: { invite_token: string }; Returns: Json };
+      consume_user_rate_limit: { Args: { action: string }; Returns: undefined };
       record_refund_event: {
         Args: { p_email: string; p_order_id: string; p_refunded_at: string };
         Returns: undefined;

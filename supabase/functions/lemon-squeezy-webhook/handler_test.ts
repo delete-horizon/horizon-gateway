@@ -1,7 +1,9 @@
+import { signWorkspaceId } from "../_shared/checkoutRequest.ts";
 import { handleLemonSqueezyWebhook, SEAT_LIMIT_BY_VARIANT, type WebhookSupabase } from "./handler.ts";
 
 const SECRET = "test-webhook-secret";
 const PRO_VARIANT_ID = "1987632";
+const WORKSPACE_ID = "11111111-1111-4111-8111-111111111111";
 
 interface RecordedUpdate {
   table: string;
@@ -27,6 +29,8 @@ interface MockOptions {
   updateThrows?: boolean;
   /** Number of rpc calls that return an error before later calls succeed. */
   failRpcs?: number;
+  /** Workspace update row count. `0` means the id matched nothing. */
+  updateCount?: number;
 }
 
 function createMock(options: MockOptions = {}) {
@@ -60,7 +64,7 @@ function createMock(options: MockOptions = {}) {
             },
           };
         },
-        update(values: Record<string, unknown>) {
+        update(values: Record<string, unknown>, _options?: { count?: "exact" }) {
           return {
             eq(column: string, value: string) {
               if (options.updateThrows) {
@@ -69,9 +73,9 @@ function createMock(options: MockOptions = {}) {
               updates.push({ table, values, column, value });
               if (updateFailuresLeft > 0) {
                 updateFailuresLeft -= 1;
-                return Promise.resolve({ error: { message: "db down" } });
+                return Promise.resolve({ error: { message: "db down" }, count: null });
               }
-              return Promise.resolve({ error: null });
+              return Promise.resolve({ error: null, count: options.updateCount ?? 1 });
             },
           };
         },
@@ -128,17 +132,23 @@ function post(body: string, signature: string | null): Request {
   });
 }
 
-function subscriptionBody(input: {
+async function subscriptionBody(input: {
   event: string;
   status: string;
   variantId?: number | string;
   workspaceId?: string;
   subscriptionId?: string;
-}): string {
+  signWorkspace?: boolean;
+}): Promise<string> {
+  const workspaceId = input.workspaceId ?? WORKSPACE_ID;
+  const workspaceSig = input.signWorkspace === false ? undefined : await signWorkspaceId(SECRET, workspaceId);
   return JSON.stringify({
     meta: {
       event_name: input.event,
-      custom_data: { workspace_id: input.workspaceId ?? "ws-1" },
+      custom_data: {
+        workspace_id: workspaceId,
+        ...(workspaceSig ? { workspace_sig: workspaceSig } : {}),
+      },
     },
     data: {
       id: input.subscriptionId ?? "sub-1",
@@ -152,7 +162,7 @@ function subscriptionBody(input: {
 
 Deno.test("valid signature returns 200", async () => {
   const mock = createMock();
-  const body = subscriptionBody({
+  const body = await subscriptionBody({
     event: "subscription_created",
     status: "active",
     variantId: Number(PRO_VARIANT_ID),
@@ -169,7 +179,7 @@ Deno.test("valid signature returns 200", async () => {
 
 Deno.test("invalid signature returns 401 and does not record the event", async () => {
   const mock = createMock();
-  const body = subscriptionBody({ event: "subscription_created", status: "active", variantId: Number(PRO_VARIANT_ID) });
+  const body = await subscriptionBody({ event: "subscription_created", status: "active", variantId: Number(PRO_VARIANT_ID) });
   const response = await handleLemonSqueezyWebhook(post(body, "0".repeat(64)), {
     supabase: mock.supabase,
     webhookSecret: SECRET,
@@ -183,7 +193,7 @@ Deno.test("invalid signature returns 401 and does not record the event", async (
 
 Deno.test("missing signature returns 401 and does not record the event", async () => {
   const mock = createMock();
-  const body = subscriptionBody({ event: "subscription_created", status: "active", variantId: Number(PRO_VARIANT_ID) });
+  const body = await subscriptionBody({ event: "subscription_created", status: "active", variantId: Number(PRO_VARIANT_ID) });
   const response = await handleLemonSqueezyWebhook(post(body, null), {
     supabase: mock.supabase,
     webhookSecret: SECRET,
@@ -197,7 +207,7 @@ Deno.test("missing signature returns 401 and does not record the event", async (
 
 Deno.test("duplicate event id is ignored", async () => {
   const mock = createMock();
-  const body = subscriptionBody({
+  const body = await subscriptionBody({
     event: "subscription_created",
     status: "active",
     variantId: Number(PRO_VARIANT_ID),
@@ -223,11 +233,11 @@ Deno.test("subscription_created sets plan pro and seat_limit from SEAT_LIMIT_BY_
   assertEquals(variantSeats, 5);
 
   const mock = createMock();
-  const body = subscriptionBody({
+  const body = await subscriptionBody({
     event: "subscription_created",
     status: "active",
     variantId: Number(PRO_VARIANT_ID),
-    workspaceId: "ws-pro",
+    workspaceId: "22222222-2222-4222-8222-222222222222",
     subscriptionId: "sub-pro",
   });
   const response = await handleLemonSqueezyWebhook(post(body, await sign(body)), {
@@ -240,7 +250,7 @@ Deno.test("subscription_created sets plan pro and seat_limit from SEAT_LIMIT_BY_
   const update = mock.updates[0];
   assertEquals(update.table, "workspaces");
   assertEquals(update.column, "id");
-  assertEquals(update.value, "ws-pro");
+  assertEquals(update.value, "22222222-2222-4222-8222-222222222222");
   assertEquals(update.values, {
     status: "active",
     plan: "pro",
@@ -257,11 +267,11 @@ Deno.test("cancel and expire return plan free and seat_limit 3", async () => {
 
   for (const item of cases) {
     const mock = createMock();
-    const body = subscriptionBody({
+    const body = await subscriptionBody({
       event: item.event,
       status: item.status,
       variantId: Number(PRO_VARIANT_ID),
-      workspaceId: "ws-free",
+      workspaceId: "33333333-3333-4333-8333-333333333333",
       subscriptionId: item.subscriptionId,
     });
     const response = await handleLemonSqueezyWebhook(post(body, await sign(body)), {
@@ -283,7 +293,7 @@ Deno.test("cancel and expire return plan free and seat_limit 3", async () => {
 
 Deno.test("workspace update failure clears the dedupe record so the retry is processed", async () => {
   const mock = createMock({ failUpdates: 1 });
-  const body = subscriptionBody({
+  const body = await subscriptionBody({
     event: "subscription_created",
     status: "active",
     variantId: Number(PRO_VARIANT_ID),
@@ -311,7 +321,7 @@ Deno.test("workspace update failure clears the dedupe record so the retry is pro
 
 Deno.test("processing exception clears the dedupe record", async () => {
   const mock = createMock({ updateThrows: true });
-  const body = subscriptionBody({
+  const body = await subscriptionBody({
     event: "subscription_updated",
     status: "active",
     variantId: Number(PRO_VARIANT_ID),
@@ -331,7 +341,7 @@ Deno.test("processing exception clears the dedupe record", async () => {
 
 Deno.test("subscription_created does not record a refund or touch a license key", async () => {
   const mock = createMock();
-  const body = subscriptionBody({
+  const body = await subscriptionBody({
     event: "subscription_created",
     status: "active",
     variantId: Number(PRO_VARIANT_ID),
@@ -346,6 +356,62 @@ Deno.test("subscription_created does not record a refund or touch a license key"
   assertEquals(mock.updates.length, 1);
   assertEquals(mock.updates[0].values.plan, "pro");
   assertEquals(mock.updates[0].values.seat_limit, 5);
+});
+
+Deno.test("unsigned workspace binding is ignored and does not grant a plan", async () => {
+  const mock = createMock();
+  const body = await subscriptionBody({
+    event: "subscription_created",
+    status: "active",
+    variantId: Number(PRO_VARIANT_ID),
+    signWorkspace: false,
+  });
+  const response = await handleLemonSqueezyWebhook(post(body, await sign(body)), {
+    supabase: mock.supabase,
+    webhookSecret: SECRET,
+  });
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.text(), "ignored");
+  assertEquals(mock.updates.length, 0);
+  assertEquals(mock.deletes.length, 0);
+  assertEquals(mock.events.size, 1);
+});
+
+Deno.test("unknown subscription status does not grant an active plan", async () => {
+  const mock = createMock();
+  const body = await subscriptionBody({
+    event: "subscription_updated",
+    status: "complimentary",
+    variantId: Number(PRO_VARIANT_ID),
+  });
+  const response = await handleLemonSqueezyWebhook(post(body, await sign(body)), {
+    supabase: mock.supabase,
+    webhookSecret: SECRET,
+  });
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.text(), "ignored");
+  assertEquals(mock.updates.length, 0);
+  assertEquals(mock.deletes.length, 0);
+});
+
+Deno.test("a zero-row workspace update releases the dedupe record", async () => {
+  const mock = createMock({ updateCount: 0 });
+  const body = await subscriptionBody({
+    event: "subscription_created",
+    status: "active",
+    variantId: Number(PRO_VARIANT_ID),
+  });
+  const response = await handleLemonSqueezyWebhook(post(body, await sign(body)), {
+    supabase: mock.supabase,
+    webhookSecret: SECRET,
+  });
+
+  assertEquals(response.status, 500);
+  assertEquals(await response.text(), "update failed");
+  assertEquals(mock.events.size, 0);
+  assertEquals(mock.deletes.length, 1);
 });
 
 Deno.test("order_refunded records the buyer email and deactivates the license key", async () => {
@@ -382,14 +448,18 @@ Deno.test("order_refunded records the buyer email and deactivates the license ke
   });
 });
 
-Deno.test("subscription_payment_refunded deactivates the key and still updates the workspace", async () => {
+Deno.test("subscription_payment_refunded deactivates the key and still updates a bound workspace", async () => {
   const mock = createMock();
+  const workspaceSig = await signWorkspaceId(SECRET, WORKSPACE_ID);
   const body = JSON.stringify({
-    meta: { event_name: "subscription_payment_refunded", custom_data: { workspace_id: "ws-1" } },
+    meta: {
+      event_name: "subscription_payment_refunded",
+      custom_data: { workspace_id: WORKSPACE_ID, workspace_sig: workspaceSig },
+    },
     data: {
       id: "9",
       attributes: {
-        status: "refunded",
+        status: "active",
         user_email: "sub@example.com",
         subscription_id: 77,
         refunded_at: "2026-10-02T00:00:00.000Z",
@@ -413,12 +483,39 @@ Deno.test("subscription_payment_refunded deactivates the key and still updates t
     p_refunded_at: "2026-10-02T00:00:00.000Z",
   });
   assertEquals(mock.updates.length, 1);
+  assertEquals(mock.updates[0].value, WORKSPACE_ID);
   assertEquals(mock.updates[0].values, {
     status: "active",
     plan: "pro",
     seat_limit: 5,
     ls_subscription_id: "9",
   });
+});
+
+Deno.test("unsigned subscription refund still records the refund and does not grant a plan", async () => {
+  const mock = createMock();
+  const body = JSON.stringify({
+    meta: { event_name: "subscription_payment_refunded", custom_data: { workspace_id: "ws-1" } },
+    data: {
+      id: "9",
+      attributes: {
+        status: "refunded",
+        user_email: "sub@example.com",
+        subscription_id: 77,
+        refunded_at: "2026-10-02T00:00:00.000Z",
+        variant_id: Number(PRO_VARIANT_ID),
+      },
+    },
+  });
+  const response = await handleLemonSqueezyWebhook(post(body, await sign(body)), {
+    supabase: mock.supabase,
+    webhookSecret: SECRET,
+  });
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.text(), "ignored");
+  assertEquals(mock.rpcs.map((call) => call.fn), ["record_refund_event", "deactivate_license_for_refund"]);
+  assertEquals(mock.updates.length, 0);
 });
 
 Deno.test("refund without a buyer email still deactivates the license key", async () => {
@@ -461,4 +558,22 @@ Deno.test("refund insert failure clears the dedupe record so the retry is proces
   assertEquals(await retried.text(), "ok");
   assertEquals(mock.events.size, 1);
   assertEquals(mock.rpcs.filter((call) => call.fn === "deactivate_license_for_refund").length, 1);
+});
+
+Deno.test("ignored events do not echo the event name", async () => {
+  const mock = createMock();
+  const body = await subscriptionBody({
+    event: "order_created",
+    status: "active",
+  });
+  const response = await handleLemonSqueezyWebhook(post(body, await sign(body)), {
+    supabase: mock.supabase,
+    webhookSecret: SECRET,
+  });
+  const text = await response.text();
+
+  assertEquals(response.status, 200);
+  assertEquals(text, "ignored");
+  assertEquals(text.includes("order_created"), false);
+  assertEquals(mock.updates.length, 0);
 });

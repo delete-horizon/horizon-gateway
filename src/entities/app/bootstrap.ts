@@ -22,37 +22,10 @@ import { readAppLang } from "@/shared/lib/i18n/app-lang";
 import { listen } from "@/shared/lib/tauri/client";
 import { HUB_DATA_CHANGED } from "@/shared/lib/tauri/hubEvents";
 import { toastError, toastSuccess } from "@/shared/ui/toast";
+import { extractGithubIdentity } from "./githubIdentity";
 import { shouldConsumeSessionHandoff, takeSessionHandoff } from "./sessionHandoff";
 import { appStatusLoadedAtom, appStatusLoadingAtom, backendUnavailableAtom } from "./status/store";
 import { type DBProfile, supabaseProfileAtom, supabaseSessionAtom } from "./user/store";
-
-interface GithubIdentityInfo {
-  githubId: string | null;
-  githubLogin: string | null;
-}
-
-/**
- * Extracts a stable GitHub id/login from a Supabase session user so `profiles` can be
- * matched by the GitHub Sponsors webhook. Prefers `user_metadata`, falls back to scanning
- * `identities` for the `github` provider.
- */
-function extractGithubIdentity(user: {
-  user_metadata?: Record<string, unknown> | null;
-  identities?: Array<{ provider?: string; id?: string }> | null;
-}): GithubIdentityInfo {
-  const meta = user.user_metadata ?? {};
-  const githubLogin = (meta.user_name as string | undefined) || (meta.preferred_username as string | undefined) || null;
-
-  let githubId: string | null = meta.provider_id ? String(meta.provider_id) : null;
-  if (!githubId) {
-    const githubIdentity = user.identities?.find((identity) => identity.provider === "github");
-    if (githubIdentity?.id) {
-      githubId = String(githubIdentity.id);
-    }
-  }
-
-  return { githubId, githubLogin };
-}
 
 export function useAppBootstrap() {
   const setDomains = useSetAtom(domainsAtom);

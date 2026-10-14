@@ -370,6 +370,17 @@ authorization_url_path = "/oauth/consent"
 # Allow dynamic client registration
 allow_dynamic_registration = false
 
+# Webhooks authenticate with HMAC signatures, not a Supabase user JWT.
+# create-checkout requires a user JWT at the gateway and again inside the function.
+[functions.lemon-squeezy-webhook]
+verify_jwt = false
+
+[functions.github-sponsors-webhook]
+verify_jwt = false
+
+[functions.create-checkout]
+verify_jwt = true
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
