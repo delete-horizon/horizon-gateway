@@ -132,17 +132,19 @@ API를 직접 부르거나, 데이터 가공과 화면 확인에 쓰는 도구�
 
 ## 설치
 
-[GitHub Releases](https://github.com/delete-horizon/horizon-gateway/releases)에서 받습니다. Windows x64, macOS Apple Silicon, macOS Intel, Linux x64용을 제공합니다. Windows ARM과 Linux ARM용은 없습니다. Linux 패키지는 Ubuntu 22.04에서 빌드합니다.
+[GitHub Releases](https://github.com/delete-horizon/horizon-gateway/releases)에서 설치 파일을 받습니다. [v2.8.15](https://github.com/delete-horizon/horizon-gateway/releases/tag/v2.8.15) 자산은 아래와 같습니다.
 
-v2.8.15 설치 파일 크기입니다. 숫자는 십진 MB입니다.
-
-| 운영체제 | 받는 파일 | 아키텍처 | 크기 |
+| 운영체제 | 패키지 | 아키텍처 | 크기 |
 |---|---|---|---|
-| Windows | NSIS `horizon-gateway_*_x64-setup.exe` | x64 | 22.9MB |
-| macOS | `horizon-gateway_*_aarch64.dmg`, `horizon-gateway_*_x64.dmg` | Apple Silicon, Intel 각각 | 30.5MB, 31.7MB |
-| Linux | `.AppImage`, `.deb`, `.rpm` | x64 (`amd64` / `x86_64`) | AppImage 110.8MB, deb·rpm 33.7MB |
+| Windows | NSIS `.exe` (`horizon-gateway_2.8.15_x64-setup.exe`). `.msi`는 없습니다. | x64 | 22.9 MB |
+| macOS | `.dmg`. Apple Silicon용과 Intel용이 각각 있습니다. | aarch64, x64 | 30.5 MB, 31.7 MB |
+| Linux | `.deb` | x64 (amd64) | 33.7 MB |
+| Linux | `.rpm` | x64 | 33.7 MB |
+| Linux | `.AppImage` | x64 (amd64) | 110.8 MB |
 
-Windows 설치는 머신 단위라 설치할 때 권한 상승이 있습니다. `*.app.tar.gz`, `*.sig`, `latest.json`은 업데이트용입니다. `SHA256SUMS`는 설치 파일과 업데이터 바이너리의 SHA-256 목록입니다. [다운로드 검증](#다운로드-검증)을 보세요.
+크기는 해당 릴리스 파일의 십진 메가바이트입니다. 같은 릴리스에는 업데이터 파일(`.sig`, `latest.json`, `.app.tar.gz`)과, 설치 파일·업데이터 바이너리의 `SHA256SUMS`도 있습니다. 이후 릴리스는 크기가 다를 수 있습니다. [다운로드 검증](#다운로드-검증)을 보세요.
+
+Windows x64, macOS Apple Silicon, macOS Intel, Linux x64용을 제공합니다. Windows ARM과 Linux ARM용은 없습니다. Linux 패키지는 Ubuntu 22.04에서 빌드합니다. Windows 설치는 머신 단위라 설치할 때 권한 상승이 있습니다. Windows에서 **사용자의 PC를 보호했습니다**가 보이면 [Windows SmartScreen](#windows-smartscreen)을 보세요.
 
 절차는 [시작 가이드](./docs/ko/getting-started.md)에 있습니다.
 
@@ -182,6 +184,19 @@ Get-Content SHA256SUMS | ForEach-Object {
   if ($actual -eq $expected.ToLower()) { "OK: $name" } else { throw "SHA256 mismatch: $name" }
 }
 ```
+
+---
+
+## Windows SmartScreen
+
+Windows에서 설치 파일(`.exe`)을 실행하면 **사용자의 PC를 보호했습니다**가 나올 수 있어요. 이 창이 보이면 **추가 정보**를 누른 다음 **실행**을 눌러 설치를 이어가면 돼요.
+
+이 안내는 게시자가 새롭고, 프로그램에 서명이 없거나 평판이 낮을 때 Windows가 실행 전에 한 번 확인을 요청해서 나와요.
+
+**실행**을 누르기 전에, 받은 파일이 공식 배포본인지 확인해 주세요.
+
+- [공식 사이트](https://gateway.delete-horizon.com/ko) 또는 [GitHub Releases](https://github.com/delete-horizon/horizon-gateway/releases)에서 받은 파일인지 확인해요.
+- 그 릴리스에 체크섬(`SHA256SUMS`)이 있으면 [다운로드 검증](#다운로드-검증)대로 해시를 맞춰요. 체크섬이 없는 릴리스는 공식 사이트와 GitHub 릴리스 페이지에서 받았는지만 확인해요.
 
 ---
 
@@ -297,9 +312,20 @@ Windows PowerShell에서 JSON을 넘기는 방법은 [시작 가이드의 hgc �
 
 ---
 
+## 요금제
+
+플랜은 설치한 기기 수를 제한하지 않습니다.
+
+- **Free**: 워크스페이스 1개, 멤버 최대 3명
+- **Team Pro**: 워크스페이스 멤버 최대 5명
+
+---
+
 ## 라이선스
 
-© 2026 Delete Horizon. All rights reserved.
+Horizon Gateway는 Delete Horizon의 독점(proprietary) 소프트웨어입니다.
+
+Copyright (c) 2026 Delete Horizon. All rights reserved.
 
 - 문의: `hello@delete-horizon.com`
 - 변경 이력: [CHANGELOG.ko.md](./CHANGELOG.ko.md)
