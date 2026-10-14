@@ -88,6 +88,8 @@ Download installers from [GitHub Releases](https://github.com/delete-horizon/hor
 
 Sizes are decimal megabytes of those release files. The same release also has updater files (`.sig`, `latest.json`, `.app.tar.gz`) and `SHA256SUMS` for the installers and updater binaries. Later releases can differ in size. See [Verifying downloads](#verifying-downloads).
 
+The Windows installer is not yet code-signed, so Windows may show "Windows protected your PC". Click **More info**, then **Run anyway**. Confirm the file came from the official [GitHub Releases](https://github.com/delete-horizon/horizon-gateway/releases) page or from [gateway.delete-horizon.com](https://gateway.delete-horizon.com).
+
 ---
 
 ## Verifying downloads
@@ -214,16 +216,28 @@ Gemini CLI (`.gemini/settings.json`):
 
 Add `"--allow-write"` or `"--allow-body"` to `args` only for an agent that should change the proxy or read a captured body. `server.json` is the MCP Registry document for `io.github.delete-horizon/horizon-gateway`. Releases attach one `horizon-gateway.mcpb` for Windows x64 and Linux x64; it runs `hgc mcp` and the desktop app must be running. macOS is not in that bundle. Use the `hgc` that ships inside the app. See [docs/mcp-registry.md](./docs/mcp-registry.md).
 
-`hgc mcp` always uses the local control socket and the local token. It does not use remote attach.
+`hgc mcp` always uses the local control socket and the local token. It does not use remote access.
 
-### Remote attach
+### Remote access
 
-Remote attach is off unless the daemon is started with `--remote-attach`, `HG_SERVE_REMOTE_ATTACH=1`, or `remote-attach.json`. Bind it to the Tailscale IP with `--remote-bind`, `HG_SERVE_REMOTE_BIND`, or the `bind` field in `remote-attach.json`. If that address is omitted, the socket falls back to `0.0.0.0` and the daemon logs a warning. Remote clients must use TLS with the self-signed certificate created on first enable. Pin the SHA-256 fingerprint with `--tls-fingerprint` or `HG_SERVE_TLS_FINGERPRINT`. Without a pin, `hgc` stores the first fingerprint it sees. Send the remote token only after the handshake (`--remote-token-file`, `--remote-token`, or `HG_SERVE_REMOTE_TOKEN`). The default scope is read-only plus mock and route edits. `HG_SERVE_REMOTE_SCOPE=admin` (or `full`) is required for proxy start/stop, PAC set/clear, `allow_remote_access`, and token reissue. `reissue_remote_token` invalidates the previous token and live remote sessions immediately; the new token is only in `serve.remote.token` on the host.
+Remote access to the headless control socket is off by default. The command and event sockets listen on loopback and accept the local `serve.token` in plaintext. Enable it with `horizon-gateway-serve --remote-attach`, with `HG_SERVE_REMOTE_ATTACH` set to `1`, `true`, `yes`, or `on`, or with `"enabled": true` in `remote-attach.json` in the app data directory. Optional fields in that file are `scope` and `bind`.
+
+Peers other than loopback must complete TLS before a token or command is read. The certificate is self-signed the first time remote access is enabled and stored as `remote-attach.crt` and `remote-attach.key`. Pin the SHA-256 fingerprint with `--tls-fingerprint` or `HG_SERVE_TLS_FINGERPRINT`. With no pin, `hgc` stores the first fingerprint it sees in `remote-attach-pins.json`. The same fingerprint is in `serve.endpoints.json` (`remoteTlsFingerprint`) and in `get_remote_attach_status`. Those records leave the token out.
+
+The remote token is separate from `serve.token`. It is generated and stored owner-only in `serve.remote.token`. Send it after the handshake with `--remote-token-file`, `--remote-token`, or `HG_SERVE_REMOTE_TOKEN`. A remote peer must present this token. The local `serve.token` does not authenticate a remote peer. Five failed attempts from the same source IP within 60 seconds lock that IP for 5 minutes. A locked IP stays rejected until the lock ends, even when the token is correct. A successful login clears that IP's failure count. The lock is kept in process memory and clears when the daemon restarts. `reissue_remote_token` replaces the token immediately and closes existing remote sessions. The new token is written only to `serve.remote.token`.
+
+The default scope is `edit`: read commands (`check_`, `get_`, `list_`, `search_`), mock, route, and scenario edits, `ping`, and `download_api_schema`. Proxy start and stop, transparent proxy start and stop, PAC set and clear, `update_proxy_settings`, `reissue_remote_token`, and `shutdown_serve` require `admin` or `full`. Set the scope with `--remote-scope`, `HG_SERVE_REMOTE_SCOPE`, or the `scope` field. Accepted values are `edit`, `admin`, and `full`. For `scope` and `bind`, the CLI flag overrides the environment variable, which overrides the file.
+
+Set the listen address with `--remote-bind`, `--remote-bind=<ip>`, `HG_SERVE_REMOTE_BIND`, or the `bind` field. If the address is omitted, the socket listens on `0.0.0.0` and the daemon logs a warning. The preferred command port is 17345. If that port is taken, the daemon binds an ephemeral port on the same address. Connect with `hgc --attach host:port`, `--attach=host:port`, or `HG_SERVE_ATTACH`. These client flags apply to `hgc run`.
+
+The proxy setting `allow_remote_access` is separate. Enabling this control socket leaves that setting unchanged.
 
 ```bash
 horizon-gateway-serve --remote-attach --remote-bind 100.64.0.2
 hgc --attach 100.64.0.2:17345 --remote-token-file ./remote.token --tls-fingerprint <sha256> get_proxy_status '{}'
 ```
+
+Keep `serve.remote.token` private. On an untrusted network, bind the listener to a Tailscale or LAN address.
 
 ---
 
