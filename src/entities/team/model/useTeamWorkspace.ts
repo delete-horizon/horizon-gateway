@@ -2,6 +2,7 @@ import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useState } from "react";
 import { languageAtom, supabaseProfileAtom, supabaseSessionAtom } from "@/entities/app";
 import { commands } from "@/shared/api";
+import { isLocalSupabaseUrl } from "@/shared/api/localAuth";
 import { supabase } from "@/shared/api/supabase";
 import { toastError, toastInfo, toastSuccess } from "@/shared/ui/toast";
 import {
@@ -23,7 +24,7 @@ import {
   updateWorkspace,
 } from "../api";
 import { hasProAccess, isUnlimitedTeam } from "../lib/entitlement";
-import { isPaidCheckoutEnabled } from "../lib/paidCheckout";
+import { fetchHostedCheckoutUrl, isPaidCheckoutEnabled, localDevCheckoutUrl } from "../lib/paidCheckout";
 import { activeWorkspaceIdAtom } from "../store";
 import { pullWorkspaceSync, pushWorkspaceSync, type WorkspaceSyncOptions } from "../sync";
 import type { Workspace, WorkspaceInvite, WorkspaceMember } from "../types";
@@ -213,12 +214,17 @@ export function useTeamWorkspace() {
       toastError(lang === "ko" ? "먼저 워크스페이스를 선택하세요." : "Select a workspace first.");
       return;
     }
-    const separator = LEMON_CHECKOUT_URL.includes("?") ? "&" : "?";
-    const url = `${LEMON_CHECKOUT_URL}${separator}checkout[custom][workspace_id]=${encodeURIComponent(activeWorkspaceId)}`;
     try {
+      const url = isLocalSupabaseUrl()
+        ? localDevCheckoutUrl(LEMON_CHECKOUT_URL, activeWorkspaceId)
+        : await fetchHostedCheckoutUrl(activeWorkspaceId);
+      if (!url) {
+        toastError(lang === "ko" ? "결제 페이지를 여는 데 실패했습니다." : "Failed to open checkout page.");
+        return;
+      }
       await commands.openExternalUrl(url);
     } catch (e) {
-      console.error("openExternalUrl:", e);
+      console.error("checkout failed", e);
       toastError(lang === "ko" ? "결제 페이지를 여는 데 실패했습니다." : "Failed to open checkout page.");
     }
   }, [activeWorkspaceId, lang, paidCheckoutEnabled]);
@@ -403,7 +409,7 @@ export function useTeamWorkspace() {
     }
     setProcessingInviteId(inv.id);
     try {
-      await acceptInvite(inv.token, userId);
+      await acceptInvite(inv.token);
       setMyInvites((prev) => prev.filter((item) => item.id !== inv.id));
       await refreshWorkspaces();
       selectWorkspace(inv.workspace_id);
@@ -445,7 +451,7 @@ export function useTeamWorkspace() {
     }
     setAccepting(true);
     try {
-      const member = await acceptInvite(inviteToken.trim(), userId);
+      const member = await acceptInvite(inviteToken.trim());
       setInviteToken("");
       await refreshWorkspaces();
       selectWorkspace(member.workspace_id);

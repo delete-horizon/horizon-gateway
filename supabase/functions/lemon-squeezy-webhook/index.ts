@@ -2,23 +2,21 @@
 //
 // Verifies the Lemon Squeezy webhook signature, records the raw body in
 // `webhook_events` (sha256 hex id) so a replay returns 200 without reprocessing,
-// then updates `workspaces.status` / `workspaces.seat_limit` from `subscription_*`
-// events, matched via the `checkout[custom][workspace_id]` value echoed back as
-// `meta.custom_data.workspace_id`. `order_refunded` and
-// `subscription_payment_refunded` also record `refund_events` and deactivate the
-// matching license key. If processing after the insert fails, the event row is
-// deleted so Lemon Squeezy's retry is processed again instead of treated as a
-// duplicate.
+// then updates workspace billing columns. The workspace id is honored only when
+// `meta.custom_data.workspace_sig` is an HMAC of that id made with the webhook
+// secret (see create-checkout). Unsigned custom data is ignored.
+// `order_refunded` and `subscription_payment_refunded` also record
+// `refund_events` and deactivate the matching license key. If processing after
+// the insert fails, the event row is deleted so a retry is processed again.
 //
 // Refunds do not block future purchases. Repeat refunders are listed in
 // `admin_repeat_refunders` for a person to review.
 //
-// Required secrets (set via `supabase secrets set`):
-//   - LEMON_SQUEEZY_WEBHOOK_SECRET — the signing secret configured on the LS webhook
-//   - SUPABASE_URL                 — usually auto-provided in the Edge Function runtime
-//   - SUPABASE_SERVICE_ROLE_KEY    — service role key (bypasses RLS; keep secret!)
+// Unknown subscription statuses do not grant an active plan.
 //
-// Apply the refund_events migration before deploying this function.
+// Apply the billing RLS migration and the refund_events migration before
+// deploying this function. Gateway JWT verification is disabled (config.toml);
+// Lemon cannot send a Supabase JWT. This handler requires a valid HMAC instead.
 //
 // Lemon Squeezy webhook setup: Store settings -> Webhooks
 //   - URL: https://<project-ref>.supabase.co/functions/v1/lemon-squeezy-webhook
@@ -27,9 +25,10 @@
 //             order_refunded, subscription_payment_refunded, license_key_created,
 //             license_key_updated
 //
-// Checkout must pass `checkout[custom][workspace_id]=<uuid>` (see
-// `src/entities/team/ui/TeamSection.tsx` and VITE_LEMON_SQUEEZY_CHECKOUT_URL) so this
-// function knows which workspace to update.
+// Required secrets:
+//   - LEMON_SQUEEZY_WEBHOOK_SECRET
+//   - SUPABASE_URL
+//   - SUPABASE_SERVICE_ROLE_KEY
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleLemonSqueezyWebhook, type WebhookSupabase } from "./handler.ts";
@@ -38,7 +37,9 @@ const LEMON_SQUEEZY_WEBHOOK_SECRET = Deno.env.get("LEMON_SQUEEZY_WEBHOOK_SECRET"
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
 
 Deno.serve((req) =>
   handleLemonSqueezyWebhook(req, {
