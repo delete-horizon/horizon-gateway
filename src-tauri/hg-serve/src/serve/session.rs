@@ -261,7 +261,7 @@ fn write_response<W: Write>(writer: &mut W, response: &ServeResponse) -> Result<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::{Read, Write};
+    use std::io::{BufRead, Read, Write};
     use std::net::{Ipv4Addr, SocketAddr, TcpListener};
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};
@@ -512,10 +512,69 @@ mod tests {
         });
         let mut request =
             hg_core::ServeRequest::new("ping", Value::Null).with_token(Some(token.clone()));
-        request.protocol_version = PROTOCOL_VERSION + 9;
+        request.protocol_version = Some(PROTOCOL_VERSION + 9);
         let err = send_raw(addr, &remote, &token, &pins, &request).unwrap_err();
         assert!(err.contains("unsupported serve protocol version"), "{err}");
+        assert!(err.contains("same release"), "{err}");
         assert!(!err.contains(&token), "{err}");
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn local_session_accepts_match_and_rejects_mismatch_and_missing_version() {
+        let (_dir, remote, local, _) = harness(RemoteScope::Edit);
+
+        let calls = Arc::new(AtomicUsize::new(0));
+        let addr = serve_once(
+            Arc::clone(&remote),
+            local.clone(),
+            IpAddr::V4(Ipv4Addr::LOCALHOST),
+            Ingress::Local,
+            Arc::clone(&calls),
+        );
+        let matched =
+            hg_core::ServeRequest::new("ping", Value::Null).with_token(Some(local.clone()));
+        let body = exchange_local(addr, &serde_json::to_string(&matched).unwrap());
+        assert!(body.contains("\"ok\":true"), "{body}");
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+
+        let calls = Arc::new(AtomicUsize::new(0));
+        let addr = serve_once(
+            Arc::clone(&remote),
+            local.clone(),
+            IpAddr::V4(Ipv4Addr::LOCALHOST),
+            Ingress::Local,
+            Arc::clone(&calls),
+        );
+        let mut mismatched = matched.clone();
+        mismatched.protocol_version = Some(PROTOCOL_VERSION + 4);
+        let body = exchange_local(addr, &serde_json::to_string(&mismatched).unwrap());
+        assert!(
+            body.contains("unsupported serve protocol version"),
+            "{body}"
+        );
+        assert!(body.contains("same release"), "{body}");
+        assert!(!body.contains(&local), "{body}");
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+
+        let calls = Arc::new(AtomicUsize::new(0));
+        let addr = serve_once(
+            Arc::clone(&remote),
+            local.clone(),
+            IpAddr::V4(Ipv4Addr::LOCALHOST),
+            Ingress::Local,
+            Arc::clone(&calls),
+        );
+        let missing = json!({
+            "id": "missing",
+            "command": "ping",
+            "payload": null,
+            "token": local,
+        });
+        let body = exchange_local(addr, &serde_json::to_string(&missing).unwrap());
+        assert!(body.contains("missing serve protocol version"), "{body}");
+        assert!(body.contains("same release"), "{body}");
+        assert!(!body.contains(&local), "{body}");
         assert_eq!(calls.load(Ordering::SeqCst), 0);
     }
 
@@ -831,6 +890,24 @@ mod tests {
                 .unwrap();
         assert_eq!(file.trim(), remote_token);
         assert!(!status.contains(file.trim()));
+    }
+
+    fn exchange_local(addr: SocketAddr, json_line: &str) -> String {
+        let mut socket = TcpStream::connect(addr).unwrap();
+        socket
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .unwrap();
+        socket
+            .set_write_timeout(Some(Duration::from_secs(2)))
+            .unwrap();
+        let mut line = json_line.to_string();
+        line.push('\n');
+        socket.write_all(line.as_bytes()).unwrap();
+        socket.flush().unwrap();
+        let mut reader = std::io::BufReader::new(socket);
+        let mut buf = String::new();
+        reader.read_line(&mut buf).unwrap();
+        buf
     }
 
     fn send_raw(

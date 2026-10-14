@@ -36,10 +36,18 @@ pub fn serve_matches_gui_version() -> bool {
 }
 
 /// Dispatch a backend command through the serve IPC channel.
+///
+/// The desktop shell and the web view behind it share this path. A core whose
+/// protocol version is missing or different is rejected before the payload is used.
 pub fn call_command(command: &str, payload: Value) -> Result<Value, String> {
     let request = ServeRequest::new(command, payload).with_token(serve_token());
+    finish_response(send_request(&request)?)
+}
 
-    let response = send_request(&request)?;
+pub(crate) fn finish_response(response: ServeResponse) -> Result<Value, String> {
+    if let Some(err) = response.unsupported_version_error() {
+        return Err(err);
+    }
     if response.ok {
         response
             .data
@@ -121,4 +129,39 @@ pub fn invoke_args_to_payload(args: Value) -> Value {
         }
     }
     args
+}
+
+#[cfg(test)]
+mod tests {
+    use super::finish_response;
+    use hg_core::{ServeResponse, PROTOCOL_VERSION};
+    use serde_json::{json, Value};
+
+    fn with_version(version: Option<u32>) -> ServeResponse {
+        let mut response = ServeResponse::success("1".into(), json!({ "ok": true }));
+        response.protocol_version = version;
+        response
+    }
+
+    #[test]
+    fn shell_accepts_a_matching_protocol_version() {
+        let data = finish_response(with_version(Some(PROTOCOL_VERSION))).unwrap();
+        assert_eq!(data["ok"], Value::Bool(true));
+    }
+
+    #[test]
+    fn shell_rejects_a_mismatched_protocol_version() {
+        let err = finish_response(with_version(Some(PROTOCOL_VERSION + 2))).unwrap_err();
+        assert!(err.contains("unsupported serve protocol version"), "{err}");
+        assert!(err.contains("same release"), "{err}");
+    }
+
+    #[test]
+    fn shell_rejects_a_missing_protocol_version() {
+        let omitted = r#"{"id":"1","ok":true,"data":{"ok":true}}"#;
+        let response: ServeResponse = serde_json::from_str(omitted).unwrap();
+        let err = finish_response(response).unwrap_err();
+        assert!(err.contains("missing serve protocol version"), "{err}");
+        assert!(err.contains("same release"), "{err}");
+    }
 }
