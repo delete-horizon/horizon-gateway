@@ -3,8 +3,14 @@
 // Verifies the webhook signature, records the raw body in `webhook_events`
 // (sha256 hex id) so a replay returns 200 without reprocessing, then updates
 // `workspaces.status` / `workspaces.seat_limit` from `subscription_*` events,
-// matched via `meta.custom_data.workspace_id`. If processing after the insert
-// fails, the event row is deleted so a retry is processed again.
+// matched via `meta.custom_data.workspace_id`. Refund events also record
+// `refund_events` and deactivate the matching license key. If processing after
+// the insert fails, the event row is deleted so a retry is processed again.
+//
+// Refunds do not block purchases. Apply the refund_events migration before
+// deploying this function.
+
+import { type LemonPayload, planLemonPayload, REFUND_EVENTS } from "./refund.ts";
 
 export interface WebhookQueryError {
   code?: string;
@@ -22,6 +28,7 @@ export interface WebhookSupabase {
       eq(column: string, value: string): PromiseLike<{ error: WebhookQueryError | null }>;
     };
   };
+  rpc(fn: string, args: Record<string, unknown>): PromiseLike<{ error: WebhookQueryError | null }>;
 }
 
 export interface WebhookHandlerDeps {
@@ -97,18 +104,69 @@ async function releaseWebhookEvent(supabase: WebhookSupabase, eventId: string): 
   }
 }
 
-interface LemonSqueezyPayload {
-  meta?: {
-    event_name?: string;
-    custom_data?: { workspace_id?: string };
-  };
-  data?: {
+interface LemonSqueezyPayload extends LemonPayload {
+  data?: LemonPayload["data"] & {
     id?: string;
     attributes?: {
       status?: string;
       variant_id?: number | string;
     };
   };
+}
+
+const LICENSE_EVENTS = new Set(["license_key_created", "license_key_updated"]);
+
+async function recordRefundAndDeactivate(
+  supabase: WebhookSupabase,
+  payload: LemonSqueezyPayload,
+): Promise<Response | null> {
+  const plan = planLemonPayload(payload, new Date().toISOString(), SEAT_LIMIT_BY_VARIANT);
+  if (plan.kind !== "refund") {
+    return null;
+  }
+  if (!plan.email) {
+    console.warn("lemon-squeezy refund missing buyer email", payload.meta?.event_name ?? "");
+  } else {
+    const inserted = await supabase.rpc("record_refund_event", {
+      p_email: plan.email,
+      p_order_id: plan.orderId,
+      p_refunded_at: plan.refundedAt,
+    });
+    if (inserted.error) {
+      console.error("refund_events insert failed:", inserted.error.message);
+      return new Response("refund insert failed", { status: 500 });
+    }
+  }
+
+  const deactivated = await supabase.rpc("deactivate_license_for_refund", {
+    p_order_id: plan.licenseOrderId,
+    p_subscription_id: plan.subscriptionId,
+    p_refunded_at: plan.refundedAt,
+  });
+  if (deactivated.error) {
+    console.error("license deactivate failed:", deactivated.error.message);
+    return new Response("license deactivate failed", { status: 500 });
+  }
+  return null;
+}
+
+async function upsertLicenseKey(supabase: WebhookSupabase, payload: LemonSqueezyPayload): Promise<Response | null> {
+  const plan = planLemonPayload(payload, new Date().toISOString(), SEAT_LIMIT_BY_VARIANT);
+  if (plan.kind !== "license") {
+    return null;
+  }
+  const upserted = await supabase.rpc("upsert_license_key", {
+    p_lemon_id: plan.lemonId,
+    p_license_key: plan.licenseKey,
+    p_order_id: plan.orderId,
+    p_status: plan.status,
+    p_ends_at: plan.endsAt,
+  });
+  if (upserted.error) {
+    console.error("license upsert failed:", upserted.error.message);
+    return new Response("license upsert failed", { status: 500 });
+  }
+  return new Response("ok", { status: 200 });
 }
 
 export async function handleLemonSqueezyWebhook(req: Request, deps: WebhookHandlerDeps): Promise<Response> {
@@ -144,7 +202,27 @@ export async function handleLemonSqueezyWebhook(req: Request, deps: WebhookHandl
   }
 
   try {
+    if (REFUND_EVENTS.has(eventName)) {
+      const refundFailure = await recordRefundAndDeactivate(deps.supabase, payload);
+      if (refundFailure) {
+        await releaseWebhookEvent(deps.supabase, eventId);
+        return refundFailure;
+      }
+      if (eventName === "order_refunded") {
+        return new Response("ok", { status: 200 });
+      }
+    }
+
     if (!eventName.startsWith("subscription_")) {
+      if (LICENSE_EVENTS.has(eventName)) {
+        const licenseResponse = await upsertLicenseKey(deps.supabase, payload);
+        if (licenseResponse) {
+          if (licenseResponse.status === 500) {
+            await releaseWebhookEvent(deps.supabase, eventId);
+          }
+          return licenseResponse;
+        }
+      }
       return new Response(`ignored event: ${eventName}`, { status: 200 });
     }
 

@@ -4,19 +4,28 @@
 // `webhook_events` (sha256 hex id) so a replay returns 200 without reprocessing,
 // then updates `workspaces.status` / `workspaces.seat_limit` from `subscription_*`
 // events, matched via the `checkout[custom][workspace_id]` value echoed back as
-// `meta.custom_data.workspace_id`. If processing after the insert fails, the event
-// row is deleted so Lemon Squeezy's retry is processed again instead of treated
-// as a duplicate.
+// `meta.custom_data.workspace_id`. `order_refunded` and
+// `subscription_payment_refunded` also record `refund_events` and deactivate the
+// matching license key. If processing after the insert fails, the event row is
+// deleted so Lemon Squeezy's retry is processed again instead of treated as a
+// duplicate.
+//
+// Refunds do not block future purchases. Repeat refunders are listed in
+// `admin_repeat_refunders` for a person to review.
 //
 // Required secrets (set via `supabase secrets set`):
 //   - LEMON_SQUEEZY_WEBHOOK_SECRET — the signing secret configured on the LS webhook
 //   - SUPABASE_URL                 — usually auto-provided in the Edge Function runtime
 //   - SUPABASE_SERVICE_ROLE_KEY    — service role key (bypasses RLS; keep secret!)
 //
+// Apply the refund_events migration before deploying this function.
+//
 // Lemon Squeezy webhook setup: Store settings -> Webhooks
 //   - URL: https://<project-ref>.supabase.co/functions/v1/lemon-squeezy-webhook
 //   - Events: subscription_created, subscription_updated, subscription_cancelled,
-//             subscription_expired, subscription_resumed, subscription_paused
+//             subscription_expired, subscription_resumed, subscription_paused,
+//             order_refunded, subscription_payment_refunded, license_key_created,
+//             license_key_updated
 //
 // Checkout must pass `checkout[custom][workspace_id]=<uuid>` (see
 // `src/entities/team/ui/TeamSection.tsx` and VITE_LEMON_SQUEEZY_CHECKOUT_URL) so this
