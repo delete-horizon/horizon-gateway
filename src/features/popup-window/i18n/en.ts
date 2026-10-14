@@ -4,6 +4,7 @@ export const popupEn = {
   infraProxyDesc: "Core engine that intercepts local traffic for API logging, routing, and HTTPS inspection.",
   infraStart: "Start",
   infraStop: "Stop",
+  infraStopped: "Stopped",
   infraCert: "HTTPS Certificate (Root CA)",
   infraCertDesc: "Install this Root CA as a trusted certificate in your OS/browser to inspect HTTPS traffic.",
   infraCertSave: "Save Certificate",

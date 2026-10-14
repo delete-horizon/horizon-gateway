@@ -149,7 +149,9 @@ const RootLayout = () => {
       >
         {backendUnavailable && !isDetached && !isPopupWindow && !isDetachedWindow && !isChatWindow && (
           <div className="mb-4 rounded-lg border border-error/40 bg-error/10 px-4 py-3 text-sm text-error">
-            백엔드(serve)에 연결할 수 없습니다. 프록시·라우팅 기능이 동작하지 않을 수 있습니다.
+            {lang === "ko"
+              ? "백엔드에 연결할 수 없습니다. 프록시와 라우팅이 동작하지 않을 수 있습니다."
+              : "Cannot reach the backend. Proxy and routing may be unavailable."}
             <span className="mt-1 block text-xs opacity-80">{backendUnavailable}</span>
           </div>
         )}

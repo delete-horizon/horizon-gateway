@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import type { InjectionAppState } from "../hooks/useInjectionAppState";
+import { useInjectionCopy } from "../i18n";
 import { JsonViewer } from "./JsonViewer";
 
 type State = Pick<
@@ -14,6 +15,7 @@ type State = Pick<
 >;
 
 export function MockEditorModal({ s }: { s: State }) {
+  const t = useInjectionCopy();
   const editingMockRule = s.editingMockRule;
   if (!editingMockRule) {
     return null;
@@ -63,7 +65,7 @@ export function MockEditorModal({ s }: { s: State }) {
               <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
             </svg>
             <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "800", color: "#f59e0b" }}>
-              {editingMockRule.id ? "모킹 API 상세 및 편집" : "신규 모킹 규칙 작성"}
+              {editingMockRule.id ? t.mockEditTitle : t.mockNewTitle}
             </h3>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -88,7 +90,7 @@ export function MockEditorModal({ s }: { s: State }) {
                 cursor: "pointer",
               }}
             >
-              {(editingMockRule.enabled ?? true) ? "● 활성화 (ON)" : "○ 비활성화 (OFF)"}
+              {(editingMockRule.enabled ?? true) ? t.mockOn : t.mockOff}
             </button>
             <button
               type="button"
@@ -111,12 +113,12 @@ export function MockEditorModal({ s }: { s: State }) {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <label style={{ fontSize: "11px", color: "var(--wt-text-muted)" }}>규칙 이름</label>
+          <label style={{ fontSize: "11px", color: "var(--wt-text-muted)" }}>{t.ruleName}</label>
           <input
             type="text"
             value={editingMockRule.name || ""}
             onChange={(e) => s.setEditingMockRule({ ...editingMockRule, name: e.target.value })}
-            placeholder="규칙 이름 입력"
+            placeholder={t.ruleNamePlaceholder}
             style={{
               padding: "7px 10px",
               borderRadius: "6px",
@@ -153,7 +155,7 @@ export function MockEditorModal({ s }: { s: State }) {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "4px", width: "110px" }}>
-            <label style={{ fontSize: "11px", color: "var(--wt-text-muted)" }}>상태 코드</label>
+            <label style={{ fontSize: "11px", color: "var(--wt-text-muted)" }}>{t.statusCode}</label>
             <input
               type="number"
               value={editingMockRule.response_status || 200}
@@ -172,7 +174,7 @@ export function MockEditorModal({ s }: { s: State }) {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1 }}>
-            <label style={{ fontSize: "11px", color: "var(--wt-text-muted)" }}>지연 시간 (ms)</label>
+            <label style={{ fontSize: "11px", color: "var(--wt-text-muted)" }}>{t.delayMs}</label>
             <input
               type="number"
               value={editingMockRule.delay_ms || 0}
@@ -193,12 +195,12 @@ export function MockEditorModal({ s }: { s: State }) {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <label style={{ fontSize: "11px", color: "var(--wt-text-muted)" }}>URL Pattern (Wildcard * 가능)</label>
+          <label style={{ fontSize: "11px", color: "var(--wt-text-muted)" }}>{t.urlPattern}</label>
           <input
             type="text"
             value={editingMockRule.url_pattern || ""}
             onChange={(e) => s.setEditingMockRule({ ...editingMockRule, url_pattern: e.target.value })}
-            placeholder="예: */Common/GetGnb*"
+            placeholder={t.urlPatternPlaceholder}
             style={{
               padding: "7px 10px",
               borderRadius: "6px",
@@ -215,7 +217,7 @@ export function MockEditorModal({ s }: { s: State }) {
         <div style={{ display: "flex", flexDirection: "column", gap: "6px", flex: 1, minHeight: 0 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <label style={{ fontSize: "11px", color: "var(--wt-text-muted)", fontWeight: "600" }}>
-              Response Body (모킹 응답 데이터)
+              {t.responseBody}
             </label>
             <div style={{ display: "flex", gap: "4px" }}>
               <button
@@ -232,7 +234,7 @@ export function MockEditorModal({ s }: { s: State }) {
                   cursor: "pointer",
                 }}
               >
-                ✏️ 직접 편집
+                {t.editDirect}
               </button>
               <button
                 type="button"
@@ -248,7 +250,7 @@ export function MockEditorModal({ s }: { s: State }) {
                   cursor: "pointer",
                 }}
               >
-                🌳 Foldable 텍스트 뷰
+                {t.foldableView}
               </button>
             </div>
           </div>
@@ -258,7 +260,7 @@ export function MockEditorModal({ s }: { s: State }) {
               value={editingMockRule.response_body || ""}
               onChange={(e) => s.setEditingMockRule({ ...editingMockRule, response_body: e.target.value })}
               rows={8}
-              placeholder="응답 데이터 작성 (JSON 또는 일반 텍스트)..."
+              placeholder={t.responsePlaceholder}
               style={{
                 padding: "8px 10px",
                 borderRadius: "6px",
@@ -305,7 +307,7 @@ export function MockEditorModal({ s }: { s: State }) {
                 cursor: "pointer",
               }}
             >
-              🗑️ 모킹 규칙 삭제
+              {t.deleteMock}
             </button>
           ) : (
             <div />
@@ -325,7 +327,7 @@ export function MockEditorModal({ s }: { s: State }) {
                 cursor: "pointer",
               }}
             >
-              취소
+              {t.cancel}
             </button>
             <button
               type="button"
@@ -344,7 +346,7 @@ export function MockEditorModal({ s }: { s: State }) {
                 cursor: "pointer",
               }}
             >
-              💾 모킹 규칙 저장
+              {t.saveMock}
             </button>
           </div>
         </div>

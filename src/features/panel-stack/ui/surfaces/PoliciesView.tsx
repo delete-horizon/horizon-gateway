@@ -656,10 +656,10 @@ export function PoliciesView() {
 
       const pdfArrayBuffer = pdf.output("arraybuffer");
       await writeFile(filePath, new Uint8Array(pdfArrayBuffer));
-      toastSuccess("PDF 리포트가 성공적으로 생성되었습니다.");
+      toastSuccess(t.pdfSuccess);
     } catch (err) {
       console.error(err);
-      toastError(`PDF 생성 중 오류 발생: ${err}`);
+      toastError(`${t.pdfFailed} ${err}`);
     } finally {
       setIsExporting(false);
       if (originalView !== "report") {
@@ -695,7 +695,7 @@ export function PoliciesView() {
       await writeTextFile(filePath, JSON.stringify(annotations, null, 2));
       toastSuccess(t.exportSuccess);
     } catch (err) {
-      toastError(`Export failed: ${err}`);
+      toastError(`${t.exportFailed} ${err}`);
     }
   };
 
@@ -713,7 +713,7 @@ export function PoliciesView() {
         toastSuccess(`${imported.length}${t.importSuccess}`);
       }
     } catch (err) {
-      toastError(`Import failed: ${err}`);
+      toastError(`${t.importFailed} ${err}`);
     }
   };
 

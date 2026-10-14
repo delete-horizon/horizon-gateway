@@ -242,7 +242,7 @@ function MockingDashboard() {
                       <span className={`font-bold ${rule.response_status >= 400 ? `text-error` : `text-success`}`}>
                         {rule.response_status}
                       </span>
-                      <span className="text-base-content/50">Response Mock</span>
+                      <span className="text-base-content/50">{t.responseMock}</span>
                     </div>
                   </Card>
                 ))}
@@ -262,7 +262,7 @@ function MockingDashboard() {
             <input
               id="rule-name"
               className="input input-bordered border-base-300 w-full font-bold bg-base-100/50"
-              placeholder="e.g. Success Response"
+              placeholder={t.namePlaceholder}
               value={ruleForm.name}
               onChange={(e) => setRuleForm((prev) => ({ ...prev, name: e.target.value }))}
             />
@@ -305,7 +305,7 @@ function MockingDashboard() {
             <input
               id="rule-host"
               className="input input-bordered border-base-300 w-full font-mono text-sm bg-base-100/50"
-              placeholder="api.example.dev"
+              placeholder={t.hostPlaceholder}
               value={ruleForm.host}
               onChange={(e) => setRuleForm((prev) => ({ ...prev, host: e.target.value }))}
             />

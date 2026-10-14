@@ -1,8 +1,9 @@
+import { useInjectionCopy } from "../i18n";
+
 export function HeadersViewer({ headers }: { headers?: Record<string, string> }) {
+  const t = useInjectionCopy();
   if (!headers || Object.keys(headers).length === 0) {
-    return (
-      <div style={{ fontSize: "11px", color: "var(--wt-text-faint)", fontStyle: "italic" }}>헤더 정보가 없습니다.</div>
-    );
+    return <div style={{ fontSize: "11px", color: "var(--wt-text-faint)", fontStyle: "italic" }}>{t.noHeaders}</div>;
   }
 
   return (

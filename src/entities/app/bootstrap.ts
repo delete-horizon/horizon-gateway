@@ -18,6 +18,7 @@ import {
 } from "@/shared/api/devMockAuth";
 import { isDevLocalPasswordAuthEnabled, signInDevLocalUser } from "@/shared/api/localAuth";
 import { supabase } from "@/shared/api/supabase";
+import { readAppLang } from "@/shared/lib/i18n/app-lang";
 import { listen } from "@/shared/lib/tauri/client";
 import { HUB_DATA_CHANGED } from "@/shared/lib/tauri/hubEvents";
 import { toastError, toastSuccess } from "@/shared/ui/toast";
@@ -214,7 +215,7 @@ export function useAppBootstrap() {
         const err = await signInDevLocalUser();
         if (!cancelled && err) {
           console.error("[dev] local password sign-in failed:", err);
-          toastError(`로컬 로그인 실패: ${err}`);
+          toastError(readAppLang() === "ko" ? `로컬 로그인 실패: ${err}` : `Local sign-in failed: ${err}`);
         }
       })();
     } else if (localPasswordAuth) {
@@ -224,7 +225,7 @@ export function useAppBootstrap() {
         }
         if (err) {
           console.error("[dev] local password sign-in failed:", err);
-          toastError(`로컬 로그인 실패: ${err}`);
+          toastError(readAppLang() === "ko" ? `로컬 로그인 실패: ${err}` : `Local sign-in failed: ${err}`);
         }
       });
     } else if (atomsOnlyMock) {
@@ -286,7 +287,9 @@ export function useAppBootstrap() {
 
           if (authError) {
             console.error("OAuth deep link error:", authError);
-            toastError(`GitHub 로그인 실패: ${authError}`);
+            toastError(
+              readAppLang() === "ko" ? `GitHub 로그인 실패: ${authError}` : `GitHub sign-in failed: ${authError}`,
+            );
             return;
           }
 
@@ -295,10 +298,14 @@ export function useAppBootstrap() {
             const { error } = await supabase.auth.exchangeCodeForSession(code);
             if (error) {
               console.error("Failed to exchange OAuth code from deep link:", error.message);
-              toastError(`로그인 코드 교환 실패: ${error.message}`);
+              toastError(
+                readAppLang() === "ko"
+                  ? `로그인 코드 교환 실패: ${error.message}`
+                  : `Failed to exchange the sign-in code: ${error.message}`,
+              );
             } else {
               console.log("Supabase session established from OAuth code deep link");
-              toastSuccess("GitHub 로그인 완료");
+              toastSuccess(readAppLang() === "ko" ? "GitHub 로그인 완료" : "GitHub sign-in complete");
             }
             return;
           }
@@ -310,10 +317,14 @@ export function useAppBootstrap() {
             });
             if (error) {
               console.error("Failed to set session from deep link:", error.message);
-              toastError(`세션 설정 실패: ${error.message}`);
+              toastError(
+                readAppLang() === "ko"
+                  ? `세션 설정 실패: ${error.message}`
+                  : `Failed to set the session: ${error.message}`,
+              );
             } else {
               console.log("Supabase session established successfully from deep link!");
-              toastSuccess("GitHub 로그인 완료");
+              toastSuccess(readAppLang() === "ko" ? "GitHub 로그인 완료" : "GitHub sign-in complete");
             }
             return;
           }
@@ -323,7 +334,9 @@ export function useAppBootstrap() {
             urlStr.split(/[?#]/)[0],
           );
           toastError(
-            "로그인 콜백에 code가 없습니다. Supabase Redirect URLs에 horizon-gateway://auth-callback 이 있는지 확인하세요.",
+            readAppLang() === "ko"
+              ? "로그인 콜백에 code가 없습니다. Redirect URLs에 horizon-gateway://auth-callback 이 있는지 확인하세요."
+              : "The sign-in callback has no code. Check that horizon-gateway://auth-callback is in the redirect URL list.",
           );
         });
 

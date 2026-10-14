@@ -3,6 +3,7 @@ import Editor, { type Monaco } from "@monaco-editor/react";
 import clsx from "clsx";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { readAppLang } from "@/shared/lib/i18n/app-lang";
 
 export interface SuggestionItem {
   label: string;
@@ -142,7 +143,7 @@ export function evaluateTsCode(code: string, context: Record<string, unknown> = 
   }).code;
 
   if (!compiled) {
-    throw new Error("컴파일 결과가 비어있습니다.");
+    throw new Error(readAppLang() === "ko" ? "컴파일 결과가 비어 있습니다." : "The compile result is empty.");
   }
 
   const keys = Object.keys(context);

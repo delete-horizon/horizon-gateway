@@ -1,5 +1,6 @@
 import { ArrowUpRight, Copy, List, Sparkles, Terminal, X, Zap } from "lucide-react";
 import type { InjectionAppState } from "../hooks/useInjectionAppState";
+import { useInjectionCopy } from "../i18n";
 import { HeadersViewer } from "./HeadersViewer";
 import { JsonViewer } from "./JsonViewer";
 
@@ -14,6 +15,7 @@ type State = Pick<
 >;
 
 export function LogDetailModal({ s }: { s: State }) {
+  const t = useInjectionCopy();
   const selectedLogDetail = s.selectedLogDetail;
   if (!selectedLogDetail) {
     return null;
@@ -66,7 +68,7 @@ export function LogDetailModal({ s }: { s: State }) {
               {selectedLogDetail.method}
             </span>
             <h3 style={{ margin: 0, fontSize: "14px", fontWeight: "800", color: "var(--wt-text-main)" }}>
-              API 통신 상세 Log
+              {t.logDetailTitle}
             </h3>
           </div>
           <button
@@ -210,14 +212,14 @@ export function LogDetailModal({ s }: { s: State }) {
                       gap: "4px",
                     }}
                   >
-                    <Copy style={{ width: 11, height: 11 }} /> Response 복사
+                    <Copy style={{ width: 11, height: 11 }} /> {t.copyResponse}
                   </button>
                 </div>
                 <JsonViewer src={selectedLogDetail.responseBody} />
               </div>
             ) : (
               <div style={{ fontSize: "11px", color: "var(--wt-text-faint)", fontStyle: "italic" }}>
-                Response Body가 비어있거나 스트리밍 바이너리 데이터입니다.
+                {t.emptyResponse}
               </div>
             ))}
 
@@ -242,14 +244,14 @@ export function LogDetailModal({ s }: { s: State }) {
                       gap: "4px",
                     }}
                   >
-                    <Copy style={{ width: 11, height: 11 }} /> Request 복사
+                    <Copy style={{ width: 11, height: 11 }} /> {t.copyRequest}
                   </button>
                 </div>
                 <JsonViewer src={selectedLogDetail.requestBody} />
               </div>
             ) : (
               <div style={{ fontSize: "11px", color: "var(--wt-text-faint)", fontStyle: "italic" }}>
-                Request Body (전송된 데이터)가 존재하지 않습니다 (GET 또는 Body 없음).
+                {t.emptyRequest}
               </div>
             ))}
 
@@ -311,7 +313,7 @@ export function LogDetailModal({ s }: { s: State }) {
               gap: "4px",
             }}
           >
-            <Copy style={{ width: 12, height: 12 }} /> URL 복사
+            <Copy style={{ width: 12, height: 12 }} /> {t.copyUrl}
           </button>
           <button
             type="button"
@@ -331,7 +333,7 @@ export function LogDetailModal({ s }: { s: State }) {
               gap: "4px",
             }}
           >
-            <Terminal style={{ width: 12, height: 12 }} /> cURL 복사
+            <Terminal style={{ width: 12, height: 12 }} /> {t.copyCurl}
           </button>
           <button
             type="button"
@@ -362,7 +364,7 @@ export function LogDetailModal({ s }: { s: State }) {
               gap: "4px",
             }}
           >
-            <Sparkles style={{ width: 13, height: 13 }} /> 이 API 모킹 규칙 생성
+            <Sparkles style={{ width: 13, height: 13 }} /> {t.createMockRule}
           </button>
         </div>
       </div>

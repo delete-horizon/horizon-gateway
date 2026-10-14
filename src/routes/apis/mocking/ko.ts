@@ -23,4 +23,7 @@ export const ko = {
   updateRuleSuccess: "모킹 룰이 수정되었습니다.",
   deleteRuleSuccess: "모킹 룰이 삭제되었습니다.",
   saveAsMockRule: "모킹 룰로 저장",
+  namePlaceholder: "예: 성공 응답",
+  hostPlaceholder: "api.example.com",
+  responseMock: "응답 모킹",
 };

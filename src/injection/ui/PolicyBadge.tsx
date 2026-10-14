@@ -2,27 +2,8 @@ import { ArrowUpCircle, Camera, Copy, Edit3, FileText, Pin, Target, Trash2, X } 
 import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useRef, useState } from "react";
 import type { Annotation, LocatorValidation } from "@/entities/inspector";
 import { MarkdownRenderer } from "@/shared/lib/MarkdownRenderer";
+import { useInjectionCopy } from "../i18n";
 import { ensureLocators, resolveAnnotation } from "../lib/locator";
-
-function injectionLang(): "ko" | "en" {
-  const lang = (typeof navigator !== "undefined" ? navigator.language : "ko") || "ko";
-  return lang.toLowerCase().startsWith("en") ? "en" : "ko";
-}
-
-const RECAPTURE_COPY = {
-  ko: {
-    recapture: "캡처 다시 지정",
-    confirm: "덮어쓸까요?",
-    title: "미리보기와 캡처 호스트/URL을 현재 페이지로 바꿉니다",
-    capturing: "캡처 중...",
-  },
-  en: {
-    recapture: "Recapture",
-    confirm: "Overwrite?",
-    title: "Replace preview and capture host/URL from this page",
-    capturing: "Capturing...",
-  },
-} as const;
 
 const STATUS_COLOR: Record<string, { bg: string; border: string; label: string }> = {
   ok: { bg: "var(--color-success, #22c55e)", border: "var(--color-success, #86efac)", label: "ok" },
@@ -106,7 +87,7 @@ export function PolicyBadge({
   const [confirmRecapture, setConfirmRecapture] = useState(false);
   const [isRecapturing, setIsRecapturing] = useState(false);
   const confirmRecaptureTimer = useRef<number | null>(null);
-  const recaptureCopy = RECAPTURE_COPY[injectionLang()];
+  const t = useInjectionCopy();
   const currentItem = badgeItems[activeSubIndex] || badgeItems[0];
   const targetAnnotation = currentItem?.annotation;
   const primaryAnnotation = badgeItems[0]?.annotation;
@@ -141,11 +122,11 @@ export function PolicyBadge({
 
   useEffect(() => {
     updatePosition();
-    const t = setInterval(updatePosition, 1000);
+    const positionTimer = setInterval(updatePosition, 1000);
     window.addEventListener("scroll", updatePosition, true);
     window.addEventListener("resize", updatePosition);
     return () => {
-      clearInterval(t);
+      clearInterval(positionTimer);
       window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
     };
@@ -422,10 +403,10 @@ export function PolicyBadge({
                       alignItems: "center",
                       gap: "4px",
                     }}
-                    title="수정"
+                    title={t.edit}
                   >
                     <Edit3 style={{ width: "11px", height: "11px" }} />
-                    <span>수정</span>
+                    <span>{t.edit}</span>
                   </button>
                 )}
                 <button
@@ -445,7 +426,7 @@ export function PolicyBadge({
                     justifyContent: "center",
                     borderRadius: "4px",
                   }}
-                  title="닫기"
+                  title={t.close}
                 >
                   <X style={{ width: "15px", height: "15px" }} />
                 </button>
@@ -505,7 +486,7 @@ export function PolicyBadge({
                 }}
               >
                 <ArrowUpCircle style={{ width: "14px", height: "14px" }} />
-                fallback #{suggestIdx} ({locators[suggestIdx]?.strategy})를 primary로 승격
+                {t.promotePrimary(suggestIdx, locators[suggestIdx]?.strategy)}
               </button>
             )}
           </div>
@@ -540,10 +521,10 @@ export function PolicyBadge({
                   gap: "4px",
                   whiteSpace: "nowrap",
                 }}
-                title="설명 복사"
+                title={t.copyDescription}
               >
                 <Copy style={{ width: "11px", height: "11px", color: "var(--color-primary, #60a5fa)" }} />
-                <span>설명 복사</span>
+                <span>{t.copyDescription}</span>
               </button>
             )}
 
@@ -565,7 +546,7 @@ export function PolicyBadge({
                   gap: "4px",
                   whiteSpace: "nowrap",
                 }}
-                title="Selector 복사"
+                title={t.copySelector}
               >
                 <Target style={{ width: "11px", height: "11px", color: "var(--color-success, #34d399)" }} />
                 <span>Selector</span>
@@ -592,16 +573,10 @@ export function PolicyBadge({
                   whiteSpace: "nowrap",
                   opacity: isRecapturing ? 0.6 : 1,
                 }}
-                title={recaptureCopy.title}
+                title={t.recaptureTitle}
               >
                 <Camera style={{ width: "11px", height: "11px", color: confirmRecapture ? "#fcd34d" : "#a78bfa" }} />
-                <span>
-                  {isRecapturing
-                    ? recaptureCopy.capturing
-                    : confirmRecapture
-                      ? recaptureCopy.confirm
-                      : recaptureCopy.recapture}
-                </span>
+                <span>{isRecapturing ? t.capturing : confirmRecapture ? t.recaptureConfirm : t.recapture}</span>
               </button>
             )}
 
@@ -623,10 +598,10 @@ export function PolicyBadge({
                   gap: "4px",
                   whiteSpace: "nowrap",
                 }}
-                title="요약 복사"
+                title={t.copySummary}
               >
                 <FileText style={{ width: "11px", height: "11px", color: "var(--color-warning, #fbbf24)" }} />
-                <span>요약 복사</span>
+                <span>{t.copySummary}</span>
               </button>
             )}
 
@@ -649,7 +624,7 @@ export function PolicyBadge({
                   marginLeft: "auto",
                   whiteSpace: "nowrap",
                 }}
-                title="삭제"
+                title={t.delete}
               >
                 <Trash2 style={{ width: "11px", height: "11px" }} />
               </button>

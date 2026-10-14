@@ -1,6 +1,7 @@
 import { Copy, Edit3, Eye, FileText, Pin, Search, Target, Trash2, X } from "lucide-react";
 import { MarkdownRenderer } from "@/shared/lib/MarkdownRenderer";
 import type { InjectionAppState } from "../hooks/useInjectionAppState";
+import { useInjectionCopy } from "../i18n";
 
 type State = Pick<
   InjectionAppState,
@@ -19,6 +20,7 @@ type State = Pick<
 >;
 
 export function GuideModal({ s }: { s: State }) {
+  const t = useInjectionCopy();
   return (
     <div
       style={{
@@ -55,7 +57,7 @@ export function GuideModal({ s }: { s: State }) {
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <Pin style={{ width: "15px", height: "15px", color: "#ec4899" }} />
           <span style={{ fontWeight: "700", fontSize: "13px", color: "#ec4899" }}>
-            가이드 관리 ({s.currentPagePolicies.length})
+            {t.guidesTitle(s.currentPagePolicies.length)}
           </span>
         </div>
         <button
@@ -79,7 +81,7 @@ export function GuideModal({ s }: { s: State }) {
             alignItems: "center",
             justifyContent: "center",
           }}
-          title="닫기"
+          title={t.close}
         >
           <X style={{ width: "16px", height: "16px" }} />
         </button>
@@ -123,7 +125,7 @@ export function GuideModal({ s }: { s: State }) {
               color: s.isInspectMode ? "var(--color-primary, #60a5fa)" : "var(--wt-text-muted)",
             }}
           />
-          <span>{s.isInspectMode ? "선택 중..." : "요소 선택 (인스펙터)"}</span>
+          <span>{s.isInspectMode ? t.selecting : t.selectElement}</span>
         </button>
         <button
           type="button"
@@ -145,17 +147,15 @@ export function GuideModal({ s }: { s: State }) {
           <Eye
             style={{ width: "13px", height: "13px", color: s.showPolicyBadges ? "#f472b6" : "var(--wt-text-muted)" }}
           />
-          <span>배지 {s.showPolicyBadges ? "ON" : "OFF"}</span>
+          <span>{t.badges(s.showPolicyBadges)}</span>
         </button>
       </div>
 
       {s.currentPagePolicies.length === 0 ? (
         <div style={{ padding: "24px 16px", textAlign: "center", color: "var(--wt-text-muted)", fontSize: "12px" }}>
-          현재 페이지에 등록된 가이드가 없습니다.
+          {t.noGuides}
           <br />
-          <span style={{ fontSize: "11px", opacity: 0.8, marginTop: "6px", display: "block" }}>
-            '요소 선택' 버튼을 눌러 화면 요소를 지정하세요.
-          </span>
+          <span style={{ fontSize: "11px", opacity: 0.8, marginTop: "6px", display: "block" }}>{t.noGuidesHint}</span>
         </div>
       ) : (
         <div
@@ -221,10 +221,10 @@ export function GuideModal({ s }: { s: State }) {
                       alignItems: "center",
                       gap: "3px",
                     }}
-                    title="수정"
+                    title={t.edit}
                   >
                     <Edit3 style={{ width: "11px", height: "11px" }} />
-                    <span>수정</span>
+                    <span>{t.edit}</span>
                   </button>
                   <button
                     type="button"
@@ -240,7 +240,7 @@ export function GuideModal({ s }: { s: State }) {
                       alignItems: "center",
                       justifyContent: "center",
                     }}
-                    title="삭제"
+                    title={t.delete}
                   >
                     <Trash2 style={{ width: "11px", height: "11px" }} />
                   </button>
@@ -296,10 +296,10 @@ export function GuideModal({ s }: { s: State }) {
                     alignItems: "center",
                     gap: "3px",
                   }}
-                  title="설명 복사"
+                  title={t.copyDescription}
                 >
                   <Copy style={{ width: "10px", height: "10px", color: "var(--color-primary, #60a5fa)" }} />
-                  <span>설명 복사</span>
+                  <span>{t.copyDescription}</span>
                 </button>
                 <button
                   type="button"
@@ -317,7 +317,7 @@ export function GuideModal({ s }: { s: State }) {
                     alignItems: "center",
                     gap: "3px",
                   }}
-                  title="Selector 복사"
+                  title={t.copySelector}
                 >
                   <Target style={{ width: "10px", height: "10px", color: "var(--color-success, #34d399)" }} />
                   <span>Selector</span>
@@ -338,10 +338,10 @@ export function GuideModal({ s }: { s: State }) {
                     alignItems: "center",
                     gap: "3px",
                   }}
-                  title="요약 복사"
+                  title={t.copySummary}
                 >
                   <FileText style={{ width: "10px", height: "10px", color: "var(--color-warning, #fbbf24)" }} />
-                  <span>요약 복사</span>
+                  <span>{t.copySummary}</span>
                 </button>
               </div>
             </div>

@@ -1,5 +1,11 @@
 import type { Json } from "@/shared/api/database.types";
 import { supabase } from "@/shared/api/supabase";
+import { readAppLang } from "@/shared/lib/i18n/app-lang";
+
+function avatarError(ko: string, en: string): Error {
+  return new Error(readAppLang() === "ko" ? ko : en);
+}
+
 import type { AvatarKit } from "../lib/avatarKit";
 import { DEFAULT_AVATAR_KIT } from "../lib/avatarKit";
 
@@ -145,7 +151,7 @@ function mapPart(row: PartRow): UserPart {
 async function requireUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) {
-    throw new Error("로그인이 필요합니다");
+    throw avatarError("로그인이 필요합니다", "Sign in is required");
   }
   return data.user.id;
 }
@@ -269,7 +275,7 @@ async function insertPart(ownerId: string, part: Omit<UserPart, "id" | "ownerId"
     .select("*")
     .single();
   if (error || !data) {
-    throw error ?? new Error("파츠를 저장하지 못했습니다");
+    throw error ?? avatarError("파츠를 저장하지 못했습니다", "Could not save the part");
   }
   return mapPart(data as PartRow);
 }
@@ -302,7 +308,7 @@ export async function copyOfficialKit(kit: AvatarKit, nameKo: string, nameEn: st
     .select("*")
     .single();
   if (error || !data) {
-    throw error ?? new Error("복사하지 못했습니다");
+    throw error ?? avatarError("복사하지 못했습니다", "Could not copy");
   }
   return mapOwned(data as OwnedRow);
 }
@@ -311,7 +317,7 @@ export async function copyOwnedAvatar(avatarId: string): Promise<OwnedAvatar> {
   const ownerId = await requireUserId();
   const source = await readOwned(avatarId);
   if (source.owner_id !== ownerId) {
-    throw new Error("다른 사람의 아바타는 복사할 수 없습니다");
+    throw avatarError("다른 사람의 아바타는 복사할 수 없습니다", "You can only copy your own avatar");
   }
   const sourceParts = await loadParts(
     SLOTS.flatMap((slot) => {
@@ -352,7 +358,7 @@ export async function copyOwnedAvatar(avatarId: string): Promise<OwnedAvatar> {
     .select("*")
     .single();
   if (error || !data) {
-    throw error ?? new Error("복사하지 못했습니다");
+    throw error ?? avatarError("복사하지 못했습니다", "Could not copy");
   }
   return mapOwned(data as OwnedRow);
 }
@@ -365,7 +371,7 @@ export async function forkSlot(
   const ownerId = await requireUserId();
   const source = await readOwned(avatarId);
   if (source.owner_id !== ownerId) {
-    throw new Error("다른 사람의 아바타는 편집할 수 없습니다");
+    throw avatarError("다른 사람의 아바타는 편집할 수 없습니다", "You can only edit your own avatar");
   }
   const current = refsOf(source)[slot];
   const created = await insertPart(ownerId, {
@@ -396,7 +402,7 @@ export async function forkSlot(
     .select("*")
     .single();
   if (error || !data) {
-    throw error ?? new Error("슬롯을 저장하지 못했습니다");
+    throw error ?? avatarError("슬롯을 저장하지 못했습니다", "Could not save the slot");
   }
   return mapOwned(data as OwnedRow);
 }
@@ -450,10 +456,10 @@ export async function purchaseAvatar(avatarId: string): Promise<void> {
   const buyerId = await requireUserId();
   const row = await readOwned(avatarId);
   if (row.owner_id === buyerId) {
-    throw new Error("내 아바타는 구매할 수 없습니다");
+    throw avatarError("내 아바타는 구매할 수 없습니다", "You cannot buy your own avatar");
   }
   if (!row.listed_for_sale) {
-    throw new Error("판매 중인 아바타만 구매할 수 있습니다");
+    throw avatarError("판매 중인 아바타만 구매할 수 있습니다", "Only listed avatars can be bought");
   }
   const snapshot = await snapshotOf(row);
   const { error } = await supabase.from("avatar_entitlements").insert({
@@ -471,7 +477,7 @@ export async function pushAvatarUpdate(avatarId: string): Promise<void> {
   const ownerId = await requireUserId();
   const row = await readOwned(avatarId);
   if (row.owner_id !== ownerId) {
-    throw new Error("소유자만 구매분을 갱신할 수 있습니다");
+    throw avatarError("소유자만 구매분을 갱신할 수 있습니다", "Only the owner can refresh a purchase");
   }
   const nextRevision = row.revision + 1;
   const { error: bumpError } = await supabase

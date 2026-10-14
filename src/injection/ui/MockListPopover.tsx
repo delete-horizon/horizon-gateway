@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import type { InjectionAppState } from "../hooks/useInjectionAppState";
+import { useInjectionCopy } from "../i18n";
 import type { MockedApiEntry, MockRule } from "../types";
 
 type State = Pick<
@@ -15,6 +16,7 @@ type State = Pick<
 >;
 
 export function MockListPopover({ s }: { s: State }) {
+  const t = useInjectionCopy();
   return (
     <div
       style={{
@@ -60,7 +62,7 @@ export function MockListPopover({ s }: { s: State }) {
             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
           </svg>
           <span style={{ fontWeight: "700", fontSize: "13px", color: "#f59e0b" }}>
-            모킹 API 목록 ({s.backendMockRules.length > 0 ? s.backendMockRules.length : s.mockedRequests.length})
+            {t.mocksTitle(s.backendMockRules.length > 0 ? s.backendMockRules.length : s.mockedRequests.length)}
           </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -92,7 +94,7 @@ export function MockListPopover({ s }: { s: State }) {
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
-              추가
+              {t.add}
             </span>
           </button>
           <button
@@ -117,7 +119,7 @@ export function MockListPopover({ s }: { s: State }) {
               justifyContent: "center",
               borderRadius: "4px",
             }}
-            title="닫기"
+            title={t.close}
           >
             <X style={{ width: "16px", height: "16px" }} />
           </button>
@@ -135,7 +137,7 @@ export function MockListPopover({ s }: { s: State }) {
           fontSize: "11px",
         }}
       >
-        <span style={{ color: "var(--wt-text-muted)" }}>전체 모킹 상태</span>
+        <span style={{ color: "var(--wt-text-muted)" }}>{t.mockAll}</span>
         <div style={{ display: "flex", gap: "6px" }}>
           <button
             type="button"
@@ -151,7 +153,7 @@ export function MockListPopover({ s }: { s: State }) {
               cursor: "pointer",
             }}
           >
-            전체 ON
+            {t.mockAllOn}
           </button>
           <button
             type="button"
@@ -167,14 +169,14 @@ export function MockListPopover({ s }: { s: State }) {
               cursor: "pointer",
             }}
           >
-            전체 OFF
+            {t.mockAllOff}
           </button>
         </div>
       </div>
 
       {s.backendMockRules.length === 0 && s.mockedRequests.length === 0 ? (
         <div style={{ padding: "24px 16px", textAlign: "center", color: "var(--wt-text-muted)", fontSize: "12px" }}>
-          이 페이지에서 발생한 API 중 모킹된 요청이 없습니다.
+          {t.noPageMocks}
         </div>
       ) : (
         <div style={{ overflowY: "auto", padding: "8px", display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -260,9 +262,9 @@ export function MockListPopover({ s }: { s: State }) {
                         borderRadius: "4px",
                         cursor: "pointer",
                       }}
-                      title="상세 및 편집"
+                      title={t.mockEdit}
                     >
-                      상세/편집
+                      {t.mockEdit}
                     </button>
                     <button
                       type="button"
@@ -294,7 +296,7 @@ export function MockListPopover({ s }: { s: State }) {
                           alignItems: "center",
                           marginLeft: "2px",
                         }}
-                        title="삭제"
+                        title={t.delete}
                       >
                         <svg
                           width="12"

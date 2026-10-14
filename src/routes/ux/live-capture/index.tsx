@@ -57,7 +57,7 @@ export function LiveCaptureWorkspace({ urlFromRoute }: { urlFromRoute?: string }
   const isPageEmbed = useIsEmbeddedPage();
   const isEmbedded = isHubEmbed || isPageEmbed;
 
-  const initialUrl = seedUrl || urlFromRoute || routeSearch.url || "https://www.google.com";
+  const initialUrl = seedUrl || urlFromRoute || routeSearch.url || "https://example.com";
   const [urlInput, setUrlInput] = useState(initialUrl);
   const [currentUrl, setCurrentUrl] = useState(initialUrl);
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("policy");
@@ -118,15 +118,16 @@ export function LiveCaptureWorkspace({ urlFromRoute }: { urlFromRoute?: string }
         },
         "*",
       );
+      iframeRef.current.contentWindow.postMessage({ type: "WT_SET_LANG", lang }, "*");
     }
-  }, [activeCustomTheme, isProxyRunning, hasEnabledMockRule]);
+  }, [activeCustomTheme, isProxyRunning, hasEnabledMockRule, lang]);
 
   // Sync Status and Theme to Iframe on changes
   useEffect(() => {
     syncStateToIframe();
   }, [syncStateToIframe]);
 
-  const t = {
+  const liveCopy = {
     ko: {
       title: "라이브 워크스페이스",
       subtitle: "웹 탐색, 정책 수립, 트래픽 분석을 한 곳에서 진행하세요.",
@@ -140,6 +141,25 @@ export function LiveCaptureWorkspace({ urlFromRoute }: { urlFromRoute?: string }
       selectBtn: "UI 요소 선택",
       selecting: "선택 중...",
       relatedTitle: "현재 도메인 관련 정책",
+      urlPlaceholder: "웹사이트 URL 입력...",
+      enter: "이동",
+      liveBadge: "실시간 가로채기",
+      iframeTitle: "라이브 캡처 브라우저",
+      policyTitle: "정책 제목",
+      policyTitlePlaceholder: "예: 메인 내비게이션 상호작용",
+      requirements: "요구사항",
+      requirementsPlaceholder: "규칙, 기대 동작, UI 가이드를 적으세요...",
+      zoomThumbnail: "썸네일 확대",
+      filterPlaceholder: "도메인 또는 경로로 필터...",
+      responseBody: "응답 본문",
+      noResponseBody: "// 응답 본문 없음",
+      saveSnapshot: "스냅샷으로 저장",
+      liveEditMock: "실시간 모킹 편집",
+      mockUpdated: "실시간 응답을 수정했습니다. 웹 화면을 새로고침하여 확인하세요.",
+      cancel: "취소",
+      applyLive: "실시간 반영하기",
+      editorTitle: "실시간 API 응답 편집",
+      responseBodyLabel: "응답 본문 (JSON/텍스트)",
     },
     en: {
       title: "Live Workspace",
@@ -154,21 +174,28 @@ export function LiveCaptureWorkspace({ urlFromRoute }: { urlFromRoute?: string }
       selectBtn: "Select UI Element",
       selecting: "Selecting...",
       relatedTitle: "Related Policies for Domain",
+      urlPlaceholder: "Enter website URL...",
+      enter: "Enter",
+      liveBadge: "Live intercepting",
+      iframeTitle: "Live capture browser",
+      policyTitle: "Policy title",
+      policyTitlePlaceholder: "e.g. Main navigation interaction",
+      requirements: "Requirements",
+      requirementsPlaceholder: "Document rules, expected behavior, or UI guidelines...",
+      zoomThumbnail: "Zoom thumbnail",
+      filterPlaceholder: "Filter by domain or path...",
+      responseBody: "Response body",
+      noResponseBody: "// No response body",
+      saveSnapshot: "Save as snapshot",
+      liveEditMock: "Live edit mock",
+      mockUpdated: "The live response was updated. Refresh the page to confirm.",
+      cancel: "Cancel",
+      applyLive: "Apply live",
+      editorTitle: "Live API response editor",
+      responseBodyLabel: "Response body (JSON/text)",
     },
-  }[lang] || {
-    title: "Live Workspace",
-    subtitle: "Browse, document, and analyze traffic all in one place.",
-    tabPolicy: "UX Policy",
-    tabTraffic: "Live Traffic",
-    tabScenario: "Mocking",
-    noCaptured: "Click an element on the web screen to start documenting.",
-    noLogs: "No traffic captured yet.",
-    saveBtn: "Save Policy",
-    successMsg: "New policy has been saved.",
-    selectBtn: "Select UI Element",
-    selecting: "Selecting...",
-    relatedTitle: "Related Policies for Domain",
-  };
+  } as const;
+  const t = liveCopy[lang === "ko" ? "ko" : "en"];
 
   useEffect(() => {
     // 0. Load Initial Data
@@ -375,7 +402,7 @@ export function LiveCaptureWorkspace({ urlFromRoute }: { urlFromRoute?: string }
         }),
       );
       if (res.success) {
-        toastSuccess("실시간 응답값이 수정되었습니다. 웹 화면을 새로고침하여 확인하세요.");
+        toastSuccess(t.mockUpdated);
         setIsEditMockModalOpen(false);
         setEditingMockRule(null);
       }
@@ -423,7 +450,7 @@ export function LiveCaptureWorkspace({ urlFromRoute }: { urlFromRoute?: string }
             type="text"
             value={urlInput}
             onChange={(e) => setUrlInput(e.target.value)}
-            placeholder="Enter website URL..."
+            placeholder={t.urlPlaceholder}
             className="flex-1 bg-transparent border-none outline-none text-sm font-bold text-base-content/80"
           />
           <div className="flex items-center gap-2 pr-1">
@@ -445,7 +472,7 @@ export function LiveCaptureWorkspace({ urlFromRoute }: { urlFromRoute?: string }
               variant="primary"
               className="rounded-xl h-9 px-6 font-black uppercase tracking-tighter shadow-md"
             >
-              Enter
+              {t.enter}
             </Button>
           </div>
         </form>
@@ -458,13 +485,13 @@ export function LiveCaptureWorkspace({ urlFromRoute }: { urlFromRoute?: string }
             src={currentUrl}
             onLoad={syncStateToIframe}
             className="w-full h-full border-none bg-white"
-            title="Live Capture Browser"
+            title={t.iframeTitle}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           />
           <div className="absolute top-4 left-4 pointer-events-none">
             <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-[10px] text-white font-bold flex items-center gap-2 border border-white/10 opacity-0 group-hover:opacity-100 transition-all">
               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-              LIVE INTERCEPTING
+              {t.liveBadge}
             </div>
           </div>
         </div>
@@ -524,13 +551,13 @@ export function LiveCaptureWorkspace({ urlFromRoute }: { urlFromRoute?: string }
                           htmlFor="policy-role"
                           className="text-[10px] font-black uppercase text-base-content/40 tracking-widest px-1"
                         >
-                          Policy Title
+                          {t.policyTitle}
                         </label>
                         <Input
                           id="policy-role"
                           value={role}
                           onChange={(e) => setRole(e.target.value)}
-                          placeholder="e.g. Main Navigation Interaction"
+                          placeholder={t.policyTitlePlaceholder}
                           className="font-bold border-base-300"
                         />
                       </div>
@@ -539,14 +566,14 @@ export function LiveCaptureWorkspace({ urlFromRoute }: { urlFromRoute?: string }
                           htmlFor="policy-desc"
                           className="text-[10px] font-black uppercase text-base-content/40 tracking-widest px-1"
                         >
-                          Requirements
+                          {t.requirements}
                         </label>
                         <textarea
                           id="policy-desc"
                           value={description}
                           onChange={(e) => setDescription(e.target.value)}
                           className="textarea textarea-bordered w-full h-48 bg-base-200/20 focus:outline-primary rounded-2xl border-base-300 text-sm leading-relaxed"
-                          placeholder="Document rules, expected behavior, or UI guidelines..."
+                          placeholder={t.requirementsPlaceholder}
                         />
                       </div>
                       <Button
@@ -580,7 +607,7 @@ export function LiveCaptureWorkspace({ urlFromRoute }: { urlFromRoute?: string }
                               type="button"
                               className="w-full h-full p-0 border-none bg-transparent cursor-zoom-in focus:outline-none"
                               onClick={() => setZoomImage(ann.thumbnail)}
-                              aria-label="Zoom thumbnail"
+                              aria-label={t.zoomThumbnail}
                             >
                               <img src={ann.thumbnail} alt="" className="max-w-full max-h-full object-contain" />
                             </button>
@@ -609,7 +636,7 @@ export function LiveCaptureWorkspace({ urlFromRoute }: { urlFromRoute?: string }
                       list="registered-domains"
                       value={trafficFilter}
                       onChange={(e) => setTrafficFilter(e.target.value)}
-                      placeholder="Filter by domain or path..."
+                      placeholder={t.filterPlaceholder}
                       className="flex-1 bg-transparent border-none outline-none text-xs font-bold text-base-content/70"
                     />
                     {trafficFilter && (
@@ -721,22 +748,22 @@ export function LiveCaptureWorkspace({ urlFromRoute }: { urlFromRoute?: string }
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 <section>
                   <h4 className="text-[10px] font-black uppercase text-base-content/40 tracking-widest mb-3 flex items-center gap-2">
-                    <Play className="w-3 h-3" /> Response Body
+                    <Play className="w-3 h-3" /> {t.responseBody}
                   </h4>
                   <div className="bg-base-200 p-4 rounded-2xl font-mono text-[11px] whitespace-pre-wrap break-all overflow-x-auto max-h-96 border border-base-300/50">
-                    {selectedLog.response_body || "// No response body"}
+                    {selectedLog.response_body || t.noResponseBody}
                   </div>
                 </section>
                 <div className="grid grid-cols-2 gap-4">
                   <Button variant="secondary" className="gap-2 text-xs font-bold" onClick={handleSaveToScenario}>
-                    <Database className="w-4 h-4" /> Save as Snapshot
+                    <Database className="w-4 h-4" /> {t.saveSnapshot}
                   </Button>
                   <Button
                     variant="primary"
                     className="gap-2 text-xs font-bold"
                     onClick={() => checkAndOpenEditor(selectedLog)}
                   >
-                    <Edit3 className="w-4 h-4" /> Live Edit Mock
+                    <Edit3 className="w-4 h-4" /> {t.liveEditMock}
                   </Button>
                 </div>
               </div>
@@ -762,7 +789,7 @@ export function LiveCaptureWorkspace({ urlFromRoute }: { urlFromRoute?: string }
               <div className="p-6 border-b border-base-200 flex justify-between items-center bg-primary/5">
                 <div className="flex items-center gap-3">
                   <Edit3 className="w-5 h-5 text-primary" />
-                  <h3 className="font-bold">Live API Response Editor</h3>
+                  <h3 className="font-bold">{t.editorTitle}</h3>
                 </div>
                 <button type="button" onClick={() => setIsEditMockModalOpen(false)}>
                   <X className="w-5 h-5" />
@@ -778,7 +805,7 @@ export function LiveCaptureWorkspace({ urlFromRoute }: { urlFromRoute?: string }
                     htmlFor="mock-body-editor"
                     className="text-[10px] font-black uppercase text-base-content/40 tracking-widest px-1"
                   >
-                    Response Body (JSON/Text)
+                    {t.responseBodyLabel}
                   </label>
                   <textarea
                     id="mock-body-editor"
@@ -790,10 +817,10 @@ export function LiveCaptureWorkspace({ urlFromRoute }: { urlFromRoute?: string }
               </div>
               <div className="p-6 bg-base-200/30 border-t border-base-200 flex gap-3">
                 <Button variant="ghost" onClick={() => setIsEditMockModalOpen(false)} className="flex-1">
-                  취소
+                  {t.cancel}
                 </Button>
                 <Button variant="primary" onClick={handleUpdateMock} className="flex-[2] gap-2 font-black">
-                  <Save className="w-5 h-5" /> 실시간 반영하기
+                  <Save className="w-5 h-5" /> {t.applyLive}
                 </Button>
               </div>
             </Card>

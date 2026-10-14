@@ -68,7 +68,7 @@ export const settingsKo = {
   remoteAccessOff: "꺼짐",
   tlsBypassTitle: "TLS 우회 시드",
   tlsBypassDesc: "이 호스트는 항상 터널입니다(복호화 없음). 한 줄에 하나.",
-  tlsBypassPlaceholder: "okta.com\nlogin.microsoftonline.com",
+  tlsBypassPlaceholder: "auth.example.com\napi.example.com",
   tlsBypassSave: "우회 목록 저장",
   timeoutTitle: "타임아웃",
   timeoutDesc: "CONNECT와 업스트림 요청 타임아웃(초).",

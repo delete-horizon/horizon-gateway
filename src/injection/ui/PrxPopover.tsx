@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import type { InjectionAppState } from "../hooks/useInjectionAppState";
+import { useInjectionCopy } from "../i18n";
 
 type State = Pick<
   InjectionAppState,
@@ -14,6 +15,7 @@ type State = Pick<
 >;
 
 export function PrxPopover({ s }: { s: State }) {
+  const t = useInjectionCopy();
   return (
     <div
       style={{
@@ -50,7 +52,7 @@ export function PrxPopover({ s }: { s: State }) {
             <circle cx="12" cy="12" r="10" />
             <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
           </svg>
-          <span style={{ fontWeight: "700", fontSize: "13px", color: "#10b981" }}>로컬 프록시 상태 & 라우트</span>
+          <span style={{ fontWeight: "700", fontSize: "13px", color: "#10b981" }}>{t.proxyTitle}</span>
         </div>
         <button
           type="button"
@@ -74,7 +76,7 @@ export function PrxPopover({ s }: { s: State }) {
             justifyContent: "center",
             borderRadius: "4px",
           }}
-          title="닫기"
+          title={t.close}
         >
           <X style={{ width: "16px", height: "16px" }} />
         </button>
@@ -100,14 +102,14 @@ export function PrxPopover({ s }: { s: State }) {
             border: "1px solid var(--wt-border)",
           }}
         >
-          <span style={{ color: "var(--wt-text-muted)" }}>프록시 연결 상태</span>
+          <span style={{ color: "var(--wt-text-muted)" }}>{t.proxyState}</span>
           <span
             style={{
               fontWeight: "700",
               color: s.status.proxy ? "var(--color-success, #10b981)" : "var(--color-error, #ef4444)",
             }}
           >
-            {s.status.proxy ? "● ACTIVE (정상)" : "○ INACTIVE (비활성)"}
+            {s.status.proxy ? t.proxyActive : t.proxyInactive}
           </span>
         </div>
         <div
@@ -121,16 +123,16 @@ export function PrxPopover({ s }: { s: State }) {
             border: "1px solid var(--wt-border)",
           }}
         >
-          <span style={{ color: "var(--wt-text-muted)" }}>중계된 총 트래픽 수</span>
-          <span style={{ fontWeight: "700", color: "var(--wt-text-main)" }}>{s.status.proxyCount ?? 0}건</span>
+          <span style={{ color: "var(--wt-text-muted)" }}>{t.proxyTraffic}</span>
+          <span style={{ fontWeight: "700", color: "var(--wt-text-main)" }}>
+            {t.trafficCount(s.status.proxyCount ?? 0)}
+          </span>
         </div>
 
         <div style={{ marginTop: "4px", display: "flex", flexDirection: "column", gap: "6px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontSize: "11px", fontWeight: "700", color: "#10b981" }}>
-              {s.showAllProxyRoutes
-                ? `전체 로컬 프록시 라우트 (${s.proxyRoutes.length})`
-                : `현재 도메인 라우트 (${s.matchedProxyRoutes.length})`}
+              {s.showAllProxyRoutes ? t.allRoutes(s.proxyRoutes.length) : t.domainRoutes(s.matchedProxyRoutes.length)}
             </span>
             {s.proxyRoutes.length > 0 && (
               <button
@@ -147,16 +149,14 @@ export function PrxPopover({ s }: { s: State }) {
                   cursor: "pointer",
                 }}
               >
-                {s.showAllProxyRoutes ? "🎯 현재 도메인만" : `🌐 전체 보기 (${s.proxyRoutes.length})`}
+                {s.showAllProxyRoutes ? t.thisDomainOnly : t.showAll(s.proxyRoutes.length)}
               </button>
             )}
           </div>
 
           {s.matchedProxyRoutes.length === 0 ? (
             <div style={{ padding: "12px", textAlign: "center", color: "var(--wt-text-muted)", fontSize: "11px" }}>
-              {s.showAllProxyRoutes
-                ? "등록된 로컬 프록시 라우트가 없습니다."
-                : `현재 도메인(${window.location.hostname})에 매칭되는 라우트가 없습니다.`}
+              {s.showAllProxyRoutes ? t.noRoutes : t.noDomainRoutes(window.location.hostname)}
             </div>
           ) : (
             s.matchedProxyRoutes.map((route) => (

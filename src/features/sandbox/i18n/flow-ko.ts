@@ -79,4 +79,11 @@ export const ko: FlowCopy = {
   outputData: "출력 데이터 (JSON)",
   exportPreview: "프리뷰로 내보내기",
   selectNodeHint: "작업 캔버스에서 노드를 선택하시면 속성 및 데이터 매핑 창이 활성화됩니다.",
+  scriptStarter: `export default async function(inputs) {
+  // inputs에는 이전 노드 결과가 노드 ID를 키로 들어 있습니다.
+  // 예: const apiBody = inputs.api_1?.body;
+  // CryptoJS는 전역에서 사용할 수 있습니다.
+  // 예: const hash = CryptoJS.SHA256("example").toString();
+  return { ok: true };
+}`,
 };

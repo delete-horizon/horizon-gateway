@@ -14,16 +14,16 @@ export const en = {
   lanEmpty: "No LAN address detected",
   tailscaleTitle: "Tailscale (optional)",
   tailscaleHint: "Use this only when the phone is not on the same Wi-Fi.",
-  tailscaleMissing: "Not running",
+  tailscaleMissing: "Optional — not detected",
   remoteTitle: "Allow other devices",
   remoteDesc:
-    "Off by default. When on, only private LAN and Tailscale peers can reach the proxy and this setup page. Restart the app to apply.",
+    "Off by default. Turn it on so phones on the same network can reach the proxy and this setup page. Tailscale peers are included only when you use Tailscale. Restart the app to apply.",
   remoteRestart: "Saved. Restart the app before other devices can connect.",
   remoteOn: "On",
   remoteOff: "Off",
   tunnelTitle: "Temporary Cloudflare tunnel",
   tunnelDesc:
-    "Optional path for a phone that is not on the LAN or Tailscale. The tunnel only opens the setup page. The proxy itself still requires “Allow other devices”.",
+    "Optional path for a phone that is not on the same network. The tunnel only opens the setup page. The proxy itself still requires “Allow other devices”.",
   tunnelStatus: "Tunnel status",
   tunnelStandby: "Standby...",
   tunnelFailed: "Failed to start tunnel",
@@ -39,8 +39,8 @@ export const en = {
   directAddress: "Direct address",
   stepsTitle: "Setup steps",
   step1:
-    "Leave “Allow other devices” off until you want a phone on the LAN or Tailscale to connect. Restart after turning it on.",
-  step2: "Use the same Wi-Fi. Install Tailscale only if the phone is on another network.",
+    "Leave “Allow other devices” off until you want a phone on the same network to connect. Restart after turning it on. Tailscale is optional.",
+  step2: "Use the same Wi-Fi and the LAN address. Tailscale is one option when the phone is on another network.",
   step3: "Scan the QR code, or open the address on the phone.",
   step4: "On the phone, set the PAC or manual proxy shown on the setup page.",
   adbTitle: "ADB & USB device",
@@ -72,5 +72,5 @@ export const en = {
     "The switch sets the phone's HTTP proxy to 127.0.0.1 on the proxy port. If a Wi-Fi proxy was set by hand, set it back to None.",
   iosTitle: "iOS is not supported over USB",
   iosDesc:
-    "iOS does not allow USB reverse forwarding. Use the Wireless tab: same Wi-Fi, or Tailscale if the phone is on another network.",
+    "iOS does not allow USB reverse forwarding. Use the Wireless tab on the same Wi-Fi. Tailscale is one option when the phone is off the LAN.",
 } as const;

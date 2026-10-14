@@ -76,6 +76,13 @@ export const en = {
   outputData: "Output data (JSON)",
   exportPreview: "Send to preview",
   selectNodeHint: "Select a node on the canvas to edit its properties and data mappings.",
+  scriptStarter: `export default async function(inputs) {
+  // inputs holds earlier node results, keyed by node id.
+  // Example: const apiBody = inputs.api_1?.body;
+  // CryptoJS is available globally.
+  // Example: const hash = CryptoJS.SHA256("example").toString();
+  return { ok: true };
+}`,
 };
 
 export type FlowCopy = typeof en;

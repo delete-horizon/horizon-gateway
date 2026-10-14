@@ -68,7 +68,7 @@ export const settingsEn = {
   remoteAccessOff: "Off",
   tlsBypassTitle: "TLS bypass seed",
   tlsBypassDesc: "These hosts always tunnel (no decrypt). One host per line.",
-  tlsBypassPlaceholder: "okta.com\nlogin.microsoftonline.com",
+  tlsBypassPlaceholder: "auth.example.com\napi.example.com",
   tlsBypassSave: "Save bypass list",
   timeoutTitle: "Timeouts",
   timeoutDesc: "CONNECT and upstream request timeouts in seconds.",

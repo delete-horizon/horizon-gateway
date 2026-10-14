@@ -4,6 +4,7 @@ import { buildUnifiedGuideSuggestions, type UnifiedDomainInfo } from "@/shared/l
 import { GuideMarkdownEditor, type GuideMarkdownEditorHandle } from "@/shared/ui/markdown-textarea/GuideMarkdownEditor";
 import { fetchLoggingDomainsApi } from "../api/gateway";
 import type { InjectionAppState } from "../hooks/useInjectionAppState";
+import { injectionLang, useInjectionCopy } from "../i18n";
 
 type State = Pick<
   InjectionAppState,
@@ -24,6 +25,7 @@ type State = Pick<
 >;
 
 export function NewPolicyModal({ s }: { s: State }) {
+  const t = useInjectionCopy();
   const [extraDomains, setExtraDomains] = useState<UnifiedDomainInfo[]>([]);
   const hostPatternInputRef = useRef<HTMLInputElement>(null);
   const pathPatternInputRef = useRef<HTMLInputElement>(null);
@@ -92,7 +94,7 @@ export function NewPolicyModal({ s }: { s: State }) {
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <PlusCircle style={{ width: "16px", height: "16px", color: "#ec4899" }} />
             <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "800", color: "var(--wt-text-main)" }}>
-              새 가이드 등록
+              {t.guideNewTitle}
             </h3>
           </div>
           <button
@@ -133,13 +135,13 @@ export function NewPolicyModal({ s }: { s: State }) {
 
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <label htmlFor="wt-role-input" style={{ fontSize: "10px", fontWeight: "500", color: "var(--wt-text-muted)" }}>
-            가이드명 (Role / Title)
+            {t.guideName}
           </label>
           <input
             id="wt-role-input"
             value={s.role}
             onChange={(e) => s.setRole(e.target.value)}
-            placeholder="예: 로그인 버튼 정책"
+            placeholder={t.guideNamePlaceholder}
             style={{
               backgroundColor: "var(--wt-bg-card)",
               border: "1px solid var(--wt-border)",
@@ -172,15 +174,15 @@ export function NewPolicyModal({ s }: { s: State }) {
               flexShrink: 0,
             }}
           >
-            설명 (Description - 마크다운 지원)
+            {t.guideDescription}
           </label>
           <GuideMarkdownEditor
             ref={descEditorRef}
             id="wt-desc-input"
             value={s.description}
             onChange={s.setDescription}
-            placeholder="상세 규칙, 코드 참조(`path`), - 목록...  [[ 로 기능/도구 검색"
-            lang="ko"
+            placeholder={t.guideDescriptionPlaceholder}
+            lang={injectionLang()}
             variant="overlay"
             customItems={customItems}
           />
@@ -208,7 +210,7 @@ export function NewPolicyModal({ s }: { s: State }) {
               value={s.hostPattern}
               onChange={(e) => s.setHostPattern(e.target.value)}
               onCompositionEnd={(e) => s.setHostPattern(e.currentTarget.value)}
-              placeholder="예: *.example.*, !api"
+              placeholder={t.hostPatternPlaceholder}
               style={{
                 backgroundColor: "var(--wt-bg-card)",
                 border: "1px solid var(--wt-border)",
@@ -242,7 +244,7 @@ export function NewPolicyModal({ s }: { s: State }) {
                       padding: "2px 6px",
                       cursor: "pointer",
                     }}
-                    title="패턴 선택"
+                    title={t.pickPattern}
                   >
                     {pat}
                   </button>
@@ -273,7 +275,7 @@ export function NewPolicyModal({ s }: { s: State }) {
               value={s.pathPattern}
               onChange={(e) => s.setPathPattern(e.target.value)}
               onCompositionEnd={(e) => s.setPathPattern(e.currentTarget.value)}
-              placeholder="예: /products/*"
+              placeholder={t.pathPatternPlaceholder}
               style={{
                 backgroundColor: "var(--wt-bg-card)",
                 border: "1px solid var(--wt-border)",
@@ -307,7 +309,7 @@ export function NewPolicyModal({ s }: { s: State }) {
                       padding: "2px 6px",
                       cursor: "pointer",
                     }}
-                    title="패턴 선택"
+                    title={t.pickPattern}
                   >
                     {pat}
                   </button>
@@ -342,7 +344,7 @@ export function NewPolicyModal({ s }: { s: State }) {
               cursor: "pointer",
             }}
           >
-            취소
+            {t.cancel}
           </button>
           <button
             type="button"
@@ -364,7 +366,7 @@ export function NewPolicyModal({ s }: { s: State }) {
             }}
           >
             <Save style={{ width: "14px", height: "14px" }} />
-            {s.isSaving ? "저장 중..." : "가이드 저장"}
+            {s.isSaving ? t.saving : t.saveGuide}
           </button>
         </div>
       </div>

@@ -4,6 +4,7 @@ import type { Annotation } from "@/entities/inspector";
 import { buildUnifiedGuideSuggestions, type UnifiedDomainInfo } from "@/shared/lib/guideFeatureLinks";
 import { GuideMarkdownEditor, type GuideMarkdownEditorHandle } from "@/shared/ui/markdown-textarea/GuideMarkdownEditor";
 import { fetchLoggingDomainsApi, saveAnnotationApi } from "../api/gateway";
+import { injectionLang, useInjectionCopy } from "../i18n";
 
 interface EditPolicyModalProps {
   annotation: Annotation;
@@ -13,6 +14,7 @@ interface EditPolicyModalProps {
 }
 
 export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: EditPolicyModalProps) {
+  const t = useInjectionCopy();
   const [role, setRole] = useState(annotation.role || "");
   const [description, setDescription] = useState(annotation.description || "");
   const [hostPattern, setHostPattern] = useState(annotation.hostPattern || "");
@@ -72,14 +74,14 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
       const res = await saveAnnotationApi(updated as Record<string, unknown>);
       if (res.ok) {
         onSaved();
-        showToast("가이드가 수정되었습니다.");
+        showToast(t.guideUpdated);
         window.parent.postMessage({ type: "WT_POLICY_SAVED" }, "*");
         onClose();
       } else {
-        showToast("저장에 실패했습니다.");
+        showToast(t.saveFailed);
       }
     } catch (_e) {
-      showToast("저장에 실패했습니다.");
+      showToast(t.saveFailed);
     } finally {
       setIsSaving(false);
     }
@@ -120,7 +122,7 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <Edit3 style={{ width: "16px", height: "16px", color: "#ec4899" }} />
             <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "800", color: "var(--wt-text-main)" }}>
-              가이드 수정
+              {t.guideEditTitle}
             </h3>
           </div>
           <button
@@ -147,13 +149,13 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
             htmlFor="edit-role-input"
             style={{ fontSize: "10px", fontWeight: "500", color: "var(--wt-text-muted)" }}
           >
-            가이드명 (Role / Title)
+            {t.guideName}
           </label>
           <input
             id="edit-role-input"
             value={role}
             onChange={(e) => setRole(e.target.value)}
-            placeholder="예: 로그인 버튼 정책"
+            placeholder={t.guideNamePlaceholder}
             style={{
               backgroundColor: "var(--wt-bg-card)",
               border: "1px solid var(--wt-border)",
@@ -186,15 +188,15 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
               flexShrink: 0,
             }}
           >
-            설명 (Description - 마크다운 지원)
+            {t.guideDescription}
           </label>
           <GuideMarkdownEditor
             ref={descEditorRef}
             id="edit-desc-input"
             value={description}
             onChange={setDescription}
-            placeholder="상세 규칙, 코드 참조(`path`), - 목록...  [[ 로 기능/도구 검색"
-            lang="ko"
+            placeholder={t.guideDescriptionPlaceholder}
+            lang={injectionLang()}
             variant="overlay"
             customItems={customItems}
           />
@@ -221,7 +223,7 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
               value={hostPattern}
               onChange={(e) => commitHostPattern(e.target.value)}
               onCompositionEnd={(e) => commitHostPattern(e.currentTarget.value)}
-              placeholder="예: *.example.*, !api"
+              placeholder={t.hostPatternPlaceholder}
               style={{
                 backgroundColor: "var(--wt-bg-card)",
                 border: "1px solid var(--wt-border)",
@@ -256,7 +258,7 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
               value={pathPattern}
               onChange={(e) => commitPathPattern(e.target.value)}
               onCompositionEnd={(e) => commitPathPattern(e.currentTarget.value)}
-              placeholder="예: /products/*"
+              placeholder={t.pathPatternPlaceholder}
               style={{
                 backgroundColor: "var(--wt-bg-card)",
                 border: "1px solid var(--wt-border)",
@@ -296,7 +298,7 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
               cursor: "pointer",
             }}
           >
-            취소
+            {t.cancel}
           </button>
           <button
             type="button"
@@ -318,7 +320,7 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
             }}
           >
             <Save style={{ width: "14px", height: "14px" }} />
-            {isSaving ? "저장 중..." : "저장 완료"}
+            {isSaving ? t.saving : t.saved}
           </button>
         </div>
       </div>

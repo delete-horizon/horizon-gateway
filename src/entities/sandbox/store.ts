@@ -83,7 +83,7 @@ export const apiClientPrefillAtom = atom<ApiRequestConfig | null>(null);
 // Shared atoms for visual pipeline and utility pages importing configs
 export const apiClientCurrentRequestAtom = atom<ApiRequestConfig>({
   method: "GET",
-  url: "https://jsonplaceholder.typicode.com/todos/1",
+  url: "https://api.example.com/todos/1",
   headers: { Accept: "application/json" },
   body: "",
 });

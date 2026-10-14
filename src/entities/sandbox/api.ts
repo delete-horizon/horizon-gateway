@@ -1,11 +1,16 @@
 import type { PipelineFlow, SavedPipeline } from "@/entities/pipeline";
 import { commands, unwrap } from "@/shared/api";
+import { readAppLang } from "@/shared/lib/i18n/app-lang";
 import type { SavedJsonSchema } from "./store";
 import type { CryptoAction, PipelineExecutionReport, SavedCryptoPreset, SchemaValidationResult } from "./types";
 
 export async function processCrypto(action: CryptoAction, payload: string, key?: string, iv?: string): Promise<string> {
   if (action === "custom") {
-    throw new Error("Custom JS 스크립트는 백엔드에서 실행할 수 없습니다.");
+    throw new Error(
+      readAppLang() === "ko"
+        ? "커스텀 JS 스크립트는 백엔드에서 실행할 수 없습니다."
+        : "Custom JS scripts cannot run on the backend.",
+    );
   }
   const res = unwrap(
     await commands.processCrypto({

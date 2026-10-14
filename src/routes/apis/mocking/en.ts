@@ -23,4 +23,7 @@ export const en = {
   updateRuleSuccess: "Mock rule updated.",
   deleteRuleSuccess: "Mock rule deleted.",
   saveAsMockRule: "Save as Mock Rule",
+  namePlaceholder: "e.g. Success response",
+  hostPlaceholder: "api.example.com",
+  responseMock: "Response mock",
 };

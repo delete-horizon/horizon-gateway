@@ -1,0 +1,268 @@
+import { useSyncExternalStore } from "react";
+
+export type InjectionLang = "ko" | "en";
+
+const en = {
+  toolbarDockHint: "Click or hover to expand the toolbar",
+  toolbarExpand: "Click to expand the toolbar",
+  toolbarProxy: "Click to view local proxy status",
+  toolbarMocks: "Click to view mocked APIs",
+  toolbarLogs: "Click to view live API logs",
+  toolbarGuides: "Click to open guides",
+  toolbarHideEdge: "Hide on the right edge",
+  toolbarCompact: "Collapse to a mini icon",
+  close: "Close",
+  edit: "Edit",
+  delete: "Delete",
+  clear: "Clear",
+  add: "Add",
+  detail: "Details",
+  copyDescription: "Copy description",
+  copySelector: "Copy selector",
+  copySummary: "Copy summary",
+  recapture: "Recapture",
+  recaptureConfirm: "Overwrite?",
+  recaptureTitle: "Replace the preview and capture host/URL with this page",
+  capturing: "Capturing...",
+  promotePrimary: (index: number, strategy: string | undefined) =>
+    `Promote fallback #${index} (${strategy ?? "locator"}) to primary`,
+  guidesTitle: (count: number) => `Guides (${count})`,
+  selecting: "Selecting...",
+  selectElement: "Select element",
+  badges: (on: boolean) => `Badges ${on ? "ON" : "OFF"}`,
+  noGuides: "No guides on this page.",
+  noGuidesHint: "Use Select element to pick something on the screen.",
+  guideEditTitle: "Edit guide",
+  guideNewTitle: "New guide",
+  guideName: "Name (role / title)",
+  guideNamePlaceholder: "e.g. Login button",
+  guideDescription: "Description (Markdown)",
+  guideDescriptionPlaceholder: "Rules, code refs (`path`), lists... Type [[ to search tools",
+  hostPatternPlaceholder: "e.g. *.example.*, !api",
+  pathPatternPlaceholder: "e.g. /products/*",
+  pickPattern: "Choose pattern",
+  cancel: "Cancel",
+  saving: "Saving...",
+  saved: "Saved",
+  saveGuide: "Save guide",
+  guideUpdated: "Guide updated.",
+  saveFailed: "Could not save.",
+  noHeaders: "No headers.",
+  jsonHint: "Click ▼/▶ to fold. Drag to copy part of the text.",
+  jsonTruncated: "(some data omitted)",
+  jsonCopied: "JSON copied",
+  copyJson: "Copy JSON",
+  expand: "Expand",
+  collapse: "Collapse",
+  copyNode: "Copy this node",
+  mocksTitle: (count: number) => `Mocked APIs (${count})`,
+  mockAll: "All mocks",
+  mockAllOn: "All ON",
+  mockAllOff: "All OFF",
+  noPageMocks: "No mocked requests on this page.",
+  mockEdit: "Details / edit",
+  logsTitle: (count: number) => `Live API logs (${count})`,
+  logSearch: "Search URL or method...",
+  noPageLogs: "No API requests on this page.",
+  logToMock: "Turn this API into a mock rule",
+  logDetailTitle: "API log",
+  copyResponse: "Copy response",
+  emptyResponse: "Response body is empty or streaming binary data.",
+  copyRequest: "Copy request",
+  emptyRequest: "No request body (GET or empty body).",
+  copyUrl: "Copy URL",
+  copyCurl: "Copy cURL",
+  createMockRule: "Create a mock rule for this API",
+  mockEditTitle: "Mock API details",
+  mockNewTitle: "New mock rule",
+  mockOn: "● On",
+  mockOff: "○ Off",
+  ruleName: "Rule name",
+  ruleNamePlaceholder: "Rule name",
+  statusCode: "Status code",
+  delayMs: "Delay (ms)",
+  urlPattern: "URL pattern (* wildcard)",
+  urlPatternPlaceholder: "e.g. */api/v1/example*",
+  responseBody: "Response body",
+  editDirect: "Edit text",
+  foldableView: "Foldable text",
+  responsePlaceholder: "Response data (JSON or plain text)...",
+  deleteMock: "Delete mock rule",
+  saveMock: "Save mock rule",
+  proxyTitle: "Local proxy status and routes",
+  proxyState: "Proxy connection",
+  proxyActive: "● Active",
+  proxyInactive: "○ Inactive",
+  proxyTraffic: "Proxied requests",
+  trafficCount: (count: number) => `${count}`,
+  allRoutes: (count: number) => `All local routes (${count})`,
+  domainRoutes: (count: number) => `Routes for this domain (${count})`,
+  thisDomainOnly: "This domain only",
+  showAll: (count: number) => `Show all (${count})`,
+  noRoutes: "No local proxy routes.",
+  noDomainRoutes: (host: string) => `No route matches ${host}.`,
+  copiedDescription: (role: string) => `Copied the description for '${role}'`,
+  copiedLocator: (role: string) => `Copied the locator for '${role}'`,
+  copiedSummary: (role: string) => `Copied the guide summary for '${role}'`,
+  guideDeleted: "Guide deleted",
+  elementMissing: (role: string) => `Could not find '${role}' on this page`,
+  elementTooSmall: (role: string) => `'${role}' is too small to capture`,
+  recaptureOk: (role: string) => `Updated the capture for '${role}' to this page`,
+  recapturePartial: (role: string) => `Updated the capture source for '${role}', but the preview failed`,
+  recaptureFailed: "Could not recapture",
+  promoted: (role: string) => `Promoted a locator for '${role}' to primary`,
+  promoteFailed: "Could not promote the locator",
+} as const;
+
+type Copy = {
+  [K in keyof typeof en]: (typeof en)[K] extends (...args: infer A) => unknown ? (...args: A) => string : string;
+};
+
+const ko: Copy = {
+  toolbarDockHint: "클릭하거나 가리키면 툴바가 펼쳐집니다",
+  toolbarExpand: "클릭하여 툴바 펼치기",
+  toolbarProxy: "클릭하여 로컬 프록시 상태 보기",
+  toolbarMocks: "클릭하여 모킹된 API 목록 보기",
+  toolbarLogs: "클릭하여 실시간 API 통신 로그 보기",
+  toolbarGuides: "클릭하여 가이드 관리 열기",
+  toolbarHideEdge: "화면 오른쪽 가장자리에 숨기기",
+  toolbarCompact: "미니 아이콘 모드로 접기",
+  close: "닫기",
+  edit: "수정",
+  delete: "삭제",
+  clear: "지우기",
+  add: "추가",
+  detail: "상세",
+  copyDescription: "설명 복사",
+  copySelector: "Selector 복사",
+  copySummary: "요약 복사",
+  recapture: "캡처 다시 지정",
+  recaptureConfirm: "덮어쓸까요?",
+  recaptureTitle: "미리보기와 캡처 호스트/URL을 현재 페이지로 바꿉니다",
+  capturing: "캡처 중...",
+  promotePrimary: (index, strategy) => `fallback #${index} (${strategy ?? "locator"})를 primary로 승격`,
+  guidesTitle: (count) => `가이드 관리 (${count})`,
+  selecting: "선택 중...",
+  selectElement: "요소 선택 (인스펙터)",
+  badges: (on) => `배지 ${on ? "ON" : "OFF"}`,
+  noGuides: "현재 페이지에 등록된 가이드가 없습니다.",
+  noGuidesHint: "요소 선택 버튼으로 화면 요소를 지정하세요.",
+  guideEditTitle: "가이드 수정",
+  guideNewTitle: "새 가이드 등록",
+  guideName: "가이드명 (Role / Title)",
+  guideNamePlaceholder: "예: 로그인 버튼",
+  guideDescription: "설명 (마크다운)",
+  guideDescriptionPlaceholder: "상세 규칙, 코드 참조(`path`), 목록... [[ 로 기능 검색",
+  hostPatternPlaceholder: "예: *.example.*, !api",
+  pathPatternPlaceholder: "예: /products/*",
+  pickPattern: "패턴 선택",
+  cancel: "취소",
+  saving: "저장 중...",
+  saved: "저장 완료",
+  saveGuide: "가이드 저장",
+  guideUpdated: "가이드가 수정되었습니다.",
+  saveFailed: "저장에 실패했습니다.",
+  noHeaders: "헤더 정보가 없습니다.",
+  jsonHint: "▼/▶ 를 눌러 접고, 드래그로 일부를 복사할 수 있습니다.",
+  jsonTruncated: "(데이터 일부 생략됨)",
+  jsonCopied: "전체 복사됨!",
+  copyJson: "전체 JSON 복사",
+  expand: "펼치기",
+  collapse: "접기",
+  copyNode: "이 노드 데이터 복사",
+  mocksTitle: (count) => `모킹 API 목록 (${count})`,
+  mockAll: "전체 모킹 상태",
+  mockAllOn: "전체 ON",
+  mockAllOff: "전체 OFF",
+  noPageMocks: "이 페이지에서 발생한 API 중 모킹된 요청이 없습니다.",
+  mockEdit: "상세/편집",
+  logsTitle: (count) => `실시간 API 통신 로그 (${count})`,
+  logSearch: "URL 또는 Method로 검색...",
+  noPageLogs: "현재 페이지에서 감지된 API 요청이 없습니다.",
+  logToMock: "이 API를 모킹 규칙으로 전환",
+  logDetailTitle: "API 통신 상세",
+  copyResponse: "Response 복사",
+  emptyResponse: "Response Body가 비어 있거나 스트리밍 바이너리 데이터입니다.",
+  copyRequest: "Request 복사",
+  emptyRequest: "Request Body가 없습니다 (GET 또는 본문 없음).",
+  copyUrl: "URL 복사",
+  copyCurl: "cURL 복사",
+  createMockRule: "이 API 모킹 규칙 생성",
+  mockEditTitle: "모킹 API 상세 및 편집",
+  mockNewTitle: "신규 모킹 규칙 작성",
+  mockOn: "● 활성화 (ON)",
+  mockOff: "○ 비활성화 (OFF)",
+  ruleName: "규칙 이름",
+  ruleNamePlaceholder: "규칙 이름 입력",
+  statusCode: "상태 코드",
+  delayMs: "지연 시간 (ms)",
+  urlPattern: "URL 패턴 (와일드카드 *)",
+  urlPatternPlaceholder: "예: */api/v1/example*",
+  responseBody: "Response Body (모킹 응답 데이터)",
+  editDirect: "직접 편집",
+  foldableView: "접을 수 있는 텍스트",
+  responsePlaceholder: "응답 데이터 작성 (JSON 또는 일반 텍스트)...",
+  deleteMock: "모킹 규칙 삭제",
+  saveMock: "모킹 규칙 저장",
+  proxyTitle: "로컬 프록시 상태와 라우트",
+  proxyState: "프록시 연결 상태",
+  proxyActive: "● 활성",
+  proxyInactive: "○ 비활성",
+  proxyTraffic: "중계된 요청 수",
+  trafficCount: (count) => `${count}건`,
+  allRoutes: (count) => `전체 로컬 프록시 라우트 (${count})`,
+  domainRoutes: (count) => `현재 도메인 라우트 (${count})`,
+  thisDomainOnly: "현재 도메인만",
+  showAll: (count) => `전체 보기 (${count})`,
+  noRoutes: "등록된 로컬 프록시 라우트가 없습니다.",
+  noDomainRoutes: (host) => `현재 도메인(${host})에 맞는 라우트가 없습니다.`,
+  copiedDescription: (role) => `'${role}' 설명이 복사되었습니다`,
+  copiedLocator: (role) => `'${role}' Locator가 복사되었습니다`,
+  copiedSummary: (role) => `'${role}' 가이드 요약이 복사되었습니다`,
+  guideDeleted: "가이드가 삭제되었습니다",
+  elementMissing: (role) => `'${role}' 요소를 이 페이지에서 찾지 못했습니다`,
+  elementTooSmall: (role) => `'${role}' 요소 크기가 너무 작아 캡처할 수 없습니다`,
+  recaptureOk: (role) => `'${role}' 캡처를 현재 페이지로 바꿨습니다`,
+  recapturePartial: (role) => `'${role}' 캡처 출처는 갱신됐지만 미리보기 생성에 실패했습니다`,
+  recaptureFailed: "캡처 다시 지정에 실패했습니다",
+  promoted: (role) => `'${role}' locator를 primary로 승격했습니다`,
+  promoteFailed: "승격에 실패했습니다",
+};
+
+let langOverride: InjectionLang | null = null;
+const listeners = new Set<() => void>();
+
+function detectLang(): InjectionLang {
+  const lang = (typeof navigator !== "undefined" ? navigator.language : "en") || "en";
+  return lang.toLowerCase().startsWith("ko") ? "ko" : "en";
+}
+
+export function injectionLang(): InjectionLang {
+  return langOverride ?? detectLang();
+}
+
+export function setInjectionLang(lang: InjectionLang | null) {
+  langOverride = lang;
+  for (const listener of listeners) {
+    listener();
+  }
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("message", (event: MessageEvent) => {
+    const data = event.data as { type?: string; lang?: string } | null;
+    if (data?.type === "WT_SET_LANG" && (data.lang === "ko" || data.lang === "en")) {
+      setInjectionLang(data.lang);
+    }
+  });
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+export function useInjectionCopy(): Copy {
+  const lang = useSyncExternalStore(subscribe, injectionLang, () => "en" as const);
+  return lang === "ko" ? ko : en;
+}

@@ -239,8 +239,8 @@ export function useTeamWorkspace() {
       toastInfo(
         paidCheckoutEnabled
           ? lang === "ko"
-            ? "Free 플랜에서는 1개의 워크스페이스만 생성할 수 있습니다. 추가 생성을 위해 Team Pro 플랜으로 업그레이드하세요."
-            : "Free plan allows 1 workspace. Upgrade to Team Pro plan for unlimited workspaces."
+            ? "Free는 소유 워크스페이스 1개와 좌석 3명입니다. 다른 워크스페이스를 만들려면 Team Pro(좌석 5명)로 업그레이드하세요."
+            : "Free includes 1 owned workspace and 3 seats. Upgrade to Team Pro (5 seats) to create another workspace."
           : lang === "ko"
             ? "Free 플랜에서는 워크스페이스를 1개만 만들 수 있습니다."
             : "Free plan allows 1 owned workspace.",
@@ -286,8 +286,8 @@ export function useTeamWorkspace() {
         toastInfo(
           paidCheckoutEnabled
             ? lang === "ko"
-              ? `현재 워크스페이스 정원(${guard.memberCount}/${guard.seatLimit}명)이 가득 찼습니다. 팀 인원을 추가하려면 Team Pro 플랜으로 업그레이드하세요.`
-              : `Seat limit reached (${guard.memberCount}/${guard.seatLimit}). Upgrade to Team Pro plan to add more members.`
+              ? `현재 워크스페이스 정원(${guard.memberCount}/${guard.seatLimit}명)이 가득 찼습니다. Team Pro는 좌석 5명입니다.`
+              : `Seat limit reached (${guard.memberCount}/${guard.seatLimit}). Team Pro includes 5 seats.`
             : lang === "ko"
               ? `현재 워크스페이스 정원(${guard.memberCount}/${guard.seatLimit}명)이 가득 찼습니다.`
               : `Seat limit reached (${guard.memberCount}/${guard.seatLimit}).`,

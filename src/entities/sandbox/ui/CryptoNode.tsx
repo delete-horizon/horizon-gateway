@@ -54,9 +54,26 @@ const en = {
   outputResult: "Output Result (Output)",
   modified: "Modified",
   noActivePreset: "No active preset selected. Select or create a preset.",
+  compileError: (message: string) => `Compile error: ${message}`,
+  defaultExportError:
+    "The default export is not a function. Export it as `export default function(payload, key, iv) { ... }`.",
+  customAction: "Custom script (JS)",
+  payloadPlaceholder: "Enter data to encode, decode, or encrypt...",
+  customScript: "Custom JS script",
+  customScriptHint: "Write `export default async function(payload, key, iv)`.",
+  keyOptional: "(optional — signature check)",
+  keyOptionalShort: "(optional)",
+  ivPlaceholder: "IV (12-byte hex or plain)...",
+  runHint: "Click Run to see the output here.",
+  presetConfig: "Preset config",
+  noDescription: "No description",
+  unknownCompile: "Unknown compile error",
+  cryptoFailed: "Crypto processing failed",
+  newPreset: "New preset",
+  newPresetDesc: "A newly created crypto preset",
 };
 
-const ko = {
+const ko: typeof en = {
   title: "암복호화 및 인코딩",
   subtitle: "암호화, 복호화 및 인코딩 설정을 관리하고 빠르게 실행합니다.",
   addPreset: "새 프리셋 추가",
@@ -79,6 +96,23 @@ const ko = {
   outputResult: "출력 결과 (Output)",
   modified: "변경됨",
   noActivePreset: "선택된 프리셋이 없습니다. 프리셋을 선택하거나 새로 추가하세요.",
+  compileError: (message: string) => `컴파일 오류: ${message}`,
+  defaultExportError:
+    "기본 내보내기가 함수가 아닙니다. `export default function(payload, key, iv) { ... }` 형태로 내보내세요.",
+  customAction: "커스텀 스크립트 (JS)",
+  payloadPlaceholder: "인코딩하거나 암복호화할 데이터를 입력하세요...",
+  customScript: "커스텀 JS 스크립트",
+  customScriptHint: "`export default async function(payload, key, iv)` 형태로 작성합니다.",
+  keyOptional: "(선택 — 서명 검증)",
+  keyOptionalShort: "(선택)",
+  ivPlaceholder: "IV (12바이트 hex 또는 평문)...",
+  runHint: "실행하기를 누르면 여기에 결과가 나타납니다.",
+  presetConfig: "프리셋 설정",
+  noDescription: "설명 없음",
+  unknownCompile: "알 수 없는 컴파일 오류",
+  cryptoFailed: "암복호화 처리에 실패했습니다",
+  newPreset: "새 프리셋",
+  newPresetDesc: "새로 만든 암복호화 프리셋",
 };
 
 export function CryptoNode({
@@ -195,8 +229,8 @@ export function CryptoNode({
               filename: "crypto_custom.ts",
             }).code || "";
         } catch (e: unknown) {
-          const message = e instanceof Error ? e.message : "Unknown compile error";
-          throw new Error(`컴파일 에러: ${message}`);
+          const message = e instanceof Error ? e.message : t.unknownCompile;
+          throw new Error(t.compileError(message));
         }
 
         const runFn = new Function("exports", transpiled);
@@ -205,9 +239,7 @@ export function CryptoNode({
 
         const defaultExport = exportsObj.default;
         if (typeof defaultExport !== "function") {
-          throw new Error(
-            "Default export가 함수가 아닙니다. 'export default function(payload, key, iv) { ... }' 형태로 내보내주세요.",
-          );
+          throw new Error(t.defaultExportError);
         }
 
         const customResult = await defaultExport(payload, secretKey, iv);
@@ -217,7 +249,7 @@ export function CryptoNode({
       }
       setResult(res);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Crypto processing failed";
+      const message = err instanceof Error ? err.message : t.cryptoFailed;
       setError(message);
       setResult("");
     } finally {
@@ -241,7 +273,7 @@ export function CryptoNode({
     { value: "aesDecrypt", label: "AES-256-GCM Decrypt" },
     { value: "sha256", label: "SHA-256 Hash" },
     { value: "hmacSha256", label: "HMAC-SHA-256" },
-    { value: "custom", label: "커스텀 스크립트 (JS)" },
+    { value: "custom", label: t.customAction },
   ];
 
   // Search filter
@@ -276,16 +308,21 @@ export function CryptoNode({
   const handleAddPreset = async () => {
     try {
       const created = await createCryptoPreset({
-        name: "New Preset",
-        description: "A newly created crypto preset",
+        name: t.newPreset,
+        description: t.newPresetDesc,
         action: "base64Encode",
         payload: "Hello, Horizon Gateway!",
         key: "",
         iv: "",
-        code: `export default function(payload, key, iv) {
-  // CryptoJS 라이브러리가 전역(window.CryptoJS)에 제공되므로 바로 사용할 수 있습니다.
+        code: isKo
+          ? `export default function(payload, key, iv) {
+  // CryptoJS는 전역(window.CryptoJS)에서 사용할 수 있습니다.
   // 예: const hash = CryptoJS.SHA256(payload).toString();
-  
+  return payload;
+}`
+          : `export default function(payload, key, iv) {
+  // CryptoJS is available globally as window.CryptoJS.
+  // Example: const hash = CryptoJS.SHA256(payload).toString();
   return payload;
 }`,
       });
@@ -359,7 +396,7 @@ export function CryptoNode({
     return (
       <div className="space-y-3 text-xs p-2">
         <div className="flex flex-col gap-1">
-          <label className="font-semibold text-base-content/80">변환 작업 (Action)</label>
+          <label className="font-semibold text-base-content/80">{t.action}</label>
           <select
             className="select select-bordered select-xs w-full text-xs"
             value={action}
@@ -374,11 +411,11 @@ export function CryptoNode({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="font-semibold text-base-content/80">입력 데이터 (Payload)</label>
+          <label className="font-semibold text-base-content/80">{t.payload}</label>
           <textarea
             rows={3}
             className="textarea textarea-bordered textarea-xs font-mono w-full"
-            placeholder="암복호화 혹은 인코딩할 데이터를 입력하세요..."
+            placeholder={t.payloadPlaceholder}
             value={payload}
             onChange={(e) => setPayload(e.target.value)}
           />
@@ -386,7 +423,7 @@ export function CryptoNode({
 
         {action === "custom" && (
           <div className="flex flex-col gap-1 min-h-[180px]">
-            <label className="font-semibold text-base-content/80">Custom JS 스크립트</label>
+            <label className="font-semibold text-base-content/80">{t.customScript}</label>
             <TsCodeEditor
               value={customCode}
               onChange={(val) => setCustomCode(val)}
@@ -400,13 +437,13 @@ export function CryptoNode({
         {requiresKey && (
           <div className="flex flex-col gap-1">
             <label className="font-semibold text-base-content/80">
-              비밀키 (Key) {action === "jwtDecode" && "(선택 사항 - 서명 검증용)"}
+              {t.key} {action === "jwtDecode" && t.keyOptional}
             </label>
             <div className="relative flex items-center">
               <input
                 type={showSecretKey ? "text" : "password"}
                 className="input input-bordered input-xs font-mono w-full pr-7"
-                placeholder="Secret Key..."
+                placeholder={t.key}
                 value={secretKey}
                 onChange={(e) => setSecretKey(e.target.value)}
               />
@@ -423,12 +460,12 @@ export function CryptoNode({
 
         {requiresIv && (
           <div className="flex flex-col gap-1">
-            <label className="font-semibold text-base-content/80">초기화 벡터 (IV)</label>
+            <label className="font-semibold text-base-content/80">{t.iv}</label>
             <div className="relative flex items-center">
               <input
                 type={showIv ? "text" : "password"}
                 className="input input-bordered input-xs font-mono w-full pr-7"
-                placeholder="IV (12-byte hex or plain)..."
+                placeholder={t.ivPlaceholder}
                 value={iv}
                 onChange={(e) => setIv(e.target.value)}
               />
@@ -494,7 +531,7 @@ export function CryptoNode({
           <>
             <section className="space-y-2 shrink-0">
               <div className="flex justify-between items-center gap-2 min-w-0">
-                <h3 className="text-sm font-semibold text-primary truncate">🔐 {title || "Preset Config"}</h3>
+                <h3 className="text-sm font-semibold text-primary truncate">🔐 {title || t.presetConfig}</h3>
                 <div className="flex items-center gap-2 shrink-0">
                   {hasUnsavedChanges && <span className="badge badge-warning badge-xs font-medium">{t.modified}</span>}
                   <button
@@ -548,7 +585,7 @@ export function CryptoNode({
                   <label className="text-[10px] font-semibold text-base-content/65">{t.payload}</label>
                   <textarea
                     className="textarea textarea-bordered textarea-xs font-mono text-xs w-full min-h-[70px] focus:outline-none bg-base-50"
-                    placeholder="Payload..."
+                    placeholder={t.payloadPlaceholder}
                     value={payload}
                     onChange={(e) => setPayload(e.target.value)}
                   />
@@ -556,10 +593,8 @@ export function CryptoNode({
 
                 {action === "custom" && (
                   <div className="flex flex-col gap-1 min-h-[180px]">
-                    <label className="text-[10px] font-semibold text-base-content/65">Custom JS 스크립트 작성</label>
-                    <p className="text-[9px] text-base-content/40 mb-1">
-                      `export default async function(payload, key, iv)` 형태로 작성합니다.
-                    </p>
+                    <label className="text-[10px] font-semibold text-base-content/65">{t.customScript}</label>
+                    <p className="text-[9px] text-base-content/40 mb-1">{t.customScriptHint}</p>
                     <TsCodeEditor
                       value={customCode}
                       onChange={(val) => setCustomCode(val)}
@@ -573,7 +608,7 @@ export function CryptoNode({
                 {requiresKey && (
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-semibold text-base-content/65">
-                      {t.key} {action === "jwtDecode" && "(선택 사항)"}
+                      {t.key} {action === "jwtDecode" && t.keyOptionalShort}
                     </label>
                     <div className="relative flex items-center">
                       <input
@@ -649,11 +684,7 @@ export function CryptoNode({
                 ) : result ? (
                   <pre className="whitespace-pre-wrap break-all text-success m-0">{result}</pre>
                 ) : (
-                  <span className="text-base-content/40 italic">
-                    {lang === "ko"
-                      ? "실행하기 버튼을 누르면 여기에 결과가 나타납니다."
-                      : "Click Run to see the output here."}
-                  </span>
+                  <span className="text-base-content/40 italic">{t.runHint}</span>
                 )}
               </Card>
             </section>
@@ -710,7 +741,7 @@ export function CryptoNode({
               >
                 <div className="flex flex-col space-y-0.5 min-w-0 pr-2">
                   <span className="font-semibold text-xs truncate">{p.name}</span>
-                  <span className="text-[10px] text-base-content/50 truncate">{p.description || "No description"}</span>
+                  <span className="text-[10px] text-base-content/50 truncate">{p.description || t.noDescription}</span>
                 </div>
                 <button
                   className="btn btn-xs btn-ghost text-error opacity-0 group-hover:opacity-100 transition-opacity"
@@ -731,7 +762,7 @@ export function CryptoNode({
             {/* Center Column: Config Editor */}
             <section className="lg:col-span-7 flex flex-col h-full overflow-hidden space-y-2 min-w-0">
               <div className="flex justify-between items-center gap-2 shrink-0">
-                <h2 className="text-sm font-semibold text-primary truncate">🔐 {title || "Preset Config"}</h2>
+                <h2 className="text-sm font-semibold text-primary truncate">🔐 {title || t.presetConfig}</h2>
                 <div className="flex items-center gap-2 shrink-0">
                   {hasUnsavedChanges && <span className="badge badge-warning badge-xs font-medium">{t.modified}</span>}
                   <button
@@ -786,7 +817,7 @@ export function CryptoNode({
                   <label className="label-text text-xs font-semibold text-base-content/70">{t.payload}</label>
                   <textarea
                     className="textarea textarea-bordered font-mono text-sm w-full min-h-[80px] focus:outline-none"
-                    placeholder="Payload..."
+                    placeholder={t.payloadPlaceholder}
                     value={payload}
                     onChange={(e) => setPayload(e.target.value)}
                   />
@@ -794,12 +825,8 @@ export function CryptoNode({
 
                 {action === "custom" && (
                   <div className="flex flex-col gap-1 flex-1 min-h-[220px]">
-                    <label className="label-text text-xs font-semibold text-base-content/70">
-                      Custom JS 스크립트 작성
-                    </label>
-                    <p className="text-[10px] text-base-content/50 mb-1">
-                      `export default async function(payload, key, iv)` 형태로 작성합니다.
-                    </p>
+                    <label className="label-text text-xs font-semibold text-base-content/70">{t.customScript}</label>
+                    <p className="text-[10px] text-base-content/50 mb-1">{t.customScriptHint}</p>
                     <TsCodeEditor
                       value={customCode}
                       onChange={(val) => setCustomCode(val)}
@@ -813,7 +840,7 @@ export function CryptoNode({
                 {requiresKey && (
                   <div className="flex flex-col gap-1 shrink-0">
                     <label className="label-text text-xs font-semibold text-base-content/70">
-                      {t.key} {action === "jwtDecode" && "(선택 사항 - 서명 검증용)"}
+                      {t.key} {action === "jwtDecode" && t.keyOptional}
                     </label>
                     <div className="relative flex items-center">
                       <input
@@ -891,11 +918,7 @@ export function CryptoNode({
                 ) : result ? (
                   <pre className="whitespace-pre-wrap break-all text-success text-xs leading-relaxed m-0">{result}</pre>
                 ) : (
-                  <span className="text-base-content/40 italic text-xs">
-                    {lang === "ko"
-                      ? "실행하기 버튼을 누르면 여기에 결과가 나타납니다."
-                      : "Click Run to see the output here."}
-                  </span>
+                  <span className="text-base-content/40 italic text-xs">{t.runHint}</span>
                 )}
               </Card>
             </section>

@@ -470,22 +470,22 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
     const id = `${type}_${Math.random().toString(36).substring(2, 9)}`;
     const label =
       type === "api"
-        ? "API Request"
+        ? t.apiRequest
         : type === "crypto"
-          ? "Crypto Node"
+          ? t.cryptoTool
           : type === "schema"
-            ? "Schema Node"
+            ? t.addSchema
             : type === "mapper"
-              ? "Mapper Node"
+              ? t.dataMapper
               : type === "script"
-                ? "Custom Script"
-                : "UI Preview Node";
+                ? t.jsScriptNode
+                : t.uiPreview;
 
     let config: Record<string, unknown> = {};
     if (type === "api") {
       config = {
         method: "GET",
-        url: "https://jsonplaceholder.typicode.com/posts/1",
+        url: "https://api.example.com/posts/1",
         headers: {},
         body: "",
         errorPolicy: "fastFail",
@@ -507,15 +507,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
       };
     } else if (type === "script") {
       config = {
-        code: `export default async function(inputs) {
-  // inputs 에는 이전 노드들의 실행 결과가 노드 ID를 키로 하여 들어있습니다.
-  // 예: const apiBody = inputs.api_1?.body;
-  
-  // CryptoJS 라이브러리가 전역에 제공되므로 바로 사용할 수 있습니다.
-  // 예: const hash = CryptoJS.SHA256("test").toString();
-  
-  return "Hello, Horizon Gateway!";
-}`,
+        code: t.scriptStarter,
         errorPolicy: "fastFail",
       };
     } else {

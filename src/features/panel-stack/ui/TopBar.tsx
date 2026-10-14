@@ -51,11 +51,19 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
 
   const handleLogin = async () => {
     if (isDevLocalPasswordAuthEnabled()) {
-      toastInfo("로컬 Supabase — env 계정으로 자동 로그인됩니다.");
+      toastInfo(
+        lang === "ko"
+          ? "로컬 Supabase — env 계정으로 자동 로그인됩니다."
+          : "Local Supabase — signing in automatically with the env account.",
+      );
       return;
     }
     if (isDevMockAuthEnabled()) {
-      toastInfo("VITE_DEV_MOCK_AUTH=1 — deprecated; prefer local Supabase + VITE_DEV_LOCAL_*.");
+      toastInfo(
+        lang === "ko"
+          ? "VITE_DEV_MOCK_AUTH=1 은 더 이상 쓰지 않습니다. 로컬 Supabase와 VITE_DEV_LOCAL_* 를 사용하세요."
+          : "VITE_DEV_MOCK_AUTH=1 is deprecated. Use local Supabase and VITE_DEV_LOCAL_*.",
+      );
       return;
     }
     try {
@@ -67,28 +75,36 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
         },
       });
       if (error) {
-        toastError(`Supabase OAuth Init Error: ${error.message}`);
+        toastError(lang === "ko" ? `로그인 시작 실패: ${error.message}` : `Sign-in failed to start: ${error.message}`);
         return;
       }
       if (data?.url) {
         await commands.openExternalUrl(data.url);
       } else {
-        toastError("OAuth URL generation failed: URL was empty.");
+        toastError(lang === "ko" ? "로그인 주소가 비어 있습니다." : "The sign-in URL was empty.");
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      toastError(`handleLogin Exception: ${message}`);
+      toastError(lang === "ko" ? `로그인 오류: ${message}` : `Sign-in error: ${message}`);
     }
   };
 
   const handleLogout = async () => {
     if (isDevLocalPasswordAuthEnabled()) {
       await supabase.auth.signOut();
-      toastInfo("로컬 세션을 종료했습니다. 재시작 시 env 계정으로 다시 로그인됩니다.");
+      toastInfo(
+        lang === "ko"
+          ? "로컬 세션을 종료했습니다. 재시작 시 env 계정으로 다시 로그인됩니다."
+          : "Local session ended. The env account signs in again on restart.",
+      );
       return;
     }
     if (isDevMockAuthEnabled()) {
-      toastInfo("모킹 인증은 .env에서 VITE_DEV_MOCK_AUTH를 끄고 재시작해야 해제됩니다.");
+      toastInfo(
+        lang === "ko"
+          ? "모킹 인증은 .env에서 VITE_DEV_MOCK_AUTH를 끄고 재시작해야 해제됩니다."
+          : "Turn off VITE_DEV_MOCK_AUTH in .env and restart to leave mock auth.",
+      );
       return;
     }
     await supabase.auth.signOut();
