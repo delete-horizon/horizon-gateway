@@ -88,6 +88,8 @@ Download installers from [GitHub Releases](https://github.com/delete-horizon/hor
 
 Sizes are decimal megabytes of those release files. The same release also has updater files (`.sig`, `latest.json`, `.app.tar.gz`) and `SHA256SUMS` for the installers and updater binaries. Later releases can differ in size. See [Verifying downloads](#verifying-downloads).
 
+The Windows installer is not yet code-signed, so Windows may show "Windows protected your PC". Click **More info**, then **Run anyway**. Confirm the file came from the official [GitHub Releases](https://github.com/delete-horizon/horizon-gateway/releases) page or from [gateway.delete-horizon.com](https://gateway.delete-horizon.com).
+
 ---
 
 ## Verifying downloads
