@@ -262,6 +262,9 @@ as $$
 declare
   nonce_text text;
   nonce_ok boolean := false;
+  caller_is_owner boolean := false;
+  caller_is_admin boolean := false;
+  target_is_owner boolean := false;
 begin
   if coalesce(auth.role(), '') = 'service_role' then
     return new;
@@ -304,21 +307,61 @@ begin
     raise exception 'membership identity is immutable';
   end if;
 
-  if new.role is not distinct from old.role then
-    return new;
-  end if;
-
-  if not exists (
+  -- Owner keeps full control, including promote-to-owner for a transfer.
+  -- Admins may update a regular member only when the role stays member.
+  -- They cannot grant owner or admin, edit the owner or another admin, or
+  -- raise their own role.
+  select exists (
     select 1
     from public.workspaces w
     where w.id = old.workspace_id
       and w.owner_id = auth.uid()
-  ) then
-    raise exception 'only the workspace owner can change roles';
+  ) into caller_is_owner;
+
+  if caller_is_owner then
+    if old.profile_id = auth.uid() and new.role not in ('owner', 'admin') then
+      raise exception 'the workspace owner cannot drop below admin';
+    end if;
+    return new;
   end if;
 
-  if old.profile_id = auth.uid() and new.role not in ('owner', 'admin') then
-    raise exception 'the workspace owner cannot drop below admin';
+  if old.profile_id = auth.uid()
+     and (
+       (old.role = 'member' and new.role in ('admin', 'owner'))
+       or (old.role = 'admin' and new.role = 'owner')
+     ) then
+    raise exception 'cannot raise your own role';
+  end if;
+
+  select exists (
+    select 1
+    from public.workspace_members m
+    where m.workspace_id = old.workspace_id
+      and m.profile_id = auth.uid()
+      and m.role = 'admin'
+  ) into caller_is_admin;
+
+  if not caller_is_admin then
+    raise exception 'only a workspace owner or admin can change roles';
+  end if;
+
+  if old.profile_id = auth.uid() then
+    raise exception 'cannot change your own role';
+  end if;
+
+  select old.role = 'owner' or exists (
+    select 1
+    from public.workspaces w
+    where w.id = old.workspace_id
+      and w.owner_id = old.profile_id
+  ) into target_is_owner;
+
+  if target_is_owner or old.role = 'admin' then
+    raise exception 'admins cannot change the owner or another admin';
+  end if;
+
+  if new.role in ('owner', 'admin') then
+    raise exception 'admins cannot promote a member to owner or admin';
   end if;
 
   return new;
@@ -561,6 +604,7 @@ create policy "workspace_members_update_owner" on public.workspace_members
       where w.id = workspace_members.workspace_id
         and w.owner_id = auth.uid()
     )
+    or public.is_workspace_admin(workspace_members.workspace_id)
   )
   with check (
     exists (
@@ -568,6 +612,11 @@ create policy "workspace_members_update_owner" on public.workspace_members
       from public.workspaces w
       where w.id = workspace_members.workspace_id
         and w.owner_id = auth.uid()
+    )
+    or (
+      public.is_workspace_admin(workspace_members.workspace_id)
+      and role = 'member'
+      and profile_id is distinct from auth.uid()
     )
   );
 
@@ -711,11 +760,11 @@ begin
     return json_build_object('error', 'invite not found');
   end if;
 
-  select *
+  select wi.*
     into inv
-  from public.workspace_invites
-  where token = invite_token::uuid
-    and status = 'pending'
+  from public.workspace_invites wi
+  where wi.token = invite_token::uuid
+    and wi.status = 'pending'
   for update;
 
   if not found then
@@ -778,10 +827,10 @@ begin
     perform set_config('app.invite_accept_nonce', v_nonce::text, true);
   end if;
 
-  update public.workspace_invites
+  update public.workspace_invites wi
   set status = 'accepted'
-  where id = inv.id
-    and status = 'pending';
+  where wi.id = inv.id
+    and wi.status = 'pending';
 
   delete from private.invite_accept_nonce where nonce = v_nonce;
 

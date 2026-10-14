@@ -1,5 +1,6 @@
 import type { Json } from "@/shared/api/database.types";
 import { supabase } from "@/shared/api/supabase";
+import { decideMemberRoleChange, isWorkspaceRole, memberRoleDenialMessage } from "./lib/memberRoleChange";
 import type {
   ResourceKind,
   Workspace,
@@ -162,8 +163,19 @@ export async function setMemberRole(
   if (workspaceError || !workspace) {
     throw workspaceError ?? new Error("Workspace not found");
   }
-  if (workspace.owner_id !== currentUserId) {
-    throw new Error("Only the workspace owner can change member roles");
+  const callerIsWorkspaceOwner = workspace.owner_id === currentUserId;
+  let callerIsAdmin = false;
+  if (!callerIsWorkspaceOwner) {
+    const { data: callerMember, error: callerError } = await supabase
+      .from("workspace_members")
+      .select("role")
+      .eq("workspace_id", workspaceId)
+      .eq("profile_id", currentUserId)
+      .maybeSingle();
+    if (callerError) {
+      throw callerError;
+    }
+    callerIsAdmin = callerMember?.role === "admin";
   }
 
   const { data: member, error: memberError } = await supabase
@@ -172,14 +184,21 @@ export async function setMemberRole(
     .eq("id", memberId)
     .eq("workspace_id", workspaceId)
     .single();
-  if (memberError || !member) {
+  if (memberError || !member || !isWorkspaceRole(member.role)) {
     throw memberError ?? new Error("Member not found");
   }
-  if (member.profile_id === workspace.owner_id) {
-    throw new Error("Cannot change the workspace owner's role");
-  }
-  if (member.profile_id === currentUserId) {
-    throw new Error("Cannot change your own role");
+
+  const decision = decideMemberRoleChange({
+    callerIsWorkspaceOwner,
+    callerIsAdmin,
+    callerId: currentUserId,
+    targetProfileId: member.profile_id,
+    targetIsWorkspaceOwner: member.profile_id === workspace.owner_id,
+    targetRole: member.role,
+    nextRole: role,
+  });
+  if (!decision.ok) {
+    throw new Error(memberRoleDenialMessage(decision.reason));
   }
 
   const { data: updated, error: updateError } = await supabase

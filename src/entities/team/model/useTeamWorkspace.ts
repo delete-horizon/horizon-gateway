@@ -606,7 +606,7 @@ export function useTeamWorkspace() {
   };
 
   const handleSetMemberRole = async (memberId: string, role: "admin" | "member"): Promise<boolean> => {
-    if (!activeWorkspaceId || !isWorkspaceOwner) {
+    if (!activeWorkspaceId || !isWorkspaceAdmin) {
       return false;
     }
     setUpdatingMemberRoleId(memberId);
