@@ -342,9 +342,20 @@ mod tests {
             return write_response(&mut writer, &response);
         }
         seen.lock().expect("seen").push(request.command.clone());
+        if request.command == "__missing_version" {
+            let mut line = serde_json::to_string(&json!({
+                "id": request.id,
+                "ok": true,
+                "data": { "ok": true },
+            }))
+            .unwrap_or_else(|_| "{}".to_string());
+            line.push('\n');
+            writer.write_all(line.as_bytes())?;
+            return writer.flush();
+        }
         let response = if request.command == "__bad_version" {
             let mut response = ServeResponse::success(request.id, json!({ "ok": true }));
-            response.protocol_version = 99;
+            response.protocol_version = Some(99);
             response
         } else {
             ServeResponse::success(request.id, core_payload(&request.command))
@@ -411,6 +422,34 @@ mod tests {
             json!({}),
         )
         .expect_err("version");
+        assert!(
+            err.contains(&format!("expected {PROTOCOL_VERSION}")),
+            "{err}"
+        );
+        assert!(err.contains("same release"), "{err}");
+    }
+
+    #[test]
+    fn client_accepts_a_matching_protocol_version() {
+        let core = TestCore::spawn();
+        let value = call_command_at(&core.addr, Some(core.token.clone()), "ping", json!({}))
+            .expect("matching version");
+        assert_eq!(value["success"], true);
+        assert_eq!(core.seen.lock().expect("seen").as_slice(), ["ping"]);
+    }
+
+    #[test]
+    fn client_rejects_a_missing_protocol_version() {
+        let core = TestCore::spawn();
+        let err = call_command_at(
+            &core.addr,
+            Some(core.token.clone()),
+            "__missing_version",
+            json!({}),
+        )
+        .expect_err("missing version");
+        assert!(err.contains("missing serve protocol version"), "{err}");
+        assert!(err.contains("same release"), "{err}");
         assert!(
             err.contains(&format!("expected {PROTOCOL_VERSION}")),
             "{err}"

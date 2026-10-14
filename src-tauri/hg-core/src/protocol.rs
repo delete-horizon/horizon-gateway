@@ -95,8 +95,9 @@ impl ServeEndpoints {
 #[serde(rename_all = "camelCase")]
 pub struct ServeRequest<P = Value> {
     pub id: String,
-    #[serde(default = "default_protocol_version")]
-    pub protocol_version: u32,
+    /// `None` when the peer omitted `protocolVersion`. Strict match rejects that.
+    #[serde(default)]
+    pub protocol_version: Option<u32>,
     pub command: String,
     #[serde(default)]
     pub payload: P,
@@ -115,8 +116,9 @@ pub struct ServeEventHello {
 #[serde(rename_all = "camelCase")]
 pub struct ServeResponse<T = Value> {
     pub id: String,
-    #[serde(default = "default_protocol_version")]
-    pub protocol_version: u32,
+    /// `None` when the peer omitted `protocolVersion`. Strict match rejects that.
+    #[serde(default)]
+    pub protocol_version: Option<u32>,
     pub ok: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<T>,
@@ -150,7 +152,7 @@ impl<P: Default> ServeRequest<P> {
     pub fn new(command: impl Into<String>, payload: P) -> Self {
         Self {
             id: uuid::Uuid::new_v4().to_string(),
-            protocol_version: PROTOCOL_VERSION,
+            protocol_version: Some(PROTOCOL_VERSION),
             command: command.into(),
             payload,
             token: None,
@@ -166,14 +168,25 @@ impl<P> ServeRequest<P> {
     }
 
     pub fn unsupported_version_error(&self) -> Option<String> {
-        if self.protocol_version == PROTOCOL_VERSION {
-            None
-        } else {
-            Some(format!(
-                "unsupported serve protocol version {} (expected {PROTOCOL_VERSION})",
-                self.protocol_version
-            ))
-        }
+        protocol_version_error(self.protocol_version)
+    }
+}
+
+/// Strict match against [`PROTOCOL_VERSION`].
+///
+/// A missing field and any other number are both rejected. The text tells the
+/// user to update the client (`hgc`, the desktop shell, or the web view behind
+/// that shell) and the headless core to the same release.
+fn protocol_version_error(version: Option<u32>) -> Option<String> {
+    const UPDATE: &str = "Update both the client and the headless core to the same release.";
+    match version {
+        Some(version) if version == PROTOCOL_VERSION => None,
+        Some(version) => Some(format!(
+            "unsupported serve protocol version {version} (expected {PROTOCOL_VERSION}). {UPDATE}"
+        )),
+        None => Some(format!(
+            "missing serve protocol version (expected {PROTOCOL_VERSION}). {UPDATE}"
+        )),
     }
 }
 
@@ -181,7 +194,7 @@ impl ServeResponse<Value> {
     pub fn success(id: String, data: Value) -> Self {
         Self {
             id,
-            protocol_version: PROTOCOL_VERSION,
+            protocol_version: Some(PROTOCOL_VERSION),
             ok: true,
             data: Some(data),
             error: None,
@@ -191,11 +204,18 @@ impl ServeResponse<Value> {
     pub fn failure(id: String, error: impl Into<String>) -> Self {
         Self {
             id,
-            protocol_version: PROTOCOL_VERSION,
+            protocol_version: Some(PROTOCOL_VERSION),
             ok: false,
             data: None,
             error: Some(error.into()),
         }
+    }
+}
+
+impl<T> ServeResponse<T> {
+    #[must_use]
+    pub fn unsupported_version_error(&self) -> Option<String> {
+        protocol_version_error(self.protocol_version)
     }
 }
 
@@ -248,7 +268,8 @@ mod tests {
         let json = serde_json::to_string(&req).unwrap();
         let erased: ServeRequest<Value> = serde_json::from_str(&json).unwrap();
         assert_eq!(erased.command, SampleCmd::NAME);
-        assert_eq!(erased.protocol_version, PROTOCOL_VERSION);
+        assert_eq!(erased.protocol_version, Some(PROTOCOL_VERSION));
+        assert!(json.contains(&format!("\"protocolVersion\":{PROTOCOL_VERSION}")));
         let payload: SamplePayload = serde_json::from_value(erased.payload).unwrap();
         assert_eq!(payload.n, 7);
 
@@ -259,10 +280,44 @@ mod tests {
     }
 
     #[test]
-    fn protocol_version_defaults_on_legacy_json() {
-        let legacy = r#"{"id":"1","command":"ping","payload":null}"#;
-        let req: ServeRequest<Value> = serde_json::from_str(legacy).unwrap();
-        assert_eq!(req.protocol_version, PROTOCOL_VERSION);
+    fn protocol_version_match_mismatch_and_missing() {
+        let matched = ServeRequest::new("ping", Value::Null);
+        assert!(matched.unsupported_version_error().is_none());
+        let response = ServeResponse::success(matched.id.clone(), Value::Null);
+        assert!(response.unsupported_version_error().is_none());
+
+        let mut mismatched = ServeRequest::new("ping", Value::Null);
+        mismatched.protocol_version = Some(PROTOCOL_VERSION + 9);
+        let mismatch = mismatched.unsupported_version_error().unwrap();
+        assert!(
+            mismatch.contains(&format!(
+                "unsupported serve protocol version {} (expected {PROTOCOL_VERSION})",
+                PROTOCOL_VERSION + 9
+            )),
+            "{mismatch}"
+        );
+        assert!(mismatch.contains("same release"), "{mismatch}");
+
+        let missing = r#"{"id":"1","command":"ping","payload":null}"#;
+        let req: ServeRequest<Value> = serde_json::from_str(missing).unwrap();
+        assert_eq!(req.protocol_version, None);
+        let missing_err = req.unsupported_version_error().unwrap();
+        assert!(
+            missing_err.contains("missing serve protocol version"),
+            "{missing_err}"
+        );
+        assert!(missing_err.contains("same release"), "{missing_err}");
+
+        let null_version = r#"{"id":"1","protocolVersion":null,"command":"ping","payload":null}"#;
+        let req: ServeRequest<Value> = serde_json::from_str(null_version).unwrap();
+        assert!(req.unsupported_version_error().unwrap().contains("missing"));
+
+        let response_missing = r#"{"id":"1","ok":true,"data":null}"#;
+        let response: ServeResponse<Value> = serde_json::from_str(response_missing).unwrap();
+        assert!(response
+            .unsupported_version_error()
+            .unwrap()
+            .contains("missing serve protocol version"));
     }
 
     #[test]
@@ -316,12 +371,5 @@ mod tests {
         let ep: ServeEndpoints = serde_json::from_str(legacy).unwrap();
         assert!(ep.remote_command_addr.is_none());
         assert!(ep.remote_tls_fingerprint.is_none());
-    }
-
-    #[test]
-    fn unsupported_version_detected() {
-        let mut req = ServeRequest::new("ping", Value::Null);
-        req.protocol_version = 999;
-        assert!(req.unsupported_version_error().is_some());
     }
 }

@@ -2,7 +2,7 @@ use std::io::{BufRead, Write};
 use std::net::TcpStream;
 use std::time::Duration;
 
-use hg_core::{ServeRequest, ServeResponse, PROTOCOL_VERSION};
+use hg_core::{ServeRequest, ServeResponse};
 
 use super::endpoints::command_addr;
 use serde_json::Value;
@@ -21,8 +21,8 @@ pub fn is_port_open(timeout: Duration) -> bool {
 
 /// Dispatch a backend command through the serve IPC channel.
 ///
-/// The request carries [`PROTOCOL_VERSION`] and the local serve token. A response
-/// whose protocol version does not match is rejected.
+/// The request carries [`hg_core::PROTOCOL_VERSION`] and the local serve token.
+/// A response whose protocol version is missing or different is rejected.
 pub fn call_command(command: &str, payload: Value) -> Result<Value, String> {
     call_command_at(&command_addr(), super::auth::read_token(), command, payload)
 }
@@ -39,11 +39,8 @@ pub fn call_command_at(
 ) -> Result<Value, String> {
     let request = ServeRequest::new(command, payload).with_token(token);
     let response = send_request(addr, &request)?;
-    if response.protocol_version != PROTOCOL_VERSION {
-        return Err(format!(
-            "unsupported serve protocol version {} (expected {PROTOCOL_VERSION})",
-            response.protocol_version
-        ));
+    if let Some(err) = response.unsupported_version_error() {
+        return Err(err);
     }
     if response.ok {
         response
