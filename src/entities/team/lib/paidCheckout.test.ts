@@ -1,4 +1,37 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Node 20 has no global WebSocket. supabase-js constructs RealtimeClient at
+// import time, and that package is external to Vitest, so a mock of
+// @supabase/realtime-js never replaces the constructor. Stub the client module
+// the app imports instead, including the realtime surface paid checkout touches.
+vi.mock("@/shared/api/supabase", () => {
+  class RealtimeClient {
+    connect() {}
+    disconnect() {}
+    setAuth(_token?: string) {}
+    channel() {
+      return {};
+    }
+    getChannels() {
+      return [];
+    }
+    removeChannel() {
+      return "ok";
+    }
+    removeAllChannels() {
+      return [];
+    }
+  }
+  return {
+    supabase: {
+      realtime: new RealtimeClient(),
+      functions: {
+        invoke: async () => ({ data: null, error: null }),
+      },
+    },
+  };
+});
+
 import { hmacSha256Hex } from "../../../../supabase/functions/_shared/webhookSignature.ts";
 import { checkoutUrlFromFunctionPayload, localDevCheckoutUrl } from "./paidCheckout";
 

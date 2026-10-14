@@ -4,15 +4,12 @@
  * `sudo -u postgres psql` (no production connection).
  */
 import { execFileSync } from "node:child_process";
-import { chmodSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const database = "hg_accept_invite_test";
-const work = mkdtempSync(path.join(tmpdir(), "hg-invite-"));
-chmodSync(work, 0o755);
 
 const owner = "11111111-1111-4111-8111-111111111111";
 const admin = "22222222-2222-4222-8222-222222222222";
@@ -23,21 +20,20 @@ const workspace = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const shareToken = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const emailToken = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 
-function psql(db, sql) {
-  const file = path.join(work, `stmt-${Math.random().toString(16).slice(2)}.sql`);
-  writeFileSync(file, sql);
-  chmodSync(file, 0o644);
-  return execFileSync("sudo", ["-u", "postgres", "psql", "-v", "ON_ERROR_STOP=1", "-d", db, "-f", file], {
+function psql(db, sql, { quiet = false } = {}) {
+  const args = ["-u", "postgres", "psql", "-v", "ON_ERROR_STOP=1", "-d", db];
+  if (quiet) {
+    args.push("-q");
+  }
+  return execFileSync("sudo", args, {
     encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
+    input: sql,
+    stdio: ["pipe", "pipe", "pipe"],
   });
 }
 
 function psqlFile(db, file) {
-  return execFileSync("sudo", ["-u", "postgres", "psql", "-v", "ON_ERROR_STOP=1", "-q", "-d", db, "-f", file], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  return psql(db, readFileSync(file, "utf8"), { quiet: true });
 }
 
 function ensureCluster() {
@@ -247,8 +243,6 @@ for (const [name, outcome] of expected) {
     failures.push(`${name}: expected ${outcome}, got ${actual.get(name) ?? "missing"}`);
   }
 }
-
-rmSync(work, { recursive: true, force: true });
 
 if (failures.length > 0) {
   console.error(report);
