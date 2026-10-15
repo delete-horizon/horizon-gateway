@@ -1,19 +1,29 @@
 // Lemon Squeezy subscription webhook handling.
 //
-// Verifies the webhook signature, records the raw body in `webhook_events`
-// (sha256 hex id) so a replay returns 200 without reprocessing, then updates
-// workspace billing columns. The workspace id is honored only when
+// Verifies the webhook signature (x-signature HMAC), records the raw body in
+// `webhook_events` (sha256 hex id) so a replay returns 200 without reprocessing,
+// then updates workspace billing columns. The workspace id is honored when
 // `meta.custom_data.workspace_sig` is an HMAC of that id made with the webhook
-// secret. Unsigned custom data is ignored. Unknown subscription statuses do
-// not grant an active plan. Refund events also record `refund_events` and
-// deactivate the matching license key. If processing after the insert fails,
-// the event row is deleted so a retry is processed again.
+// secret. A present signature must verify; otherwise the event is ignored (200).
 //
+// Older app builds opened the plain checkout URL with only
+// `checkout[custom][workspace_id]`. Those unsigned subscription events may grant
+// the pro plan when the id is a UUID and the current time is before
+// LEGACY_UNSIGNED_CUTOFF (2026-11-15T00:00:00Z). Override that instant with the
+// LEGACY_UNSIGNED_CUTOFF env var (ISO-8601). The acceptance is logged as
+// `legacy_unsigned_checkout` with workspace_id and the event name. Refunds and
+// cancellations keep the previous rules. After the cutoff, unsigned payloads
+// are ignored. Unknown subscription statuses do not grant an active plan.
+// Refund events also record `refund_events` and deactivate the matching license
+// key. If processing after the insert fails, the event row is deleted so a
+// retry is processed again.
+//
+// Deploy order: create-checkout, then the app release, then this webhook.
 // Refunds do not block purchases. Apply the billing RLS migration and the
 // refund_events migration before deploying this function.
 
 import { verifyWorkspaceBinding } from "../_shared/checkoutRequest.ts";
-import { isRecord } from "../_shared/guards.ts";
+import { isRecord, isUuid } from "../_shared/guards.ts";
 import { lemonSubscriptionId, lemonVariantId, mapLemonSubscriptionStatus } from "../_shared/lemonSubscription.ts";
 import { hmacSha256Hex, sha256Hex, timingSafeEqualHex } from "../_shared/webhookSignature.ts";
 import { type LemonPayload, planLemonPayload, REFUND_EVENTS } from "./refund.ts";
@@ -43,9 +53,28 @@ export interface WebhookSupabase {
 export interface WebhookHandlerDeps {
   supabase: WebhookSupabase;
   webhookSecret: string;
+  /**
+   * ISO-8601 cutoff. `index.ts` passes `LEGACY_UNSIGNED_CUTOFF` from the
+   * environment. When omitted, the constant is used.
+   */
+  legacyUnsignedCutoff?: string;
 }
 
 const MAX_BODY_BYTES = 1_000_000;
+
+/** Unsigned UUID checkouts may grant pro only before this instant. */
+export const LEGACY_UNSIGNED_CUTOFF = "2026-11-15T00:00:00Z";
+
+/** Invalid or blank values fall back to {@link LEGACY_UNSIGNED_CUTOFF}. */
+export function resolveLegacyUnsignedCutoff(rawValue: string | undefined): number {
+  const raw = rawValue?.trim() || LEGACY_UNSIGNED_CUTOFF;
+  const parsed = Date.parse(raw);
+  return Number.isNaN(parsed) ? Date.parse(LEGACY_UNSIGNED_CUTOFF) : parsed;
+}
+
+function presentWorkspaceSig(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
 
 // Horizon Gateway Team Pro — Monthly · 5 seats ($15)
 export const SEAT_LIMIT_BY_VARIANT: Record<string, number> = {
@@ -215,8 +244,23 @@ export async function handleLemonSqueezyWebhook(req: Request, deps: WebhookHandl
 
     const custom = isRecord(meta.custom_data) ? meta.custom_data : {};
     const workspaceId = custom.workspace_id;
-    const bound = await verifyWorkspaceBinding(deps.webhookSecret, workspaceId, custom.workspace_sig);
-    if (!bound || typeof workspaceId !== "string") {
+    const workspaceSig = custom.workspace_sig;
+    const cutoffMs = resolveLegacyUnsignedCutoff(deps.legacyUnsignedCutoff);
+    // A present workspace_sig must verify. Unsigned checkouts are a temporary
+    // upgrade path only: refunds and cancellations stay on the previous rules.
+    let boundWorkspaceId: string;
+    let legacyUnsigned = false;
+    if (presentWorkspaceSig(workspaceSig)) {
+      const bound = await verifyWorkspaceBinding(deps.webhookSecret, workspaceId, workspaceSig);
+      if (!bound || typeof workspaceId !== "string") {
+        console.warn("lemon webhook rejected workspace binding");
+        return new Response("ignored", { status: 200 });
+      }
+      boundWorkspaceId = workspaceId;
+    } else if (Date.now() < cutoffMs && isUuid(workspaceId) && !REFUND_EVENTS.has(eventName)) {
+      boundWorkspaceId = workspaceId;
+      legacyUnsigned = true;
+    } else {
       console.warn("lemon webhook rejected workspace binding");
       return new Response("ignored", { status: 200 });
     }
@@ -227,6 +271,19 @@ export async function handleLemonSqueezyWebhook(req: Request, deps: WebhookHandl
     if (!status) {
       console.warn("lemon webhook ignored unknown subscription status");
       return new Response("ignored", { status: 200 });
+    }
+    if (legacyUnsigned && status === "canceled") {
+      console.warn("lemon webhook rejected workspace binding");
+      return new Response("ignored", { status: 200 });
+    }
+    if (legacyUnsigned) {
+      console.warn(
+        JSON.stringify({
+          msg: "legacy_unsigned_checkout",
+          workspace_id: boundWorkspaceId,
+          event_name: eventName,
+        }),
+      );
     }
 
     const variantId = lemonVariantId(attributes.variant_id);
@@ -250,7 +307,7 @@ export async function handleLemonSqueezyWebhook(req: Request, deps: WebhookHandl
     const { error, count } = await deps.supabase
       .from("workspaces")
       .update(updates, { count: "exact" })
-      .eq("id", workspaceId);
+      .eq("id", boundWorkspaceId);
     if (error || count === 0) {
       console.error("workspaces update failed");
       await releaseWebhookEvent(deps.supabase, eventId);

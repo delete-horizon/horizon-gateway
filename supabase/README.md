@@ -84,6 +84,14 @@ select public.purge_billing_retention();
 
 The job is idempotent: re-applying the migration unschedules and recreates that job name. Run the migration before deploying `lemon-squeezy-webhook`, or refund inserts fail.
 
+## Signed checkout rollout
+
+`create-checkout` appends `checkout[custom][workspace_sig]`, an HMAC of the workspace id. `lemon-squeezy-webhook` requires the `x-signature` HMAC on every request. When `meta.custom_data.workspace_sig` is present it must verify, or the subscription event is ignored.
+
+Older app builds opened the plain checkout URL with only `checkout[custom][workspace_id]`. Until `2026-11-15T00:00:00Z` the webhook accepts those subscription events when the id is a UUID and the event grants the pro plan, and logs `legacy_unsigned_checkout` with `workspace_id` and the event name. Refunds and cancellations stay on the previous rules: a refund is recorded without a workspace signature, and an unsigned cancellation does not change the workspace plan. After the cutoff, unsigned payloads are ignored.
+
+Override the cutoff with the `LEGACY_UNSIGNED_CUTOFF` env var (ISO-8601). Deploy in this order: `create-checkout`, then the app release, then `lemon-squeezy-webhook`.
+
 ## Historical note
 
 `20260806000001_team_entitlement.sql` still contains a one-time prod UID grant. Left for remote history; do not copy that pattern.
