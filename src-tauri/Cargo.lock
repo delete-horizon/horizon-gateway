@@ -2080,7 +2080,7 @@ dependencies = [
 
 [[package]]
 name = "hg-core"
-version = "2.8.15"
+version = "2.9.0"
 dependencies = [
  "chrono",
  "serde",
@@ -2091,7 +2091,7 @@ dependencies = [
 
 [[package]]
 name = "hgc"
-version = "2.8.15"
+version = "2.9.0"
 dependencies = [
  "horizon-gateway-serve",
 ]

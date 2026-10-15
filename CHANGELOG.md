@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.9.0] - 2026-10-15
+
+### Security
+
+- Strengthened security in the checkout flow. A verification step now ensures a payment is applied only to the correct workspace.
+
+### Billing
+
+- Improved refund handling.
+- Old billing records are now removed automatically after the retention period set out in the privacy policy.
+
+### Team
+
+- Clarified permissions for each workspace member role.
+- Fixed an issue where accepting an invite did not work.
+
 ## [v2.8.15] - 2026-10-06
 
 ### Security
