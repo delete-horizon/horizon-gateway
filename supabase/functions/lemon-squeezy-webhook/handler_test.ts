@@ -1,9 +1,17 @@
 import { signWorkspaceId } from "../_shared/checkoutRequest.ts";
-import { handleLemonSqueezyWebhook, SEAT_LIMIT_BY_VARIANT, type WebhookSupabase } from "./handler.ts";
+import {
+  handleLemonSqueezyWebhook,
+  LEGACY_UNSIGNED_CUTOFF,
+  resolveLegacyUnsignedCutoff,
+  SEAT_LIMIT_BY_VARIANT,
+  type WebhookSupabase,
+} from "./handler.ts";
 
 const SECRET = "test-webhook-secret";
 const PRO_VARIANT_ID = "1987632";
 const WORKSPACE_ID = "11111111-1111-4111-8111-111111111111";
+const BEFORE_CUTOFF = "2099-01-01T00:00:00Z";
+const AFTER_CUTOFF = "2020-01-01T00:00:00Z";
 
 interface RecordedUpdate {
   table: string;
@@ -100,6 +108,20 @@ function assertEquals(actual: unknown, expected: unknown): void {
   if (actualJson !== expectedJson) {
     throw new Error(`expected ${expectedJson} but got ${actualJson}`);
   }
+}
+
+function captureWarnings(): { text: () => string; restore: () => void } {
+  const lines: string[] = [];
+  const original = console.warn;
+  console.warn = (...args: unknown[]) => {
+    lines.push(args.map((part) => (typeof part === "string" ? part : JSON.stringify(part))).join(" "));
+  };
+  return {
+    text: () => lines.join("\n"),
+    restore: () => {
+      console.warn = original;
+    },
+  };
 }
 
 function toHex(buffer: ArrayBuffer): string {
@@ -358,7 +380,7 @@ Deno.test("subscription_created does not record a refund or touch a license key"
   assertEquals(mock.updates[0].values.seat_limit, 5);
 });
 
-Deno.test("unsigned workspace binding is ignored and does not grant a plan", async () => {
+Deno.test("unsigned workspace binding after the cutoff is ignored and does not grant a plan", async () => {
   const mock = createMock();
   const body = await subscriptionBody({
     event: "subscription_created",
@@ -366,16 +388,20 @@ Deno.test("unsigned workspace binding is ignored and does not grant a plan", asy
     variantId: Number(PRO_VARIANT_ID),
     signWorkspace: false,
   });
+  const warnings = captureWarnings();
   const response = await handleLemonSqueezyWebhook(post(body, await sign(body)), {
     supabase: mock.supabase,
     webhookSecret: SECRET,
+    legacyUnsignedCutoff: AFTER_CUTOFF,
   });
+  warnings.restore();
 
   assertEquals(response.status, 200);
   assertEquals(await response.text(), "ignored");
   assertEquals(mock.updates.length, 0);
   assertEquals(mock.deletes.length, 0);
   assertEquals(mock.events.size, 1);
+  assertEquals(warnings.text().includes("legacy_unsigned_checkout"), false);
 });
 
 Deno.test("unknown subscription status does not grant an active plan", async () => {
@@ -577,3 +603,210 @@ Deno.test("ignored events do not echo the event name", async () => {
   assertEquals(text.includes("order_created"), false);
   assertEquals(mock.updates.length, 0);
 });
+
+Deno.test("resolveLegacyUnsignedCutoff reads an ISO override and falls back to the constant", () => {
+  assertEquals(LEGACY_UNSIGNED_CUTOFF, "2026-11-15T00:00:00Z");
+  assertEquals(resolveLegacyUnsignedCutoff(undefined), Date.parse(LEGACY_UNSIGNED_CUTOFF));
+  assertEquals(resolveLegacyUnsignedCutoff("  "), Date.parse(LEGACY_UNSIGNED_CUTOFF));
+  assertEquals(resolveLegacyUnsignedCutoff("not-a-date"), Date.parse(LEGACY_UNSIGNED_CUTOFF));
+  assertEquals(resolveLegacyUnsignedCutoff("2026-12-01T00:00:00Z"), Date.parse("2026-12-01T00:00:00Z"));
+});
+
+Deno.test("signed workspace binding is accepted and does not log a legacy checkout", async () => {
+  const mock = createMock();
+  const body = await subscriptionBody({
+    event: "subscription_created",
+    status: "active",
+    variantId: Number(PRO_VARIANT_ID),
+  });
+  const warnings = captureWarnings();
+  const response = await handleLemonSqueezyWebhook(post(body, await sign(body)), {
+    supabase: mock.supabase,
+    webhookSecret: SECRET,
+    legacyUnsignedCutoff: BEFORE_CUTOFF,
+  });
+  warnings.restore();
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.text(), "ok");
+  assertEquals(mock.updates.length, 1);
+  assertEquals(mock.updates[0].values.plan, "pro");
+  assertEquals(warnings.text().includes("legacy_unsigned_checkout"), false);
+});
+
+Deno.test("a bad workspace_sig is rejected before the cutoff", async () => {
+  const mock = createMock();
+  const body = JSON.stringify({
+    meta: {
+      event_name: "subscription_created",
+      custom_data: { workspace_id: WORKSPACE_ID, workspace_sig: "ab".repeat(32) },
+    },
+    data: {
+      id: "sub-bad-sig",
+      attributes: { status: "active", variant_id: Number(PRO_VARIANT_ID) },
+    },
+  });
+  const warnings = captureWarnings();
+  const response = await handleLemonSqueezyWebhook(post(body, await sign(body)), {
+    supabase: mock.supabase,
+    webhookSecret: SECRET,
+    legacyUnsignedCutoff: BEFORE_CUTOFF,
+  });
+  warnings.restore();
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.text(), "ignored");
+  assertEquals(mock.updates.length, 0);
+  assertEquals(warnings.text().includes("legacy_unsigned_checkout"), false);
+});
+
+Deno.test("unsigned checkout before the cutoff grants pro and logs legacy_unsigned_checkout", async () => {
+  const mock = createMock();
+  const body = await subscriptionBody({
+    event: "subscription_created",
+    status: "active",
+    variantId: Number(PRO_VARIANT_ID),
+    signWorkspace: false,
+  });
+  const warnings = captureWarnings();
+  const response = await handleLemonSqueezyWebhook(post(body, await sign(body)), {
+    supabase: mock.supabase,
+    webhookSecret: SECRET,
+    legacyUnsignedCutoff: BEFORE_CUTOFF,
+  });
+  warnings.restore();
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.text(), "ok");
+  assertEquals(mock.updates.length, 1);
+  assertEquals(mock.updates[0].value, WORKSPACE_ID);
+  assertEquals(mock.updates[0].values, {
+    status: "active",
+    plan: "pro",
+    seat_limit: 5,
+    ls_subscription_id: "sub-1",
+  });
+  const logged = warnings
+    .text()
+    .split("\n")
+    .map((line) => {
+      try {
+        return JSON.parse(line) as unknown;
+      } catch {
+        return null;
+      }
+    })
+    .find((line) => isLegacyLog(line));
+  assertEquals(logged, {
+    msg: "legacy_unsigned_checkout",
+    workspace_id: WORKSPACE_ID,
+    event_name: "subscription_created",
+  });
+});
+
+Deno.test("unsigned checkout after the cutoff is rejected", async () => {
+  const mock = createMock();
+  const body = await subscriptionBody({
+    event: "subscription_updated",
+    status: "active",
+    variantId: Number(PRO_VARIANT_ID),
+    signWorkspace: false,
+  });
+  const warnings = captureWarnings();
+  const response = await handleLemonSqueezyWebhook(post(body, await sign(body)), {
+    supabase: mock.supabase,
+    webhookSecret: SECRET,
+    legacyUnsignedCutoff: AFTER_CUTOFF,
+  });
+  warnings.restore();
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.text(), "ignored");
+  assertEquals(mock.updates.length, 0);
+  assertEquals(warnings.text().includes("legacy_unsigned_checkout"), false);
+});
+
+Deno.test("unsigned non-uuid workspace id is rejected before the cutoff", async () => {
+  const mock = createMock();
+  const body = await subscriptionBody({
+    event: "subscription_created",
+    status: "active",
+    variantId: Number(PRO_VARIANT_ID),
+    workspaceId: "ws-1",
+    signWorkspace: false,
+  });
+  const warnings = captureWarnings();
+  const response = await handleLemonSqueezyWebhook(post(body, await sign(body)), {
+    supabase: mock.supabase,
+    webhookSecret: SECRET,
+    legacyUnsignedCutoff: BEFORE_CUTOFF,
+  });
+  warnings.restore();
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.text(), "ignored");
+  assertEquals(mock.updates.length, 0);
+  assertEquals(warnings.text().includes("legacy_unsigned_checkout"), false);
+});
+
+Deno.test("unsigned cancellation before the cutoff does not change the plan", async () => {
+  const mock = createMock();
+  const body = await subscriptionBody({
+    event: "subscription_cancelled",
+    status: "cancelled",
+    variantId: Number(PRO_VARIANT_ID),
+    signWorkspace: false,
+  });
+  const warnings = captureWarnings();
+  const response = await handleLemonSqueezyWebhook(post(body, await sign(body)), {
+    supabase: mock.supabase,
+    webhookSecret: SECRET,
+    legacyUnsignedCutoff: BEFORE_CUTOFF,
+  });
+  warnings.restore();
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.text(), "ignored");
+  assertEquals(mock.updates.length, 0);
+  assertEquals(warnings.text().includes("legacy_unsigned_checkout"), false);
+});
+
+Deno.test("unsigned refund before the cutoff still records the refund and does not grant a plan", async () => {
+  const mock = createMock();
+  const body = JSON.stringify({
+    meta: {
+      event_name: "subscription_payment_refunded",
+      custom_data: { workspace_id: WORKSPACE_ID },
+    },
+    data: {
+      id: "9",
+      attributes: {
+        status: "active",
+        user_email: "sub@example.com",
+        subscription_id: 77,
+        refunded_at: "2026-10-02T00:00:00.000Z",
+        variant_id: Number(PRO_VARIANT_ID),
+      },
+    },
+  });
+  const warnings = captureWarnings();
+  const response = await handleLemonSqueezyWebhook(post(body, await sign(body)), {
+    supabase: mock.supabase,
+    webhookSecret: SECRET,
+    legacyUnsignedCutoff: BEFORE_CUTOFF,
+  });
+  warnings.restore();
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.text(), "ignored");
+  assertEquals(mock.rpcs.map((call) => call.fn), ["record_refund_event", "deactivate_license_for_refund"]);
+  assertEquals(mock.updates.length, 0);
+  assertEquals(warnings.text().includes("legacy_unsigned_checkout"), false);
+});
+
+function isLegacyLog(value: unknown): value is { msg: string; workspace_id: string; event_name: string } {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  return "msg" in value && (value as { msg?: unknown }).msg === "legacy_unsigned_checkout";
+}
