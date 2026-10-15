@@ -864,7 +864,12 @@ revoke all on function public.is_workspace_admin(uuid) from public, anon, authen
 revoke all on function public.shares_workspace_with(uuid) from public, anon, authenticated;
 revoke all on function public.shares_workspace(uuid) from public, anon, authenticated;
 revoke all on function public.avatar_author_name(uuid) from public, anon, authenticated;
-revoke all on function public.handle_new_user() from public, anon, authenticated;
+do $$
+begin
+  if to_regprocedure('public.handle_new_user()') is not null then
+    revoke all on function public.handle_new_user() from public, anon, authenticated;
+  end if;
+end $$;
 
 grant execute on function public.is_workspace_member(uuid) to authenticated;
 grant execute on function public.is_workspace_admin(uuid) to authenticated;
