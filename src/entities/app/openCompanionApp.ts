@@ -1,5 +1,6 @@
 import { getDefaultStore } from "jotai";
 import { commands } from "@/shared/api";
+import { logClientFailure } from "@/shared/lib/appLog";
 import { putSessionHandoff } from "./sessionHandoff";
 import { supabaseSessionAtom } from "./user/store";
 
@@ -12,7 +13,11 @@ export async function openWorkspaceCompanion(tab?: CommTab): Promise<string | nu
     await putSessionHandoff(session.access_token, session.refresh_token);
   }
   const result = await commands.openWorkspaceApp(tab ?? null);
-  return result.status === "error" ? result.error : null;
+  if (result.status === "error") {
+    await logClientFailure({ function: "open-workspace", reason: "spawn_failed", status: null, workspaceId: null });
+    return result.error;
+  }
+  return null;
 }
 
 /** Focus the Hub window, spawning it when it is not running. */
