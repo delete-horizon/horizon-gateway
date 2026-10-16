@@ -395,13 +395,94 @@ fn workspace_open_arg(tab: Option<String>) -> Vec<String> {
     vec![format!("hg-open:/comm?tab={tab}")]
 }
 
+/// How the main window reacts to a close request.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MainWindowClose {
+    /// Hub asks whether to hide to the tray or quit.
+    Ask,
+    /// Team window stays registered so a later launch can show it.
+    Hide,
+}
+
+/// What a second launch should do with `main`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RevealMain {
+    Show,
+    Leave,
+    /// The Team window was destroyed. Exit so the next spawn can create one.
+    ExitZombie,
+}
+
+pub const fn main_window_close(is_workspace: bool) -> MainWindowClose {
+    if is_workspace {
+        MainWindowClose::Hide
+    } else {
+        MainWindowClose::Ask
+    }
+}
+
+pub const fn reveal_main_decision(window_present: bool, is_workspace: bool) -> RevealMain {
+    if window_present {
+        RevealMain::Show
+    } else if is_workspace {
+        RevealMain::ExitZombie
+    } else {
+        RevealMain::Leave
+    }
+}
+
+pub fn on_main_window_close(app: &AppHandle, is_workspace: bool) {
+    match main_window_close(is_workspace) {
+        MainWindowClose::Hide => {
+            if let Some(window) = app.get_webview_window("main") {
+                if window.hide().is_err() {
+                    crate::app_log::record_failure("open-workspace", "hide_failed", None, None);
+                }
+            }
+        }
+        MainWindowClose::Ask => {
+            let _ = app.emit("main-window-close-requested", ());
+        }
+    }
+}
+
+pub fn reveal_main_window(app: &AppHandle, is_workspace: bool) {
+    let present = app.get_webview_window("main").is_some();
+    match reveal_main_decision(present, is_workspace) {
+        RevealMain::Show => {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }
+        RevealMain::ExitZombie => {
+            crate::app_log::record_failure("open-workspace", "window_missing", None, None);
+            app.exit(0);
+        }
+        RevealMain::Leave => {}
+    }
+}
+
 /// Spawn the Comm companion exe. A second launch focuses the existing process.
 #[tauri::command]
 #[specta::specta]
 pub fn open_workspace_app(tab: Option<String>) -> Result<(), String> {
-    let exe = crate::serve::workspace_exe_path()?;
+    let exe = match crate::serve::workspace_exe_path() {
+        Ok(exe) => exe,
+        Err(err) => {
+            crate::app_log::record_failure("open-workspace", "spawn_failed", None, None);
+            return Err(err);
+        }
+    };
     let args = workspace_open_arg(tab);
-    crate::serve::spawn_gui_companion(exe, "workspace", &args)
+    match crate::serve::spawn_gui_companion(exe, "workspace", &args) {
+        Ok(()) => Ok(()),
+        Err(err) => {
+            crate::app_log::record_failure("open-workspace", "spawn_failed", None, None);
+            Err(err)
+        }
+    }
 }
 
 /// Spawn or focus the Hub window. Attaches to the serve this process is already using.
@@ -750,4 +831,22 @@ fn action_menu_origin(app: &AppHandle, x: f64, y: f64) -> (i32, i32) {
         top = (work_bottom - height - margin).max(work_top);
     }
     (left, top)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{main_window_close, reveal_main_decision, MainWindowClose, RevealMain};
+
+    #[test]
+    fn team_window_close_hides_instead_of_destroying() {
+        assert_eq!(main_window_close(true), MainWindowClose::Hide);
+        assert_eq!(main_window_close(false), MainWindowClose::Ask);
+    }
+
+    #[test]
+    fn destroyed_team_window_drops_the_zombie_instance() {
+        assert_eq!(reveal_main_decision(true, true), RevealMain::Show);
+        assert_eq!(reveal_main_decision(false, true), RevealMain::ExitZombie);
+        assert_eq!(reveal_main_decision(false, false), RevealMain::Leave);
+    }
 }

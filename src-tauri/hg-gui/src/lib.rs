@@ -1,10 +1,11 @@
 #![allow(unsafe_code)]
 
-use tauri::{Emitter, Manager};
+use tauri::Emitter;
 use tauri_plugin_deep_link::DeepLinkExt;
 
 pub use hg_core::model;
 
+mod app_log;
 mod comm_overlay;
 mod logging;
 pub mod serve;
@@ -15,6 +16,7 @@ mod command {
     pub mod windows_update;
 }
 
+use app_log::log_client_failure;
 use comm_overlay::{
     broadcast_comm_bubble, clear_comm_overlay, install_comm_avatar_parts, play_comm_action,
     set_comm_overlay_tool, show_comm_bubble, sync_comm_residents, take_overlay_resident_click,
@@ -24,10 +26,11 @@ use command::system_proxy_commands::{clear_system_pac, set_system_pac};
 use command::window_commands::{
     app_shell_role, capture_app_screenshot, clear_incoming_cards, dismiss_incoming_card,
     ensure_serve_running, fit_resident_composer, list_incoming_cards,
-    note_companion_open_from_args, open_annotation_dialog, open_external_url, open_hub_app,
-    open_inspector_window, open_resident_action_menu, open_resident_composer, open_window,
-    open_workspace_app, prepare_for_update, prepare_incoming_cards, push_incoming_card, quit_app,
-    set_pending_companion_open, set_shell_role, take_companion_open, trigger_os_snip,
+    note_companion_open_from_args, on_main_window_close, open_annotation_dialog, open_external_url,
+    open_hub_app, open_inspector_window, open_resident_action_menu, open_resident_composer,
+    open_window, open_workspace_app, prepare_for_update, prepare_incoming_cards,
+    push_incoming_card, quit_app, reveal_main_window, set_pending_companion_open, set_shell_role,
+    take_companion_open, trigger_os_snip,
 };
 use command::windows_update::install_windows_update;
 
@@ -41,6 +44,7 @@ pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         open_resident_action_menu,
         open_resident_composer,
         push_incoming_card,
+        log_client_failure,
         open_window,
         open_workspace_app,
         open_hub_app,
@@ -126,23 +130,22 @@ fn run_inner(is_workspace: bool, context: tauri::Context<tauri::Wry>) {
         .expect("rustls default crypto provider");
 
     let builder = tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            tracing::info!("Single Instance triggered with args: {:?}", argv);
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.unminimize();
-                let _ = window.set_focus();
-            }
-            for arg in argv {
-                if let Some(path) = arg.strip_prefix("hg-open:") {
-                    set_pending_companion_open(path.to_string());
-                    let _ = app.emit("companion-navigate", path.to_string());
+        .plugin(tauri_plugin_single_instance::init(
+            move |app, argv, _cwd| {
+                // argv can carry a deep link. Do not write it to the log.
+                tracing::info!("[gui] single instance launch");
+                reveal_main_window(app, is_workspace);
+                for arg in argv {
+                    if let Some(path) = arg.strip_prefix("hg-open:") {
+                        set_pending_companion_open(path.to_string());
+                        let _ = app.emit("companion-navigate", path.to_string());
+                    }
+                    if arg.starts_with("horizon-gateway://") {
+                        let _ = app.emit("deep-link-received", arg);
+                    }
                 }
-                if arg.starts_with("horizon-gateway://") {
-                    let _ = app.emit("deep-link-received", arg);
-                }
-            }
-        }))
+            },
+        ))
         .plugin(tauri_plugin_deep_link::init())
         .setup(move |app| {
             use tracing_subscriber::{
@@ -229,9 +232,12 @@ fn run_inner(is_workspace: bool, context: tauri::Context<tauri::Wry>) {
                 label,
                 event: tauri::WindowEvent::CloseRequested { api, .. },
                 ..
-            } if label == "main" && !is_workspace => {
+            } if label == "main" => {
+                // Team (workspace) must hide `main` instead of destroying it.
+                // This process stays the single instance, and a later launch only
+                // shows the window that still owns the `main` label.
                 api.prevent_close();
-                let _ = app_handle.emit("main-window-close-requested", ());
+                on_main_window_close(app_handle, is_workspace);
             }
             _ => {}
         });

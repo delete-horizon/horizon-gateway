@@ -1,4 +1,5 @@
 import { supabase } from "@/shared/api/supabase";
+import { logClientFailure } from "@/shared/lib/appLog";
 import {
   buildLocalDevCheckoutUrl,
   isBoundCheckoutUrl,
@@ -29,6 +30,86 @@ export function localDevCheckoutUrl(base: string, workspaceId: string): string |
   return buildLocalDevCheckoutUrl(base, workspaceId);
 }
 
+const CHECKOUT_ERROR_REASONS: Record<string, string> = {
+  unauthorized: "unauthorized",
+  forbidden: "not_admin",
+  "too many requests": "rate_limited",
+  "invalid request": "invalid_request",
+  "method not allowed": "invalid_request",
+  "checkout is unavailable": "unavailable",
+};
+
+/** Map a known checkout error string. Unknown text is dropped so it cannot leak into the log. */
+export function reasonFromCheckoutError(message: string): string | null {
+  return CHECKOUT_ERROR_REASONS[message.trim().toLowerCase()] ?? null;
+}
+
+export function reasonFromHttpStatus(status: number): string {
+  if (status === 401) {
+    return "unauthorized";
+  }
+  if (status === 403) {
+    return "not_admin";
+  }
+  if (status === 429) {
+    return "rate_limited";
+  }
+  if (status === 400 || status === 405) {
+    return "invalid_request";
+  }
+  if (status >= 500) {
+    return "unavailable";
+  }
+  return "invoke_error";
+}
+
+function isResponse(value: unknown): value is Response {
+  return typeof Response !== "undefined" && value instanceof Response;
+}
+
+function statusFromInvokeError(error: unknown): number | null {
+  if (!isRecord(error)) {
+    return null;
+  }
+  const context = error.context;
+  if (isResponse(context)) {
+    return context.status;
+  }
+  if (isRecord(context) && typeof context.status === "number") {
+    return context.status;
+  }
+  return null;
+}
+
+async function checkoutErrorMessage(error: unknown): Promise<string | null> {
+  if (!isRecord(error) || !isResponse(error.context)) {
+    return null;
+  }
+  try {
+    const body: unknown = await error.context.clone().json();
+    if (!isRecord(body) || typeof body.error !== "string") {
+      return null;
+    }
+    return reasonFromCheckoutError(body.error) ? body.error : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Reason code and HTTP status for a create-checkout invoke error. The raw body is not returned. */
+export async function describeCheckoutFailure(error: unknown): Promise<{ reason: string; status: number | null }> {
+  const status = statusFromInvokeError(error);
+  const message = await checkoutErrorMessage(error);
+  const mapped = message ? reasonFromCheckoutError(message) : null;
+  if (mapped) {
+    return { reason: mapped, status };
+  }
+  if (status != null) {
+    return { reason: reasonFromHttpStatus(status), status };
+  }
+  return { reason: "invoke_error", status: null };
+}
+
 /** Accept a function payload only when it is an HTTPS Lemon URL bound to this workspace. */
 export function checkoutUrlFromFunctionPayload(payload: unknown, workspaceId: string): string | null {
   if (!isRecord(payload) || typeof payload.url !== "string") {
@@ -43,8 +124,23 @@ export async function fetchHostedCheckoutUrl(workspaceId: string): Promise<strin
     body: { workspace_id: workspaceId },
   });
   if (error) {
-    console.error("create-checkout failed");
+    const failure = await describeCheckoutFailure(error);
+    await logClientFailure({
+      function: "create-checkout",
+      reason: failure.reason,
+      status: failure.status,
+      workspaceId,
+    });
     return null;
   }
-  return checkoutUrlFromFunctionPayload(data, workspaceId);
+  const url = checkoutUrlFromFunctionPayload(data, workspaceId);
+  if (!url) {
+    await logClientFailure({
+      function: "create-checkout",
+      reason: "unbound_url",
+      status: null,
+      workspaceId,
+    });
+  }
+  return url;
 }

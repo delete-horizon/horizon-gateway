@@ -1,6 +1,7 @@
 /// GUI-only commands: intercepted by the Tauri specta handler, NOT forwarded to serve.
 /// All other commands are always forwarded to hg-serve via TCP IPC.
 const GUI_ONLY_COMMANDS: &[&str] = &[
+    "log_client_failure",
     "open_window",
     "open_workspace_app",
     "open_hub_app",
@@ -57,6 +58,12 @@ mod tests {
     fn quit_app_stays_in_gui() {
         assert!(is_gui_only("quit_app"));
         assert!(!should_forward("quit_app"));
+    }
+
+    #[test]
+    fn client_failure_log_stays_in_gui() {
+        assert!(is_gui_only("log_client_failure"));
+        assert!(!should_forward("log_client_failure"));
     }
 
     #[test]
