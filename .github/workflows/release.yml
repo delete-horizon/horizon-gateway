@@ -110,6 +110,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_ENABLE_PAID_CHECKOUT: "true"
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           # Official WinDivert x64 redistributable (dll/lib/sys) for dynamic link on Windows
           WINDIVERT_PATH: ${{ github.workspace }}/src-tauri/hg-gui/resources/windivert
