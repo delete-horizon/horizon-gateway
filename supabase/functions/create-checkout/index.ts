@@ -27,10 +27,20 @@ const BINDING_SECRET = Deno.env.get("LEMON_SQUEEZY_WEBHOOK_SECRET") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? "";
 
+// The desktop webview and website call this cross-origin. Auth is the bearer JWT,
+// so a wildcard origin is safe (no cookies are used).
+const CORS_HEADERS: Record<string, string> = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "POST, OPTIONS",
+  "access-control-allow-headers": "authorization, x-client-info, apikey, content-type",
+  "access-control-max-age": "86400",
+};
+
 function json(body: Record<string, string>, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
+      ...CORS_HEADERS,
       "content-type": "application/json",
       "cache-control": "no-store",
     },
@@ -38,6 +48,9 @@ function json(body: Record<string, string>, status: number): Response {
 }
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
+  }
   if (req.method !== "POST") {
     return json({ error: "method not allowed" }, 405);
   }
