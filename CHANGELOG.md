@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Security
 
 - Strengthened security in the checkout flow. A verification step now ensures a payment is applied only to the correct workspace.
+- Patched security advisories in the rustls networking library.
 
 ### Billing
 
